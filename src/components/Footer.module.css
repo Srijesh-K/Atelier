@@ -7,17 +7,31 @@
 }
 
 .giantOutlineText {
+  --mouse-x: -999px;
+  --mouse-y: -999px;
   -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.08);
   color: transparent;
   font-size: clamp(4rem, 15vw, 11rem);
-  font-weight: 800;
+  font-weight: 900;
   text-align: center;
   width: 100%;
-  letter-spacing: -0.02em;
-  font-family: var(--font-heading);
+  letter-spacing: -0.01em;
+  font-family: var(--font-outfit), sans-serif;
   margin-bottom: 2.5rem;
   user-select: none;
   line-height: 1;
+  text-transform: uppercase;
+  position: relative;
+  background:
+    radial-gradient(
+      circle 200px at var(--mouse-x) var(--mouse-y),
+      #ff8c42 0%,
+      #f25522 45%,
+      transparent 75%
+    );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .container {

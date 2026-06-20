@@ -1,15 +1,31 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import styles from './Footer.module.css';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const textRef = useRef(null);
+
+  const handleMouseMove = (e) => {
+    if (!textRef.current) return;
+    const rect = textRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    textRef.current.style.setProperty('--mouse-x', `${x}px`);
+    textRef.current.style.setProperty('--mouse-y', `${y}px`);
+  };
+
+  const handleMouseLeave = () => {
+    if (!textRef.current) return;
+    textRef.current.style.setProperty('--mouse-x', '-999px');
+    textRef.current.style.setProperty('--mouse-y', '-999px');
+  };
 
   return (
     <footer className={styles.footer}>
       {/* Giant Outline Brand Header */}
-      <div className={styles.giantOutlineText}>
+      <div ref={textRef} className={styles.giantOutlineText} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
         Atelier
       </div>
 
