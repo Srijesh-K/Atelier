@@ -1,27 +1,3 @@
-@font-face {
-  font-family: 'Neue Machina';
-  src: url('https://sheryians.com/fonts/NeueMachina-Light.woff2') format('woff2');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Neue Machina';
-  src: url('https://sheryians.com/fonts/NeueMachina-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Neue Machina';
-  src: url('https://sheryians.com/fonts/NeueMachina-Ultrabold.woff2') format('woff2');
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --bg-color: #000000;
   --text-primary: #ffffff;
@@ -29,11 +5,15 @@
   --accent-orange: #f25522;
   --accent-orange-dark: #cc441a;
   
-  --font-heading: 'Neue Machina', var(--font-outfit), sans-serif;
+  --font-heading: var(--font-manrope), var(--font-outfit), sans-serif;
   --font-body: var(--font-inter), sans-serif;
   
   --section-light-bg: #fff3ef;
   --section-light-text: #1a1a1a;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 * {
@@ -58,7 +38,7 @@ body.light-theme {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 800;
 }
 
 a {

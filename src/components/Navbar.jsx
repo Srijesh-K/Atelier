@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import styles from './Navbar.module.css';
 
 export default function Navbar() {
@@ -8,6 +10,7 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const lastScrollY = useRef(0);
 
+  const pathname = usePathname();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLightNavbar, setIsLightNavbar] = useState(false);
@@ -15,12 +18,60 @@ export default function Navbar() {
   const navPillsRef = useRef(null);
 
   const navItems = [
-    { label: 'Home', href: '#' },
-    { label: 'Courses', href: '#courses' },
-    { label: 'Bootcamp', href: '#bootcamp' },
-    { label: 'Request Callback', href: '#callback' }
+    { label: 'Home', href: '/' },
+    { label: 'Courses', href: '/courses' },
+    { label: 'Bootcamp', href: '/#bootcamp' },
+    { label: 'Request Callback', href: '/#callback' }
   ];
 
+  // Dynamic active index based on route and scroll spy
+  useEffect(() => {
+    if (pathname !== '/') {
+      const idx = navItems.findIndex((item) => item.href === pathname);
+      if (idx !== -1) {
+        setActiveIndex(idx);
+      }
+      return;
+    }
+
+    // Scroll spy for homepage
+    const handleScrollSpy = () => {
+      const scrollPosition = window.scrollY + 120; // offset for header
+
+      // Near top? Home is active
+      if (scrollPosition < 400) {
+        setActiveIndex(0);
+        return;
+      }
+
+      const sections = [
+        { id: 'courses', index: 1 },
+        { id: 'bootcamp', index: 2 },
+        { id: 'callback', index: 3 }
+      ];
+
+      for (const sec of sections) {
+        const el = document.getElementById(sec.id);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPosition >= top && scrollPosition < top + height) {
+            setActiveIndex(sec.index);
+            return;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScrollSpy);
+    handleScrollSpy(); // Initial run
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollSpy);
+    };
+  }, [pathname]);
+
+  // Handle active sliding liquid indicator positioning
   useEffect(() => {
     const updateIndicator = () => {
       if (navPillsRef.current) {
@@ -36,12 +87,15 @@ export default function Navbar() {
     };
 
     updateIndicator();
+    const timer = setTimeout(updateIndicator, 100);
     window.addEventListener('resize', updateIndicator);
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('resize', updateIndicator);
     };
   }, [activeIndex]);
 
+  // Scroll handler for navbar hide/show on scroll
   useEffect(() => {
     const coursesEl = document.getElementById('courses');
     const communityEl = document.getElementById('community');
@@ -50,14 +104,12 @@ export default function Navbar() {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
 
-      // Add background when scrolled past a threshold
       if (currentScrollY > 50) {
         setIsScrolled(true);
       } else {
         setIsScrolled(false);
       }
 
-      // Hide navbar when scrolling down, show when scrolling up
       if (currentScrollY > lastScrollY.current && currentScrollY > 120) {
         setIsVisible(false);
       } else {
@@ -66,7 +118,7 @@ export default function Navbar() {
 
       lastScrollY.current = currentScrollY;
 
-      // Detect active light sections
+      // Dark vs Light sections theme switch
       let lightActive = false;
       [coursesEl, communityEl].forEach((el) => {
         if (!el) return;
@@ -79,7 +131,6 @@ export default function Navbar() {
     };
 
     window.addEventListener('scroll', handleScroll);
-    // Initial run
     handleScroll();
 
     return () => {
@@ -109,6 +160,24 @@ export default function Navbar() {
     }
   };
 
+  const handleNavClick = (e, item, idx) => {
+    if (item.href.startsWith('/#') && pathname === '/') {
+      e.preventDefault();
+      const targetId = item.href.substring(2);
+      const targetEl = document.getElementById(targetId);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth' });
+        setActiveIndex(idx);
+        setIsMobileMenuOpen(false);
+      }
+    } else if (item.href === '/' && pathname === '/') {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setActiveIndex(0);
+      setIsMobileMenuOpen(false);
+    }
+  };
+
   const headerClass = `${styles.header} ${isVisible ? styles.visible : styles.hidden} ${isScrolled ? styles.scrolled : ''} ${isLightNavbar ? styles.lightTheme : ''}`;
 
   return (
@@ -127,21 +196,21 @@ export default function Navbar() {
           <div className={styles.navIndicator} style={indicatorStyle} />
           
           {navItems.map((item, idx) => (
-            <a
+            <Link
               key={idx}
               href={item.href}
               className={`${styles.navLink} ${activeIndex === idx ? styles.active : ''}`}
               onMouseEnter={handleMouseEnter}
-              onClick={() => setActiveIndex(idx)}
+              onClick={(e) => handleNavClick(e, item, idx)}
             >
               {item.label}
-            </a>
+            </Link>
           ))}
         </div>
       </nav>
       
       <div className={styles.actions}>
-        <a href="#signin" className={styles.signIn}>Sign In</a>
+        <Link href="/auth/signin" className={styles.signIn}>Sign In</Link>
       </div>
 
       {/* Mobile Menu Button */}
@@ -159,19 +228,16 @@ export default function Navbar() {
       <div className={`${styles.mobileOverlay} ${isMobileMenuOpen ? styles.overlayOpen : ''}`}>
         <div className={styles.mobileNavLinks}>
           {navItems.map((item, idx) => (
-            <a
+            <Link
               key={idx}
               href={item.href}
               className={`${styles.mobileNavLink} ${activeIndex === idx ? styles.mobileActive : ''}`}
-              onClick={() => {
-                setActiveIndex(idx);
-                setIsMobileMenuOpen(false);
-              }}
+              onClick={(e) => handleNavClick(e, item, idx)}
             >
               {item.label}
-            </a>
+            </Link>
           ))}
-          <a href="#signin" className={styles.mobileSignIn} onClick={() => setIsMobileMenuOpen(false)}>Sign In</a>
+          <Link href="/auth/signin" className={styles.mobileSignIn} onClick={() => setIsMobileMenuOpen(false)}>Sign In</Link>
         </div>
       </div>
     </header>

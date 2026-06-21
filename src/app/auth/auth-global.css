@@ -1,0 +1,64 @@
+/* ───────────────────────────────────
+   Auth Shell — global layout styles
+   (consumed by auth/layout.js)
+   ─────────────────────────────────── */
+
+.auth-shell {
+  min-height: 100vh;
+  background-color: #000;
+}
+
+.auth-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+  padding: 1.25rem 2.5rem;
+}
+
+.auth-logo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  color: #ffffff;
+  transition: opacity 0.3s ease;
+}
+
+.auth-logo-link:hover {
+  opacity: 0.85;
+}
+
+.auth-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.auth-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.auth-brand-name {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.auth-brand-sub {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+@media (max-width: 520px) {
+  .auth-header {
+    padding: 1rem 1.25rem;
+  }
+}

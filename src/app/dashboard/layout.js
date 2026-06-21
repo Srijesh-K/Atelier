@@ -1,0 +1,340 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { getStudents, getCourses } from '../actions';
+import styles from './dashboard.module.css';
+
+export default function DashboardLayout({ children }) {
+  const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
+  const pathname = usePathname();
+
+  const [activeCourseId, setActiveCourseId] = useState(1);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const [userName, setUserName] = useState('Jane Doe');
+  const [xp, setXp] = useState(450);
+  const [streak, setStreak] = useState(7);
+  const [enrolledCourses, setEnrolledCourses] = useState([1, 2]);
+  const [dbCourses, setDbCourses] = useState([]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Sync active course and username profile states
+  useEffect(() => {
+    const syncCourse = () => {
+      const saved = localStorage.getItem('activeCourseId');
+      if (saved) {
+        setActiveCourseId(parseInt(saved, 10));
+      }
+    };
+
+    const syncProfile = async () => {
+      const email = localStorage.getItem('loggedInStudentEmail');
+      if (!email) {
+        router.push('/auth/signin');
+        return;
+      }
+      const studentsList = await getStudents();
+      const student = studentsList.find((s) => s.email.toLowerCase() === email.toLowerCase());
+
+      if (student) {
+        setUserName(student.name);
+        setXp(student.xp || 0);
+        setStreak(student.streak || 0);
+        setEnrolledCourses(student.enrolledCourses || [1]);
+      } else {
+        localStorage.removeItem('loggedInStudentEmail');
+        router.push('/auth/signin');
+      }
+    };
+
+    const syncCoursesList = async () => {
+      const coursesList = await getCourses();
+      setDbCourses(coursesList);
+    };
+
+    syncCourse();
+    syncProfile();
+    syncCoursesList();
+
+    const onCourseChange = () => {
+      syncCourse();
+      syncProfile();
+      syncCoursesList();
+    };
+
+    const onProfileChange = () => {
+      syncProfile();
+      syncCoursesList();
+    };
+
+    window.addEventListener('courseChanged', onCourseChange);
+    window.addEventListener('profileChanged', onProfileChange);
+
+    return () => {
+      window.removeEventListener('courseChanged', onCourseChange);
+      window.removeEventListener('profileChanged', onProfileChange);
+    };
+  }, []);
+
+  // Map database courses to selector layout format
+  const courses = dbCourses
+    .filter((c) => enrolledCourses.includes(c.id))
+    .map((c) => ({
+      id: c.id,
+      name: c.title.includes(':') ? c.title.split(':')[0] : c.title,
+      desc: c.description.slice(0, 60) + '...'
+    }));
+
+  const activeCourse = courses.find((c) => c.id === activeCourseId) || courses[0] || { id: 1, name: 'Cohort 3.0', desc: 'No active course' };
+
+  const handleCourseChange = (id) => {
+    setActiveCourseId(id);
+    localStorage.setItem('activeCourseId', id.toString());
+    window.dispatchEvent(new Event('courseChanged'));
+  };
+
+  // If we are on the onboarding page, render a clean wrapper without sidebar/navigation
+  if (pathname === '/dashboard/onboarding') {
+    return <div className="onboard-shell">{children}</div>;
+  }
+
+  const navItems = [
+    {
+      label: 'Workbench',
+      href: '/dashboard',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="9" />
+          <rect x="14" y="3" width="7" height="5" />
+          <rect x="14" y="12" width="7" height="9" />
+          <rect x="3" y="16" width="7" height="5" />
+        </svg>
+      )
+    },
+    {
+      label: 'My Courses',
+      href: '/dashboard/my-courses',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      )
+    },
+    {
+      label: 'Explore Catalog',
+      href: '/dashboard/explore',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+      )
+    },
+    {
+      label: 'Live Classes',
+      href: '/dashboard/live',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 7a2 2 0 0 0-2.45-1.45L16 7V5a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2l4.55 1.45A2 2 0 0 0 23 17V7z" />
+        </svg>
+      )
+    },
+    {
+      label: 'Materials',
+      href: '/dashboard/materials',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+      )
+    }
+  ];
+
+  const getPageTitle = () => {
+    switch (pathname) {
+      case '/dashboard':
+        return 'Learning Workbench';
+      case '/dashboard/my-courses':
+        return 'Purchased Courses';
+      case '/dashboard/explore':
+        return 'Course Catalog';
+      case '/dashboard/live':
+        return 'Live Cohort Classes';
+      case '/dashboard/materials':
+        return 'Reference Materials';
+      case '/dashboard/profile':
+        return 'Student Profile';
+      default:
+        return 'Atelier Portal';
+    }
+  };
+
+  return (
+    <div className={`${styles.shell} ${collapsed ? styles.shellCollapsed : ''}`}>
+      {/* Sidebar navigation */}
+      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
+        <div className={styles.sidebarHeader}>
+          <img src="/logo.png" alt="Atelier Logo" className={styles.logoImg} />
+          <div className={styles.logoText}>
+            <span className={styles.brandName}>Atelier</span>
+            <span className={styles.brandSub}>Workspace</span>
+          </div>
+        </div>
+
+        <nav className={styles.sidebarNav}>
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
+                title={collapsed ? item.label : ''}
+              >
+                <div className={styles.navIcon}>{item.icon}</div>
+                <span className={styles.navLabel}>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className={styles.sidebarFooter}>
+          <Link href="/dashboard/profile" className={styles.footerUserRow}>
+            <img src="/images/avatar1.jpg" alt="Student Profile" className={styles.avatar} />
+            <div className={styles.userInfo}>
+              <span className={styles.username}>{userName}</span>
+              <span className={styles.userRole}>Premium Cohort</span>
+            </div>
+          </Link>
+          <button
+            className={styles.collapseBtn}
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? (
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main content viewport */}
+      <div className={styles.contentArea}>
+        <header className={styles.topHeader}>
+          <div className={styles.courseSelectorWrapper}>
+            <h1 className={styles.pageTitle} style={{ marginRight: '1rem' }}>
+              {getPageTitle()}
+            </h1>
+            {pathname !== '/dashboard/my-courses' && (
+              <div className={styles.customDropdownWrapper} ref={dropdownRef}>
+                <button 
+                  className={styles.dropdownToggle}
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  aria-haspopup="listbox"
+                  aria-expanded={dropdownOpen}
+                >
+                  <svg className={styles.dropdownToggleIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                  <div className={styles.dropdownToggleText}>
+                    <span className={styles.dropdownLabel}>Active Workspace</span>
+                    <span className={styles.dropdownValue}>{activeCourse.name}</span>
+                  </div>
+                  <svg 
+                    className={`${styles.dropdownChevron} ${dropdownOpen ? styles.dropdownChevronOpen : ''}`} 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2.5"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {dropdownOpen && (
+                  <div className={styles.dropdownMenu} role="listbox">
+                    {courses.map((c) => {
+                      const isSelected = c.id === activeCourseId;
+                      return (
+                        <div 
+                          key={c.id} 
+                          className={`${styles.dropdownItem} ${isSelected ? styles.dropdownItemActive : ''}`}
+                          onClick={() => {
+                            handleCourseChange(c.id);
+                            setDropdownOpen(false);
+                          }}
+                          role="option"
+                          aria-selected={isSelected}
+                        >
+                          <div className={styles.dropdownItemInfo}>
+                            <span className={styles.dropdownItemName}>{c.name}</span>
+                            <span className={styles.dropdownItemDesc}>{c.desc}</span>
+                          </div>
+                          {isSelected && (
+                            <span className={styles.dropdownCheck}>
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--accent-orange)" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className={styles.headerMetrics}>
+            <div className={`${styles.metricItem} ${styles.metricOrange}`}>
+              <svg className={styles.metricIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              <span>{xp} XP</span>
+            </div>
+            
+            <div className={styles.metricItem}>
+              <svg className={styles.metricIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              <span>{streak} Day Streak</span>
+            </div>
+          </div>
+        </header>
+
+        {React.Children.map(children, child => {
+          if (React.isValidElement(child)) {
+            return React.cloneElement(child, { activeCourseId });
+          }
+          return child;
+        })}
+      </div>
+    </div>
+  );
+}

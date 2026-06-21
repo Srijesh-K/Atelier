@@ -1,52 +1,31 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import styles from './Courses.module.css';
+import { getCourses } from '../app/actions';
 
 export default function Courses() {
-  const coursesList = [
-    {
-      id: 1,
-      type: 'white',
-      title: '3.0 Job Ready AI Powered Cohort: Complete Web Development + DSA + Gen-AI + Aptitude',
-      description: 'Build real scalable products used by thousands of users, learn AI engineering, full stack development, DevOps, system design, and prepare for interviews with mock practice.',
-      image: '/images/course_mentor_30.png',
-      badgeText: 'Real Product',
-      badges: [
-        { icon: 'clock', value: '7', label: 'Months' },
-        { icon: 'ribbon', value: 'Yes', label: 'Certified' },
-        { icon: 'phone', value: '24/7', label: 'Mentor Support' }
-      ]
-    },
-    {
-      id: 2,
-      type: 'orange',
-      title: 'Data Science & Analytics with Gen AI',
-      description: 'Gain hands-on experience in data analysis, visualization, and AI integration.',
-      image: '/images/course_data_science.png',
-      badges: [
-        { icon: 'clock', value: '5+', label: 'Months' },
-        { icon: 'ribbon', value: 'Yes', label: 'Certified' },
-        { icon: 'phone', value: '24/7', label: 'Mentor Support' }
-      ],
-      price: 'Rs.6999',
-      originalPrice: 'Rs.14891',
-      buttonText: 'Check Course'
-    },
-    {
-      id: 3,
-      type: 'black',
-      title: '2.0 Job Ready AI Powered Cohort: Complete Web Development + DSA + Gen-AI + Aptitude',
-      description: 'Build real scalable products used by thousands of users, learn AI engineering, full stack development, DevOps, system design, and prepare for interviews with mock practice.',
-      image: '/images/course_cohort_2.png',
-      badges: [
-        { icon: 'clock', value: '200+', label: 'Hours' },
-        { icon: 'ribbon', value: 'Yes', label: 'Certified' },
-        { icon: 'phone', value: '24/7', label: 'Mentor Support' }
-      ],
-      price: 'Rs.5999',
-      originalPrice: 'Rs.11998',
-      buttonText: 'Check Course'
-    }
-  ];
+  const [coursesList, setCoursesList] = useState([]);
+
+  useEffect(() => {
+    const loadCourses = async () => {
+      const allCourses = await getCourses();
+      setCoursesList(allCourses);
+    };
+    loadCourses();
+    window.addEventListener('courseChanged', loadCourses);
+    return () => window.removeEventListener('courseChanged', loadCourses);
+  }, []);
+
+  const getFormattedBadges = (badges) => {
+    if (!badges) return [];
+    if (typeof badges[0] === 'object') return badges;
+    return badges.map((badgeStr, idx) => {
+      if (idx === 0) return { icon: 'clock', value: '7 Months', label: badgeStr };
+      if (idx === 1) return { icon: 'ribbon', value: 'Yes', label: badgeStr };
+      return { icon: 'phone', value: '24/7', label: badgeStr };
+    });
+  };
 
   const renderIcon = (name) => {
     switch (name) {
@@ -81,7 +60,7 @@ export default function Courses() {
         <p className={styles.courseDescription}>{course.description}</p>
         
         <div className={styles.featuresList}>
-          {course.badges.map((badge, idx) => (
+          {getFormattedBadges(course.badges).map((badge, idx) => (
             <div key={idx} className={styles.featureItem}>
               <div className={styles.featureIcon}>{renderIcon(badge.icon)}</div>
               <div className={styles.featureText}>
@@ -142,7 +121,9 @@ export default function Courses() {
         <div className={styles.cardsList}>
           {coursesList.map((course, index) => {
             const isLeftImage = index % 2 === 0;
-            const cardClass = `${styles.courseCard} ${styles[`${course.type}Card`]}`;
+            const cardType = course.type || (index === 0 ? 'white' : index === 1 ? 'orange' : 'black');
+            const cardClass = `${styles.courseCard} ${styles[`${cardType}Card`]}`;
+            const displayBadgeText = course.badgeText || (index === 0 ? 'Real Product' : '');
             
             return (
               <div 
@@ -160,8 +141,8 @@ export default function Courses() {
                         alt={course.title} 
                         className={styles.mentorImage} 
                       />
-                      {course.badgeText && (
-                        <div className={styles.realProductBadge}>{course.badgeText}</div>
+                      {displayBadgeText && (
+                        <div className={styles.realProductBadge}>{displayBadgeText}</div>
                       )}
                     </div>
                     <div className={styles.cardRight}>

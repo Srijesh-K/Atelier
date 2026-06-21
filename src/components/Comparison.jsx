@@ -21,7 +21,7 @@ export default function Comparison() {
   ];
 
   return (
-    <section id="comparison" className={styles.comparisonSection}>
+    <section id="bootcamp" className={styles.comparisonSection}>
       <div className={`${styles.container} container`}>
         <div className={styles.headerArea}>
           <div className={styles.badgeWrapper}>
