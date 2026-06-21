@@ -73,19 +73,19 @@ export const defaultSchedule = [
 ];
 
 export const defaultRecordings = [
-  { id: 1, courseId: 1, title: 'Week 4 — NextJS App Router & Client States', date: 'June 18, 2026', image: '/images/course_cohort_2.png' },
-  { id: 2, courseId: 1, title: 'Week 3 — SQL joins, Indexes, and Query Plans', date: 'June 14, 2026', image: '/images/course_data_science.png' },
-  { id: 3, courseId: 1, title: 'Week 3 — Relational Database Management', date: 'June 11, 2026', image: '/images/course_mentor_30.png' },
-  { id: 4, courseId: 2, title: 'Week 2 — Consistent Hashing & Ring Ring Routing', date: 'June 17, 2026', image: '/images/course_cohort_2.png' },
-  { id: 5, courseId: 2, title: 'Week 1 — SQL Replication & Write-Ahead Logs', date: 'June 12, 2026', image: '/images/course_data_science.png' },
-  { id: 6, courseId: 2, title: 'Week 1 — DNS, CDNs & Static Asset Caching', date: 'June 09, 2026', image: '/images/course_mentor_30.png' }
+  { id: 1, courseId: 1, title: 'Week 4 - NextJS App Router & Client States', date: 'June 18, 2026', image: '/images/course_cohort_2.png' },
+  { id: 2, courseId: 1, title: 'Week 3 - SQL joins, Indexes, and Query Plans', date: 'June 14, 2026', image: '/images/course_data_science.png' },
+  { id: 3, courseId: 1, title: 'Week 3 - Relational Database Management', date: 'June 11, 2026', image: '/images/course_mentor_30.png' },
+  { id: 4, courseId: 2, title: 'Week 2 - Consistent Hashing & Ring Ring Routing', date: 'June 17, 2026', image: '/images/course_cohort_2.png' },
+  { id: 5, courseId: 2, title: 'Week 1 - SQL Replication & Write-Ahead Logs', date: 'June 12, 2026', image: '/images/course_data_science.png' },
+  { id: 6, courseId: 2, title: 'Week 1 - DNS, CDNs & Static Asset Caching', date: 'June 09, 2026', image: '/images/course_mentor_30.png' }
 ];
 
 export const defaultMaterials = [
   {
     id: 1,
     courseId: 1,
-    title: 'Module 1 — HTML, CSS & Layouts',
+    title: 'Module 1 - HTML, CSS & Layouts',
     assets: [
       { name: 'Syllabus & Milestones Checklist.pdf', size: '1.2 MB', type: 'pdf' },
       { name: 'Grid & Flexbox cheat sheet.pdf', size: '840 KB', type: 'pdf' },
@@ -95,7 +95,7 @@ export const defaultMaterials = [
   {
     id: 2,
     courseId: 1,
-    title: 'Module 2 — Advanced DOM & JavaScript',
+    title: 'Module 2 - Advanced DOM & JavaScript',
     assets: [
       { name: 'Async JS & Callbacks lecture notes.pdf', size: '2.1 MB', type: 'pdf' },
       { name: 'Event Loop & Execution context slides.key', size: '12.4 MB', type: 'key' },
@@ -105,7 +105,7 @@ export const defaultMaterials = [
   {
     id: 3,
     courseId: 1,
-    title: 'Module 3 — Node, Express, & WebSockets',
+    title: 'Module 3 - Node, Express, & WebSockets',
     assets: [
       { name: 'WebSocket handshake sequence guide.pdf', size: '950 KB', type: 'pdf' },
       { name: 'Express API Server code structure.zip', size: '3.1 MB', type: 'zip' },
@@ -115,7 +115,7 @@ export const defaultMaterials = [
   {
     id: 4,
     courseId: 2,
-    title: 'Module 1 — Load Balancers & CDNs',
+    title: 'Module 1 - Load Balancers & CDNs',
     assets: [
       { name: 'Nginx upstream configuration.conf', size: '4 KB', type: 'md' },
       { name: 'CDN Cache Invalidation best practices.pdf', size: '1.8 MB', type: 'pdf' },
@@ -125,7 +125,7 @@ export const defaultMaterials = [
   {
     id: 5,
     courseId: 2,
-    title: 'Module 2 — Database Sharding & Partitioning',
+    title: 'Module 2 - Database Sharding & Partitioning',
     assets: [
       { name: 'Consistent Hashing ring simulator.zip', size: '3.1 MB', type: 'zip' },
       { name: 'Horizontal sharding keys strategy.pdf', size: '1.9 MB', type: 'pdf' },
@@ -135,7 +135,7 @@ export const defaultMaterials = [
   {
     id: 6,
     courseId: 2,
-    title: 'Module 3 — Redis Caching Topologies',
+    title: 'Module 3 - Redis Caching Topologies',
     assets: [
       { name: 'Eviction policies benchmark.pdf', size: '2.7 MB', type: 'pdf' },
       { name: 'Redis cluster configuration.conf', size: '8 KB', type: 'md' },

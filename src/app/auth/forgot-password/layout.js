@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Reset Password — Account Recovery",
+  title: "Reset Password - Account Recovery",
   description:
     "Forgot your Atelier account password? Reset it securely using your registered email and phone number.",
   alternates: {

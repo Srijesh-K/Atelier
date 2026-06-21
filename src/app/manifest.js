@@ -1,6 +1,6 @@
 export default function manifest() {
   return {
-    name: "Atelier — A Sphere Hive",
+    name: "Atelier - A Sphere Hive",
     short_name: "Atelier",
     description: "Build the skills companies actually hire for. India's most immersive coding school.",
     start_url: "/",

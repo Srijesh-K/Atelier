@@ -28,14 +28,14 @@ export async function POST(request) {
       .digest('hex');
 
     if (expectedSignature !== razorpay_signature) {
-      console.error('Payment signature mismatch — possible tampering detected.');
+      console.error('Payment signature mismatch - possible tampering detected.');
       return NextResponse.json(
         { error: 'Payment verification failed: Invalid signature. Transaction rejected.' },
         { status: 400 }
       );
     }
 
-    // ─── Signature Valid — Enroll Student & Log Transaction ───
+    // ─── Signature Valid - Enroll Student & Log Transaction ───
     const conn = await getConnection();
     try {
       await conn.beginTransaction();

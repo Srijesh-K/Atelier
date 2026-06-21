@@ -12,10 +12,10 @@ export async function generateMetadata({ params }) {
     };
   }
 
-  const title = `${course.title} — Enroll Now`;
+  const title = `${course.title} - Enroll Now`;
   const description = course.description
     ? course.description.slice(0, 160)
-    : `Learn ${course.title} with live classes, real-world projects, and expert mentorship at Atelier — A Sphere Hive Academy.`;
+    : `Learn ${course.title} with live classes, real-world projects, and expert mentorship at Atelier - A Sphere Hive Academy.`;
 
   return {
     title,
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }) {
       canonical: `/courses/${courseId}`,
     },
     openGraph: {
-      title: `${course.title} | Atelier — A Sphere Hive Academy`,
+      title: `${course.title} | Atelier - A Sphere Hive Academy`,
       description,
       url: `/courses/${courseId}`,
       images: [

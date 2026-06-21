@@ -101,7 +101,7 @@ function getShardForUser(userId) {
   background: rgba(255, 255, 255, 0.02);
 }`;
         case 2:
-          return `// JavaScript DOM Target — Daily Streaks Task
+          return `// JavaScript DOM Target - Daily Streaks Task
 const button = document.querySelector('#cta-btn');
 
 button.addEventListener('click', (event) => {

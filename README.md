@@ -1,4 +1,4 @@
-# 🐝 Atelier — The Sphere Hive Learning Workbench
+# 🐝 Atelier - The Sphere Hive Learning Workbench
 
 Welcome to the **Atelier** platform, a high-fidelity, interactive cohort portal. This application integrates an administrative control dashboard, a student sandbox workbench, real-time mentorship hotlines, and a secure authentication center, all powered by a live **MySQL** relational database backend.
 
@@ -203,17 +203,17 @@ npm run dev
 
 ## 📁 Route Catalog
 
-- `/` — Premium brand landing page detailing features, cohort comparisons, and testimonials.
-- `/courses` — Public course catalog displaying active cohort tracks loaded directly from the database.
-- `/admin` — Secure console providing full CRUD management capabilities over students, courses, schedules, resources, callbacks, instructors, and transaction logs.
-- `/admin/courses/[id]` — Detailed breakdown of registered students in a cohort, providing audit capabilities.
-- `/admin/lecturers/[id]` — Lecturer profile showcasing assigned cohorts and active students metrics.
-- `/auth/signin` — Authenticates student details against the MySQL student schema.
-- `/auth/signup` — Registers new profiles and hooks up default courses.
-- `/auth/forgot-password` — Password reset form validating email profiles.
-- `/dashboard` — Learning workbench containing tech-tree pathways, sandbox environments, and callback hotlines.
-- `/dashboard/explore` — Explore catalog allowing students to purchase tracks.
-- `/dashboard/my-courses` — Workspace selector containing purchased programs.
-- `/dashboard/live` — Timetables, live room class links, and recorded archives.
-- `/dashboard/materials` — Downloadable PDF slide checklists and repository resources.
-- `/dashboard/profile` — Student portfolio editor updates names, contacts, biography details, social URLs, and core skills lists.
+- `/` - Premium brand landing page detailing features, cohort comparisons, and testimonials.
+- `/courses` - Public course catalog displaying active cohort tracks loaded directly from the database.
+- `/admin` - Secure console providing full CRUD management capabilities over students, courses, schedules, resources, callbacks, instructors, and transaction logs.
+- `/admin/courses/[id]` - Detailed breakdown of registered students in a cohort, providing audit capabilities.
+- `/admin/lecturers/[id]` - Lecturer profile showcasing assigned cohorts and active students metrics.
+- `/auth/signin` - Authenticates student details against the MySQL student schema.
+- `/auth/signup` - Registers new profiles and hooks up default courses.
+- `/auth/forgot-password` - Password reset form validating email profiles.
+- `/dashboard` - Learning workbench containing tech-tree pathways, sandbox environments, and callback hotlines.
+- `/dashboard/explore` - Explore catalog allowing students to purchase tracks.
+- `/dashboard/my-courses` - Workspace selector containing purchased programs.
+- `/dashboard/live` - Timetables, live room class links, and recorded archives.
+- `/dashboard/materials` - Downloadable PDF slide checklists and repository resources.
+- `/dashboard/profile` - Student portfolio editor updates names, contacts, biography details, social URLs, and core skills lists.

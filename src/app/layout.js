@@ -21,8 +21,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier.spherehive
 
 export const metadata = {
   title: {
-    default: "Atelier — A Sphere Hive Academy | Build Skills Companies Actually Hire For",
-    template: "%s | Atelier — A Sphere Hive Academy",
+    default: "Atelier - A Sphere Hive Academy | Build Skills Companies Actually Hire For",
+    template: "%s | Atelier - A Sphere Hive Academy",
   },
   description:
     "Atelier, a Sphere Hive Academy, is India's most immersive coding school. Learn full-stack development, system design & DSA through live cohorts, real-world projects, and 1:1 mentorship from industry veterans. Join 1500+ students placed at Google, Microsoft, Amazon & more.",
@@ -59,25 +59,25 @@ export const metadata = {
     type: "website",
     locale: "en_IN",
     url: SITE_URL,
-    siteName: "Atelier — A Sphere Hive Academy",
-    title: "Atelier — A Sphere Hive Academy | Build Skills Companies Actually Hire For",
+    siteName: "Atelier - A Sphere Hive Academy",
+    title: "Atelier - A Sphere Hive Academy | Build Skills Companies Actually Hire For",
     description:
-      "Atelier, a Sphere Hive Academy — India's most immersive coding school. Live cohorts, real-world projects, 1:1 mentorship. 1500+ students placed at top tech companies.",
+      "Atelier, a Sphere Hive Academy - India's most immersive coding school. Live cohorts, real-world projects, 1:1 mentorship. 1500+ students placed at top tech companies.",
     images: [
       {
         url: "/og-banner.png",
         width: 1200,
         height: 630,
-        alt: "Atelier — A Sphere Hive Academy: Build Skills Companies Actually Hire For",
+        alt: "Atelier - A Sphere Hive Academy: Build Skills Companies Actually Hire For",
         type: "image/png",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Atelier — A Sphere Hive Academy | Build Skills Companies Actually Hire For",
+    title: "Atelier - A Sphere Hive Academy | Build Skills Companies Actually Hire For",
     description:
-      "Atelier, a Sphere Hive Academy — India's most immersive coding school. Live cohorts, real-world projects, 1:1 mentorship. 1500+ placed at Google, Microsoft, Amazon.",
+      "Atelier, a Sphere Hive Academy - India's most immersive coding school. Live cohorts, real-world projects, 1:1 mentorship. 1500+ placed at Google, Microsoft, Amazon.",
     images: ["/og-banner.png"],
     creator: "@spherehive",
   },
@@ -105,8 +105,8 @@ export const metadata = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "EducationalOrganization",
-  name: "Atelier — A Sphere Hive Academy",
-  alternateName: "Atelier — A Sphere Hive Academy",
+  name: "Atelier - A Sphere Hive Academy",
+  alternateName: "Atelier - A Sphere Hive Academy",
   url: SITE_URL,
   logo: `${SITE_URL}/logo.png`,
   image: `${SITE_URL}/og-banner.png`,
@@ -139,7 +139,7 @@ const jsonLd = {
           description: "Master full-stack web development with live classes, real projects, and industry mentorship.",
           provider: {
             "@type": "Organization",
-            name: "Atelier — A Sphere Hive Academy",
+            name: "Atelier - A Sphere Hive Academy",
           },
         },
       },

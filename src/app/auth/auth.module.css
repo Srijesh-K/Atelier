@@ -1,5 +1,5 @@
 /* ───────────────────────────────────────────
-   Auth Pages — Shared Design Tokens & Layout
+   Auth Pages - Shared Design Tokens & Layout
    ─────────────────────────────────────────── */
 
 /* ─── Page wrapper ─── */
@@ -32,7 +32,7 @@
   mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
 }
 
-/* ─── Orange radial glow — anchored behind the form card ─── */
+/* ─── Orange radial glow - anchored behind the form card ─── */
 .glow {
   position: absolute;
   top: 50%;

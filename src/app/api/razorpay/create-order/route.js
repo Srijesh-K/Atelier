@@ -13,7 +13,7 @@ export async function POST(request) {
       );
     }
 
-    // Parse amount — strip "Rs. " prefix and commas, convert to paise (smallest unit)
+    // Parse amount - strip "Rs. " prefix and commas, convert to paise (smallest unit)
     let amountInPaise;
     if (typeof amount === 'string') {
       const cleaned = amount.replace(/[^0-9.]/g, '');

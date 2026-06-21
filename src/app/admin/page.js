@@ -639,10 +639,10 @@ export default function AdminConsole() {
                     </td>
                     <td style={{ color: '#2ecc71', fontWeight: '600' }}>{t.amount}</td>
                     <td style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)' }}>
-                      {t.razorpayOrderId || <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>}
+                      {t.razorpayOrderId || <span style={{ color: 'rgba(255,255,255,0.2)' }}>-</span>}
                     </td>
                     <td style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)' }}>
-                      {t.razorpayPaymentId || <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>}
+                      {t.razorpayPaymentId || <span style={{ color: 'rgba(255,255,255,0.2)' }}>-</span>}
                     </td>
                     <td>{t.timestamp ? new Date(t.timestamp).toLocaleString() : 'Recent'}</td>
                     <td>
