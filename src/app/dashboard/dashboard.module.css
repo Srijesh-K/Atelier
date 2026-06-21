@@ -1461,4 +1461,67 @@
   }
 }
 
+/* ─── Security Auth Loader ─── */
+.authLoaderWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #000000;
+  color: #ffffff;
+  font-family: var(--font-body);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+}
+
+.authLoaderCard {
+  text-align: center;
+  padding: 3rem;
+  background: radial-gradient(100% 100% at 50% 0%, rgba(255, 77, 77, 0.03) 0%, rgba(0, 0, 0, 0) 100%), #0a0a0b;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  max-width: 400px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.authSpinner {
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(255, 255, 255, 0.05);
+  border-top-color: var(--accent-orange, #ff5722);
+  border-radius: 50%;
+  animation: authSpin 0.8s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes authSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.authLoaderTitle {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+.authLoaderText {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.5;
+}
+
+
 

@@ -15,11 +15,15 @@ export default function DashboardLayout({ children }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  const [userName, setUserName] = useState('Jane Doe');
-  const [xp, setXp] = useState(450);
-  const [streak, setStreak] = useState(7);
-  const [enrolledCourses, setEnrolledCourses] = useState([1, 2]);
+  const [userName, setUserName] = useState('Student');
+  const [xp, setXp] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [dbCourses, setDbCourses] = useState([]);
+
+  // Client mounting & Auth gating states
+  const [isMounted, setIsMounted] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -36,6 +40,29 @@ export default function DashboardLayout({ children }) {
 
   // Sync active course and username profile states
   useEffect(() => {
+    setIsMounted(true);
+
+    const email = localStorage.getItem('loggedInStudentEmail');
+    if (!email) {
+      router.push('/auth/signin?redirectTo=' + encodeURIComponent(pathname));
+      return;
+    }
+
+    // Set checkingAuth to false since local storage session exists (fast render path)
+    setCheckingAuth(false);
+
+    // Hydrate states from localStorage cache for immediate UI rendering
+    const cachedProfile = localStorage.getItem('studentProfile');
+    if (cachedProfile) {
+      try {
+        const parsed = JSON.parse(cachedProfile);
+        setUserName(parsed.name || 'Student');
+        setXp(parsed.xp || 0);
+        setStreak(parsed.streak || 0);
+        setEnrolledCourses(parsed.enrolledCourses || [1]);
+      } catch (e) {}
+    }
+
     const syncCourse = () => {
       const saved = localStorage.getItem('activeCourseId');
       if (saved) {
@@ -44,28 +71,53 @@ export default function DashboardLayout({ children }) {
     };
 
     const syncProfile = async () => {
-      const email = localStorage.getItem('loggedInStudentEmail');
-      if (!email) {
+      const currentEmail = localStorage.getItem('loggedInStudentEmail');
+      if (!currentEmail) {
         router.push('/auth/signin');
         return;
       }
-      const studentsList = await getStudents();
-      const student = studentsList.find((s) => s.email.toLowerCase() === email.toLowerCase());
+      try {
+        const studentsList = await getStudents();
+        const student = studentsList.find((s) => s.email.toLowerCase() === currentEmail.toLowerCase());
 
-      if (student) {
-        setUserName(student.name);
-        setXp(student.xp || 0);
-        setStreak(student.streak || 0);
-        setEnrolledCourses(student.enrolledCourses || [1]);
-      } else {
-        localStorage.removeItem('loggedInStudentEmail');
-        router.push('/auth/signin');
+        if (student) {
+          setUserName(student.name);
+          setXp(student.xp || 0);
+          setStreak(student.streak || 0);
+          setEnrolledCourses(student.enrolledCourses || [1]);
+          // Sync cache
+          localStorage.setItem('studentProfile', JSON.stringify({
+            name: student.name,
+            email: student.email,
+            phone: student.phone || '',
+            college: student.college || '',
+            gradYear: student.gradYear || '',
+            bio: student.bio || '',
+            github: student.github || '',
+            linkedin: student.linkedin || '',
+            portfolio: student.portfolio || '',
+            skills: student.skills || [],
+            xp: student.xp || 0,
+            streak: student.streak || 0,
+            enrolledCourses: student.enrolledCourses || [1]
+          }));
+        } else {
+          localStorage.removeItem('loggedInStudentEmail');
+          localStorage.removeItem('studentProfile');
+          router.push('/auth/signin');
+        }
+      } catch (err) {
+        console.error("Profile sync failed:", err);
       }
     };
 
     const syncCoursesList = async () => {
-      const coursesList = await getCourses();
-      setDbCourses(coursesList);
+      try {
+        const coursesList = await getCourses();
+        setDbCourses(coursesList);
+      } catch (err) {
+        console.error("Courses list sync failed:", err);
+      }
     };
 
     syncCourse();
@@ -90,7 +142,20 @@ export default function DashboardLayout({ children }) {
       window.removeEventListener('courseChanged', onCourseChange);
       window.removeEventListener('profileChanged', onProfileChange);
     };
-  }, []);
+  }, [pathname]);
+
+  // Auth gate check - render secure loading UI
+  if (!isMounted || checkingAuth) {
+    return (
+      <div className={styles.authLoaderWrapper}>
+        <div className={styles.authLoaderCard}>
+          <div className={styles.authSpinner} />
+          <h2 className={styles.authLoaderTitle}>Securing Workspace</h2>
+          <p className={styles.authLoaderText}>Verifying credentials and establishing secure terminal link...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Map database courses to selector layout format
   const courses = dbCourses
