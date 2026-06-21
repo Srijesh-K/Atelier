@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authenticateStudent } from '../../actions';
@@ -12,6 +12,17 @@ export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [redirectTo, setRedirectTo] = useState('/dashboard');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const target = params.get('redirectTo');
+      if (target) {
+        setRedirectTo(target);
+      }
+    }
+  }, []);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -39,7 +50,7 @@ export default function SignInPage() {
         window.dispatchEvent(new Event('profileChanged'));
         window.dispatchEvent(new Event('courseChanged'));
         
-        router.push('/dashboard');
+        router.push(redirectTo);
       } else {
         setError('Incorrect security credentials: Email or password incorrect.');
       }

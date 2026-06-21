@@ -16,7 +16,7 @@ export default function Home() {
   return (
     <>
       <Navbar />
-      <main>
+      <main role="main" itemScope itemType="https://schema.org/WebPage">
         <Hero />
         <StatsGrid />
         <CompanyLogos />

@@ -97,13 +97,34 @@ export async function getCourses() {
       c.badges = c.badges ? c.badges.split(',') : [];
       c.instructorId = c.instructor_id;
       c.originalPrice = c.original_price;
+      c.curriculumOverview = c.curriculum_overview;
       delete c.instructor_id;
       delete c.original_price;
+      delete c.curriculum_overview;
     });
     return courses;
   } catch (e) {
     console.error("SQL Error in getCourses:", e);
     return [];
+  }
+}
+
+export async function getCourseById(id) {
+  try {
+    const rows = await query("SELECT * FROM atelier_courses WHERE id = ?", [id]);
+    if (rows.length === 0) return null;
+    const c = rows[0];
+    c.badges = c.badges ? c.badges.split(',') : [];
+    c.instructorId = c.instructor_id;
+    c.originalPrice = c.original_price;
+    c.curriculumOverview = c.curriculum_overview;
+    delete c.instructor_id;
+    delete c.original_price;
+    delete c.curriculum_overview;
+    return c;
+  } catch (e) {
+    console.error("SQL Error in getCourseById:", e);
+    return null;
   }
 }
 
@@ -118,13 +139,13 @@ export async function saveCourse(c) {
 
     if (exists) {
       await execute(
-        `UPDATE atelier_courses SET title = ?, description = ?, image = ?, badges = ?, price = ?, original_price = ?, discount = ?, instructor_id = ? WHERE id = ?`,
-        [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.id]
+        `UPDATE atelier_courses SET title = ?, description = ?, image = ?, badges = ?, price = ?, original_price = ?, discount = ?, instructor_id = ?, duration = ?, highlights = ?, curriculum_overview = ? WHERE id = ?`,
+        [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.duration || null, c.highlights || null, c.curriculumOverview || c.curriculum_overview || null, c.id]
       );
     } else {
       await execute(
-        `INSERT INTO atelier_courses (title, description, image, badges, price, original_price, discount, instructor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null]
+        `INSERT INTO atelier_courses (title, description, image, badges, price, original_price, discount, instructor_id, duration, highlights, curriculum_overview) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.duration || null, c.highlights || null, c.curriculumOverview || c.curriculum_overview || null]
       );
     }
     return { success: true };
@@ -389,10 +410,15 @@ export async function getTransactions() {
       t.studentName = t.student_name;
       t.courseId = t.course_id;
       t.courseTitle = t.course_title;
+      t.razorpayOrderId = t.razorpay_order_id;
+      t.razorpayPaymentId = t.razorpay_payment_id;
       delete t.student_id;
       delete t.student_name;
       delete t.course_id;
       delete t.course_title;
+      delete t.razorpay_order_id;
+      delete t.razorpay_payment_id;
+      delete t.razorpay_signature;
     });
     return transactions;
   } catch (e) {

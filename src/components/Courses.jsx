@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import styles from './Courses.module.css';
 import { getCourses } from '../app/actions';
 
@@ -84,13 +85,15 @@ export default function Courses() {
         )}
 
         {course.buttonText && (
-          <button className={styles.checkCourseBtn}>
-            {course.buttonText}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
-            </svg>
-          </button>
+          <Link href={`/courses/${course.id}`} style={{ textDecoration: 'none', display: 'block', width: '100%' }}>
+            <button className={styles.checkCourseBtn}>
+              {course.buttonText}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </Link>
         )}
       </>
     );

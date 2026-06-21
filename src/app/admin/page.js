@@ -143,7 +143,7 @@ export default function AdminConsole() {
       if (activeTab === 'users') {
         setFormData({ name: '', email: '', phone: '', college: '', gradYear: '2026', xp: 0, streak: 0, enrolledCourses: '1' });
       } else if (activeTab === 'courses') {
-        setFormData({ title: '', description: '', price: 'Rs. 5999', originalPrice: 'Rs. 11998', discount: '50% OFF', badges: 'Certified, support', image: '/images/course_cohort_2.png', instructorId: '1' });
+        setFormData({ title: '', description: '', price: 'Rs. 5999', originalPrice: 'Rs. 11998', discount: '50% OFF', badges: 'Certified, support', image: '/images/course_cohort_2.png', instructorId: '1', duration: '12 Weeks', highlights: '', curriculumOverview: '' });
       } else if (activeTab === 'live') {
         setFormData({ courseId: '1', time: 'Today, 6:00 PM', title: '', type: 'Lecture' });
       } else if (activeTab === 'materials') {
@@ -181,7 +181,10 @@ export default function AdminConsole() {
         const formattedCourse = {
           ...formData,
           badges: typeof formData.badges === 'string' ? formData.badges.split(',').map(s => s.trim()) : formData.badges,
-          instructorId: parseInt(formData.instructorId || 1, 10)
+          instructorId: parseInt(formData.instructorId || 1, 10),
+          duration: formData.duration || null,
+          highlights: formData.highlights || null,
+          curriculumOverview: formData.curriculumOverview || null
         };
         if (modalMode === 'edit') {
           formattedCourse.id = editId;
@@ -616,6 +619,8 @@ export default function AdminConsole() {
                   <th>Student Details</th>
                   <th>Course Title</th>
                   <th>Amount</th>
+                  <th>Razorpay Order ID</th>
+                  <th>Razorpay Payment ID</th>
                   <th>Date/Time</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -629,13 +634,23 @@ export default function AdminConsole() {
                       <div>{t.studentName}</div>
                       <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>ID: {t.studentId}</div>
                     </td>
-                    <td style={{ maxWidth: '280px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={t.courseTitle}>
+                    <td style={{ maxWidth: '200px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={t.courseTitle}>
                       {t.courseTitle}
                     </td>
                     <td style={{ color: '#2ecc71', fontWeight: '600' }}>{t.amount}</td>
+                    <td style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)' }}>
+                      {t.razorpayOrderId || <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>}
+                    </td>
+                    <td style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)' }}>
+                      {t.razorpayPaymentId || <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>}
+                    </td>
                     <td>{t.timestamp ? new Date(t.timestamp).toLocaleString() : 'Recent'}</td>
                     <td>
-                      <span className={styles.statusBadge} style={{ color: '#2ecc71', background: 'rgba(46, 204, 113, 0.08)', border: '1px solid rgba(46, 204, 113, 0.2)' }}>
+                      <span className={styles.statusBadge} style={{ 
+                        color: t.status === 'Verified' ? '#3b82f6' : '#2ecc71', 
+                        background: t.status === 'Verified' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(46, 204, 113, 0.08)', 
+                        border: t.status === 'Verified' ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(46, 204, 113, 0.2)' 
+                      }}>
                         {t.status || 'Success'}
                       </span>
                     </td>
@@ -644,7 +659,7 @@ export default function AdminConsole() {
                     </td>
                   </tr>
                 ))}
-                {filteredTransactions.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2rem' }}>No payment logs matching filters.</td></tr>}
+                {filteredTransactions.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2rem' }}>No payment logs matching filters.</td></tr>}
               </tbody>
             </table>
           )}
@@ -729,13 +744,29 @@ export default function AdminConsole() {
                       <input type="text" name="originalPrice" className={styles.modalInput} value={formData.originalPrice || ''} onChange={handleFormChange} />
                     </div>
                   </div>
-                  <div className={styles.profileFormGroup}>
-                    <label className={styles.modalLabel}>Discount (e.g. 50% OFF)</label>
-                    <input type="text" name="discount" className={styles.modalInput} value={formData.discount || ''} onChange={handleFormChange} />
+                  <div className={styles.formRow}>
+                    <div className={styles.profileFormGroup}>
+                      <label className={styles.modalLabel}>Discount (e.g. 50% OFF)</label>
+                      <input type="text" name="discount" className={styles.modalInput} value={formData.discount || ''} onChange={handleFormChange} />
+                    </div>
+                    <div className={styles.profileFormGroup}>
+                      <label className={styles.modalLabel}>Duration (e.g. 12 Weeks)</label>
+                      <input type="text" name="duration" className={styles.modalInput} placeholder="12 Weeks" value={formData.duration || ''} onChange={handleFormChange} />
+                    </div>
                   </div>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Features/Badges (comma separated)</label>
                     <input type="text" name="badges" className={styles.modalInput} placeholder="Real Product, Certified, Support" value={formData.badges || ''} onChange={handleFormChange} />
+                  </div>
+                  <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>Course Highlights (comma separated)</label>
+                    <input type="text" name="highlights" className={styles.modalInput} placeholder="Live classes, Industry projects, 1:1 mentorship" value={formData.highlights || ''} onChange={handleFormChange} />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>Displayed as feature bullets on the course detail page</span>
+                  </div>
+                  <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>Curriculum Overview</label>
+                    <textarea name="curriculumOverview" className={styles.modalTextarea} placeholder="Week 1: Foundations & Setup\nWeek 2: Core Architecture\nWeek 3: Advanced Patterns..." value={formData.curriculumOverview || ''} onChange={handleFormChange} />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>Shown as curriculum roadmap on the course detail page</span>
                   </div>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Assigned Course Instructor (Lecturer)</label>

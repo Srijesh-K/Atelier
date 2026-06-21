@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { getCourses } from '../actions';
 import Navbar from '@/components/Navbar';
 import Comparison from '@/components/Comparison';
@@ -97,13 +98,15 @@ export default function CoursesPage() {
                   )}
 
                   {/* Action button */}
-                  <button className={styles.button}>
-                    Check Course
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                      <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                  </button>
+                  <Link href={`/courses/${course.id}`} style={{ textDecoration: 'none', display: 'block', width: '100%' }}>
+                    <button className={styles.button}>
+                      Check Course
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
+                    </button>
+                  </Link>
 
                 </div>
               ))}

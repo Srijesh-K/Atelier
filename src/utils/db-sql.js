@@ -69,9 +69,25 @@ async function initDb() {
       original_price VARCHAR(100),
       discount VARCHAR(100),
       instructor_id INT,
+      duration VARCHAR(100),
+      highlights TEXT,
+      curriculum_overview TEXT,
       FOREIGN KEY(instructor_id) REFERENCES atelier_lecturers(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
+
+  // Ensure new course columns exist on existing tables
+  const [courseColumns] = await p.execute("SHOW COLUMNS FROM atelier_courses");
+  const courseColNames = courseColumns.map(c => c.Field);
+  if (!courseColNames.includes('duration')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN duration VARCHAR(100)");
+  }
+  if (!courseColNames.includes('highlights')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN highlights TEXT");
+  }
+  if (!courseColNames.includes('curriculum_overview')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN curriculum_overview TEXT");
+  }
 
   await p.execute(`
     CREATE TABLE IF NOT EXISTS atelier_students (
@@ -184,10 +200,26 @@ async function initDb() {
       amount VARCHAR(100),
       timestamp VARCHAR(100),
       status VARCHAR(50) DEFAULT 'Success',
+      razorpay_order_id VARCHAR(255),
+      razorpay_payment_id VARCHAR(255),
+      razorpay_signature VARCHAR(500),
       FOREIGN KEY(student_id) REFERENCES atelier_students(id) ON DELETE SET NULL,
       FOREIGN KEY(course_id) REFERENCES atelier_courses(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
+
+  // Ensure Razorpay columns exist on existing transactions table
+  const [txColumns] = await p.execute("SHOW COLUMNS FROM atelier_transactions");
+  const txColNames = txColumns.map(c => c.Field);
+  if (!txColNames.includes('razorpay_order_id')) {
+    await p.execute("ALTER TABLE atelier_transactions ADD COLUMN razorpay_order_id VARCHAR(255)");
+  }
+  if (!txColNames.includes('razorpay_payment_id')) {
+    await p.execute("ALTER TABLE atelier_transactions ADD COLUMN razorpay_payment_id VARCHAR(255)");
+  }
+  if (!txColNames.includes('razorpay_signature')) {
+    await p.execute("ALTER TABLE atelier_transactions ADD COLUMN razorpay_signature VARCHAR(500)");
+  }
 
   // Check if seeding is needed
   const [rows] = await p.execute("SELECT COUNT(*) as count FROM atelier_students");
