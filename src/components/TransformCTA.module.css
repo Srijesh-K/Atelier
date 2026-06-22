@@ -216,3 +216,15 @@
     display: none; /* hide floating cards on mobile to reduce clutter and DOM load */
   }
 }
+
+@media (max-width: 360px) {
+  .title {
+    font-size: 1.55rem;
+  }
+  .outlineBox {
+    height: 2.6rem;
+    min-width: 100px;
+    padding: 0 0.5rem;
+  }
+}
+

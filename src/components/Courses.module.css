@@ -433,5 +433,52 @@
   .mainTitle {
     font-size: 2rem;
   }
+  .courseCard {
+    position: relative !important;
+    top: auto !important;
+    margin-bottom: 2.5rem;
+    padding: 1.25rem !important;
+  }
+  .cardsList {
+    gap: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .cardLeft {
+    height: 200px !important;
+  }
 }
+
+@media (max-width: 480px) {
+  .mainTitle {
+    font-size: 1.75rem;
+  }
+  .courseCard {
+    margin-bottom: 1.75rem;
+  }
+  .cardLeft {
+    height: 170px !important;
+  }
+  .courseTitle {
+    font-size: 1.35rem !important;
+  }
+  .courseDescription {
+    font-size: 0.9rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+  .featureValue {
+    font-size: 0.95rem !important;
+  }
+  .featureLabel {
+    font-size: 0.65rem !important;
+  }
+  .priceValue {
+    font-size: 1.5rem !important;
+  }
+  .checkCourseBtn {
+    margin-top: 1.25rem !important;
+    width: 100% !important;
+    justify-content: center;
+  }
+}
+
 

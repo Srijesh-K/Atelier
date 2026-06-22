@@ -88,6 +88,31 @@ async function initDb() {
   if (!courseColNames.includes('curriculum_overview')) {
     await p.execute("ALTER TABLE atelier_courses ADD COLUMN curriculum_overview TEXT");
   }
+  // --- New redesign columns ---
+  if (!courseColNames.includes('subtitle')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN subtitle VARCHAR(500)");
+  }
+  if (!courseColNames.includes('total_hours')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN total_hours VARCHAR(50)");
+  }
+  if (!courseColNames.includes('total_modules')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN total_modules VARCHAR(50)");
+  }
+  if (!courseColNames.includes('total_projects')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN total_projects VARCHAR(50)");
+  }
+  if (!courseColNames.includes('tools_technologies')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN tools_technologies TEXT");
+  }
+  if (!courseColNames.includes('faqs')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN faqs TEXT");
+  }
+  if (!courseColNames.includes('certificate_title')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN certificate_title VARCHAR(255)");
+  }
+  if (!courseColNames.includes('course_outcomes')) {
+    await p.execute("ALTER TABLE atelier_courses ADD COLUMN course_outcomes TEXT");
+  }
 
   await p.execute(`
     CREATE TABLE IF NOT EXISTS atelier_students (

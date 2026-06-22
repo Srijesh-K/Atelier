@@ -288,3 +288,34 @@
     grid-row: auto;
   }
 }
+
+@media (max-width: 480px) {
+  .statsSection {
+    padding: 2.5rem 0 4rem 0 !important;
+  }
+  .card {
+    padding: 1.5rem !important;
+  }
+  .statCount {
+    font-size: 1.8rem !important;
+  }
+  .unlockTitle {
+    font-size: 1.35rem !important;
+  }
+  .startLearningLabel {
+    font-size: 1.75rem !important;
+  }
+  .imageContainer {
+    height: 180px !important;
+    margin: 1rem 0 !important;
+  }
+  .getInTouchBtn {
+    width: 100% !important;
+    justify-content: center;
+  }
+  .unlockAvatarGroup img {
+    width: 28px !important;
+    height: 28px !important;
+  }
+}
+

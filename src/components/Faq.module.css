@@ -172,3 +172,22 @@
     padding: 6rem 0;
   }
 }
+
+@media (max-width: 480px) {
+  .mainTitle {
+    font-size: 1.75rem;
+  }
+  .questionText {
+    font-size: 0.95rem;
+  }
+  .questionRow {
+    padding: 1rem 1.25rem;
+  }
+  .answerContent {
+    padding: 0 1.25rem 1rem 1.25rem;
+  }
+  .answerText {
+    font-size: 0.88rem;
+  }
+}
+

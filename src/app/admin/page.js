@@ -143,7 +143,7 @@ export default function AdminConsole() {
       if (activeTab === 'users') {
         setFormData({ name: '', email: '', phone: '', college: '', gradYear: '2026', xp: 0, streak: 0, enrolledCourses: '1' });
       } else if (activeTab === 'courses') {
-        setFormData({ title: '', description: '', price: 'Rs. 5999', originalPrice: 'Rs. 11998', discount: '50% OFF', badges: 'Certified, support', image: '/images/course_cohort_2.png', instructorId: '1', duration: '12 Weeks', highlights: '', curriculumOverview: '' });
+        setFormData({ title: '', description: '', price: 'Rs. 5999', originalPrice: 'Rs. 11998', discount: '50% OFF', badges: 'Certified, support', image: '/images/course_cohort_2.png', instructorId: '1', duration: '12 Weeks', highlights: '', curriculumOverview: '', subtitle: '', totalHours: '', totalModules: '', totalProjects: '', toolsTechnologies: '', faqs: '[]', certificateTitle: '', courseOutcomes: '' });
       } else if (activeTab === 'live') {
         setFormData({ courseId: '1', time: 'Today, 6:00 PM', title: '', type: 'Lecture' });
       } else if (activeTab === 'materials') {
@@ -184,7 +184,15 @@ export default function AdminConsole() {
           instructorId: parseInt(formData.instructorId || 1, 10),
           duration: formData.duration || null,
           highlights: formData.highlights || null,
-          curriculumOverview: formData.curriculumOverview || null
+          curriculumOverview: formData.curriculumOverview || null,
+          subtitle: formData.subtitle || null,
+          totalHours: formData.totalHours || null,
+          totalModules: formData.totalModules || null,
+          totalProjects: formData.totalProjects || null,
+          toolsTechnologies: formData.toolsTechnologies || null,
+          faqs: formData.faqs || null,
+          certificateTitle: formData.certificateTitle || null,
+          courseOutcomes: formData.courseOutcomes || null,
         };
         if (modalMode === 'edit') {
           formattedCourse.id = editId;
@@ -723,12 +731,16 @@ export default function AdminConsole() {
                 </>
               )}
 
-              {/* TAB INPUTS: COURSES */}
               {activeTab === 'courses' && (
                 <>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Course Title</label>
                     <input type="text" name="title" required className={styles.modalInput} value={formData.title || ''} onChange={handleFormChange} />
+                  </div>
+                  <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>Short Subtitle / Tagline</label>
+                    <input type="text" name="subtitle" className={styles.modalInput} placeholder="e.g. Build Real Products. Get Hired." value={formData.subtitle || ''} onChange={handleFormChange} />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>Shown below the title in the hero section</span>
                   </div>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Description</label>
@@ -754,19 +766,60 @@ export default function AdminConsole() {
                       <input type="text" name="duration" className={styles.modalInput} placeholder="12 Weeks" value={formData.duration || ''} onChange={handleFormChange} />
                     </div>
                   </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.profileFormGroup}>
+                      <label className={styles.modalLabel}>Total Live Hours (e.g. 150+)</label>
+                      <input type="text" name="totalHours" className={styles.modalInput} placeholder="150+" value={formData.totalHours || ''} onChange={handleFormChange} />
+                    </div>
+                    <div className={styles.profileFormGroup}>
+                      <label className={styles.modalLabel}>Total Modules (e.g. 12+)</label>
+                      <input type="text" name="totalModules" className={styles.modalInput} placeholder="12+" value={formData.totalModules || ''} onChange={handleFormChange} />
+                    </div>
+                    <div className={styles.profileFormGroup}>
+                      <label className={styles.modalLabel}>Total Projects (e.g. 8+)</label>
+                      <input type="text" name="totalProjects" className={styles.modalInput} placeholder="8+" value={formData.totalProjects || ''} onChange={handleFormChange} />
+                    </div>
+                  </div>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Features/Badges (comma separated)</label>
                     <input type="text" name="badges" className={styles.modalInput} placeholder="Real Product, Certified, Support" value={formData.badges || ''} onChange={handleFormChange} />
                   </div>
                   <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>Course Outcomes (comma separated)</label>
+                    <input type="text" name="courseOutcomes" className={styles.modalInput} placeholder="Build SaaS products, Master system design, Land a job" value={formData.courseOutcomes || ''} onChange={handleFormChange} />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>Shown as feature cards in the "Build Real Products" section</span>
+                  </div>
+                  <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Course Highlights (comma separated)</label>
                     <input type="text" name="highlights" className={styles.modalInput} placeholder="Live classes, Industry projects, 1:1 mentorship" value={formData.highlights || ''} onChange={handleFormChange} />
-                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>Displayed as feature bullets on the course detail page</span>
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>Fallback if Course Outcomes is empty</span>
+                  </div>
+                  <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>Tools & Technologies (comma separated)</label>
+                    <input type="text" name="toolsTechnologies" className={styles.modalInput} placeholder="React, Node.js, MongoDB, AWS, Docker" value={formData.toolsTechnologies || ''} onChange={handleFormChange} />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>Shown as tech stack icons. Supported: React, Node.js, Next.js, TypeScript, Python, MongoDB, AWS, Docker, PostgreSQL, Git, JavaScript, CSS, Tailwind, Redis</span>
                   </div>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Curriculum Overview</label>
-                    <textarea name="curriculumOverview" className={styles.modalTextarea} placeholder="Week 1: Foundations & Setup\nWeek 2: Core Architecture\nWeek 3: Advanced Patterns..." value={formData.curriculumOverview || ''} onChange={handleFormChange} />
-                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>Shown as curriculum roadmap on the course detail page</span>
+                    <textarea name="curriculumOverview" className={styles.modalTextarea} placeholder="Week 1: Foundations & Setup&#10;Week 2: Core Architecture&#10;Week 3: Advanced Patterns..." value={formData.curriculumOverview || ''} onChange={handleFormChange} />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>One item per line — shown as expandable curriculum roadmap</span>
+                  </div>
+                  <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>Certificate Title</label>
+                    <input type="text" name="certificateTitle" className={styles.modalInput} placeholder="e.g. Full Stack Development Cohort 3.0" value={formData.certificateTitle || ''} onChange={handleFormChange} />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>The official name shown on the certificate mockup</span>
+                  </div>
+                  <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>FAQs (JSON Array)</label>
+                    <textarea
+                      name="faqs"
+                      className={styles.modalTextarea}
+                      style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
+                      placeholder={'[{"q":"Who is this for?","a":"Anyone who wants to build real products."}]'}
+                      value={formData.faqs || '[]'}
+                      onChange={handleFormChange}
+                    />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>{'{"q":"question","a":"answer"} — shown as accordion FAQ section'}</span>
                   </div>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Assigned Course Instructor (Lecturer)</label>

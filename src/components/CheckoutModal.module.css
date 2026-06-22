@@ -518,3 +518,73 @@
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
 }
+
+@media (max-width: 600px) {
+  .backdrop {
+    padding: 0.5rem;
+  }
+  .modal {
+    max-height: 98vh;
+    border-radius: 8px;
+  }
+  .header {
+    padding: 1rem;
+  }
+  .body {
+    flex-direction: column;
+    min-height: auto;
+  }
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+  .tabBtn {
+    padding: 0.85rem 1.25rem;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .tabBtnActive {
+    border-bottom-color: var(--accent-orange);
+    background: rgba(242, 85, 34, 0.02);
+  }
+  .content {
+    padding: 1.25rem 1rem;
+  }
+  .row {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .footer {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+    text-align: center;
+  }
+  .secureBadge {
+    justify-content: center;
+  }
+  .payBtn {
+    width: 100%;
+    justify-content: center;
+  }
+  .cancelBtn {
+    order: 3;
+    padding: 0.5rem;
+  }
+  .securityGrid {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+}
+

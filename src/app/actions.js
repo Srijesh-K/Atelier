@@ -98,9 +98,21 @@ export async function getCourses() {
       c.instructorId = c.instructor_id;
       c.originalPrice = c.original_price;
       c.curriculumOverview = c.curriculum_overview;
+      c.totalHours = c.total_hours;
+      c.totalModules = c.total_modules;
+      c.totalProjects = c.total_projects;
+      c.toolsTechnologies = c.tools_technologies;
+      c.certificateTitle = c.certificate_title;
+      c.courseOutcomes = c.course_outcomes;
       delete c.instructor_id;
       delete c.original_price;
       delete c.curriculum_overview;
+      delete c.total_hours;
+      delete c.total_modules;
+      delete c.total_projects;
+      delete c.tools_technologies;
+      delete c.certificate_title;
+      delete c.course_outcomes;
     });
     return courses;
   } catch (e) {
@@ -118,9 +130,21 @@ export async function getCourseById(id) {
     c.instructorId = c.instructor_id;
     c.originalPrice = c.original_price;
     c.curriculumOverview = c.curriculum_overview;
+    c.totalHours = c.total_hours;
+    c.totalModules = c.total_modules;
+    c.totalProjects = c.total_projects;
+    c.toolsTechnologies = c.tools_technologies;
+    c.certificateTitle = c.certificate_title;
+    c.courseOutcomes = c.course_outcomes;
     delete c.instructor_id;
     delete c.original_price;
     delete c.curriculum_overview;
+    delete c.total_hours;
+    delete c.total_modules;
+    delete c.total_projects;
+    delete c.tools_technologies;
+    delete c.certificate_title;
+    delete c.course_outcomes;
     return c;
   } catch (e) {
     console.error("SQL Error in getCourseById:", e);
@@ -139,13 +163,13 @@ export async function saveCourse(c) {
 
     if (exists) {
       await execute(
-        `UPDATE atelier_courses SET title = ?, description = ?, image = ?, badges = ?, price = ?, original_price = ?, discount = ?, instructor_id = ?, duration = ?, highlights = ?, curriculum_overview = ? WHERE id = ?`,
-        [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.duration || null, c.highlights || null, c.curriculumOverview || c.curriculum_overview || null, c.id]
+        `UPDATE atelier_courses SET title = ?, description = ?, image = ?, badges = ?, price = ?, original_price = ?, discount = ?, instructor_id = ?, duration = ?, highlights = ?, curriculum_overview = ?, subtitle = ?, total_hours = ?, total_modules = ?, total_projects = ?, tools_technologies = ?, faqs = ?, certificate_title = ?, course_outcomes = ? WHERE id = ?`,
+        [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.duration || null, c.highlights || null, c.curriculumOverview || c.curriculum_overview || null, c.subtitle || null, c.totalHours || c.total_hours || null, c.totalModules || c.total_modules || null, c.totalProjects || c.total_projects || null, c.toolsTechnologies || c.tools_technologies || null, c.faqs || null, c.certificateTitle || c.certificate_title || null, c.courseOutcomes || c.course_outcomes || null, c.id]
       );
     } else {
       await execute(
-        `INSERT INTO atelier_courses (title, description, image, badges, price, original_price, discount, instructor_id, duration, highlights, curriculum_overview) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.duration || null, c.highlights || null, c.curriculumOverview || c.curriculum_overview || null]
+        `INSERT INTO atelier_courses (title, description, image, badges, price, original_price, discount, instructor_id, duration, highlights, curriculum_overview, subtitle, total_hours, total_modules, total_projects, tools_technologies, faqs, certificate_title, course_outcomes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.duration || null, c.highlights || null, c.curriculumOverview || c.curriculum_overview || null, c.subtitle || null, c.totalHours || c.total_hours || null, c.totalModules || c.total_modules || null, c.totalProjects || c.total_projects || null, c.toolsTechnologies || c.tools_technologies || null, c.faqs || null, c.certificateTitle || c.certificate_title || null, c.courseOutcomes || c.course_outcomes || null]
       );
     }
     return { success: true };

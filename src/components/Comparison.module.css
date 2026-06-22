@@ -198,7 +198,6 @@
   line-height: 1.45;
 }
 
-/* Responsive Styles */
 @media (max-width: 768px) {
   .grid {
     grid-template-columns: 1fr;
@@ -214,3 +213,22 @@
     padding: 6rem 0;
   }
 }
+
+@media (max-width: 480px) {
+  .mainTitle {
+    font-size: 1.75rem;
+  }
+  .atelierCard, .othersCard {
+    padding: 1.5rem !important;
+  }
+  .cardTitle {
+    font-size: 1.35rem !important;
+  }
+  .featuresList {
+    gap: 1rem !important;
+  }
+  .featureText, .featureTextMuted {
+    font-size: 0.88rem !important;
+  }
+}
+

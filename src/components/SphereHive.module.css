@@ -312,3 +312,19 @@
     padding: 6rem 0;
   }
 }
+
+@media (max-width: 480px) {
+  .mainTitle {
+    font-size: 1.65rem;
+  }
+  .blueprintCard {
+    padding: 1rem !important;
+  }
+  .featureItem {
+    padding-left: 0.75rem !important;
+  }
+  .featureItem:hover {
+    padding-left: 1rem !important;
+  }
+}
+
