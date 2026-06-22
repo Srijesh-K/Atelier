@@ -38,120 +38,6 @@
   pointer-events: none;
 }
 
-/* ── Skeleton Shimmer ── */
-@keyframes shimmer {
-  0%   { background-position: -700px 0; }
-  100% { background-position: 700px 0; }
-}
-
-.skeletonShell {
-  position: relative;
-  min-height: 100vh;
-  background: #000;
-  overflow: hidden;
-  padding-top: 80px;
-}
-
-/* Base skeleton block — all skeleton pieces inherit this */
-.sk {
-  border-radius: 6px;
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0.04) 0%,
-    rgba(255,255,255,0.09) 40%,
-    rgba(255,255,255,0.04) 80%
-  );
-  background-size: 700px 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-}
-
-/* ── Left column skeleton pieces ── */
-.skRow {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.skBadge    { width: 140px; height: 26px; border-radius: 4px; }
-.skDuration { width: 80px;  height: 26px; border-radius: 4px; }
-
-.skTitleLg  { width: 90%;  height: 52px; border-radius: 8px; }
-.skTitleMd  { width: 65%;  height: 52px; border-radius: 8px; }
-.skSubtitle { width: 70%;  height: 22px; border-radius: 4px; }
-
-.skLine      { width: 100%; height: 16px; border-radius: 4px; }
-.skLineShort { width: 55%;  height: 16px; border-radius: 4px; }
-
-.skPill { width: 90px; height: 28px; border-radius: 4px; }
-
-.skBtn        { width: 180px; height: 50px; border-radius: 6px; }
-.skBtnOutline { width: 150px; height: 50px; border-radius: 6px; }
-
-.skPriceStrip {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255,255,255,0.05);
-}
-.skPrice    { width: 100px; height: 36px; border-radius: 6px; }
-.skPriceOld { width: 80px;  height: 20px; border-radius: 4px; }
-.skDiscount { width: 60px;  height: 20px; border-radius: 4px; }
-
-/* ── Right column — stats card skeleton ── */
-.skStatsCard {
-  width: 100%;
-  max-width: 440px;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.skCourseImg {
-  width: 100%;
-  height: 200px;
-  border-radius: 12px;
-}
-
-.skStatsGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
-}
-
-.skStatItem {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 1rem 0.5rem;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.04);
-  border-radius: 10px;
-}
-
-.skStatIcon  { width: 22px; height: 22px; border-radius: 4px; }
-.skStatVal   { width: 44px; height: 20px; border-radius: 4px; }
-.skStatLabel { width: 36px; height: 10px; border-radius: 3px; }
-
-.skLiveStrip { width: 100%; height: 44px; border-radius: 8px; }
-
-/* add staggered delays so shimmer feels organic */
-.skTitleLg   { animation-delay: 0.05s; }
-.skTitleMd   { animation-delay: 0.10s; }
-.skSubtitle  { animation-delay: 0.12s; }
-.skLine      { animation-delay: 0.15s; }
-.skLineShort { animation-delay: 0.20s; }
-.skBtn       { animation-delay: 0.18s; }
-.skCourseImg { animation-delay: 0.08s; }
-.skLiveStrip { animation-delay: 0.22s; }
-
-
 .loadingContent {
   position: relative;
   z-index: 1;
@@ -171,7 +57,6 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
-
 
 .loadingText {
   font-family: var(--font-heading);
@@ -213,24 +98,28 @@
   line-height: 1.6;
 }
 
-/* ── Scroll reveal animations (GSAP powered) ── */
-.gsapReveal {
+/* ── Scroll reveal animations ── */
+.revealUp {
   opacity: 0;
-  will-change: transform, opacity;
+  transform: translateY(40px);
+  transition: opacity 0.7s cubic-bezier(0.25, 1, 0.5, 1), transform 0.7s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* Base styles for hero fade-in on mount */
-.heroBadge,
-.heroDuration,
-.heroTitle,
-.heroSubtitle,
-.heroDesc,
-.heroPill,
-.heroActions,
-.heroPricingStrip,
-.heroRight {
+.revealLeft {
   opacity: 0;
-  will-change: transform, opacity;
+  transform: translateX(-40px);
+  transition: opacity 0.7s cubic-bezier(0.25, 1, 0.5, 1), transform 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.revealRight {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.7s cubic-bezier(0.25, 1, 0.5, 1), transform 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.revealed {
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* ── Shared section elements ── */
