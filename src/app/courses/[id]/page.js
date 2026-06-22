@@ -7,6 +7,13 @@ import Footer from '@/components/Footer';
 import CheckoutModal from '@/components/CheckoutModal';
 import { getCourseById, getLecturers, getMaterials, getStudents, getSchedule } from '../../actions';
 import styles from './course-detail.module.css';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
+
 
 // ── Tech icon map (SVG paths rendered inline, no external deps) ──
 const TOOL_ICONS = {
@@ -68,35 +75,36 @@ const getToolIcon = (toolName) => {
   );
 };
 
-// ── Animated stat counter ──
+// ── Animated stat counter (GSAP powered) ──
 function StatCounter({ target, suffix = '' }) {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
-  const started = useRef(false);
 
   useEffect(() => {
     const numericTarget = parseInt(target?.replace(/\D/g, '') || '0', 10);
     if (!numericTarget) { setCount(target || '0'); return; }
 
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !started.current) {
-        started.current = true;
-        let start = 0;
-        const duration = 1800;
-        const step = (timestamp) => {
-          if (!start) start = timestamp;
-          const progress = Math.min((timestamp - start) / duration, 1);
-          const eased = 1 - Math.pow(1 - progress, 3);
-          setCount(Math.floor(eased * numericTarget));
-          if (progress < 1) requestAnimationFrame(step);
-          else setCount(target);
-        };
-        requestAnimationFrame(step);
-      }
-    }, { threshold: 0.5 });
+    const obj = { val: 0 };
+    const ctx = gsap.context(() => {
+      gsap.to(obj, {
+        val: numericTarget,
+        duration: 1.6,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: ref.current,
+          start: 'top 95%',
+          toggleActions: 'play none none none',
+        },
+        onUpdate: () => {
+          setCount(Math.floor(obj.val));
+        },
+        onComplete: () => {
+          setCount(target);
+        }
+      });
+    }, ref);
 
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    return () => ctx.revert();
   }, [target]);
 
   return <span ref={ref} className={styles.statValue}>{count}{suffix}</span>;
@@ -123,34 +131,42 @@ function AccordionItem({ item, index, isOpen, onToggle }) {
   );
 }
 
-// ── Scroll reveal hook ──
-function useScrollReveal(options = {}) {
+// ── Reveal wrapper (GSAP powered) ──
+function Reveal({ children, className = '', delay = 0, direction = 'up' }) {
   const ref = useRef(null);
-  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setRevealed(true); observer.disconnect(); }
-    }, { threshold: options.threshold || 0.1, rootMargin: options.rootMargin || '0px 0px -50px 0px' });
+    let xVal = 0;
+    let yVal = 0;
+    if (direction === 'up') yVal = 40;
+    else if (direction === 'down') yVal = -40;
+    else if (direction === 'left') xVal = 40;
+    else if (direction === 'right') xVal = -40;
 
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
+    const ctx = gsap.context(() => {
+      gsap.fromTo(ref.current, 
+        { opacity: 0, x: xVal, y: yVal },
+        {
+          opacity: 1,
+          x: 0,
+          y: 0,
+          duration: 0.8,
+          delay: delay / 1000,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: ref.current,
+            start: 'top 92%',
+            toggleActions: 'play none none none',
+          }
+        }
+      );
+    }, ref);
 
-  return [ref, revealed];
-}
-
-// ── Reveal wrapper ──
-function Reveal({ children, className = '', delay = 0, direction = 'up' }) {
-  const [ref, revealed] = useScrollReveal();
-  const dirClass = direction === 'left' ? styles.revealLeft : direction === 'right' ? styles.revealRight : styles.revealUp;
+    return () => ctx.revert();
+  }, [direction, delay]);
 
   return (
-    <div
-      ref={ref}
-      className={`${dirClass} ${revealed ? styles.revealed : ''} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
+    <div ref={ref} className={`${styles.gsapReveal} ${className}`}>
       {children}
     </div>
   );
@@ -217,18 +233,38 @@ export default function CourseDetailPage() {
     loadData();
   }, [courseId]);
 
-  // Parallax on hero image
+  // GSAP: Parallax background blob + Hero mount animations
   useEffect(() => {
-    const handleScroll = () => {
-      if (heroRef.current) {
-        const scrollY = window.scrollY;
-        const heroBg = heroRef.current.querySelector(`.${styles.heroBgBlob}`);
-        if (heroBg) heroBg.style.transform = `translateY(${scrollY * 0.3}px)`;
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    if (!course) return;
+
+    const ctx = gsap.context(() => {
+      // 1. Hero scroll parallax
+      gsap.to(`.${styles.heroBgBlob}`, {
+        y: '220px',
+        ease: 'none',
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: true
+        }
+      });
+
+      // 2. Load animations for hero elements
+      const tl = gsap.timeline();
+      tl.fromTo(`.${styles.heroBadge}`, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' })
+        .fromTo(`.${styles.heroDuration}`, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, '-=0.4')
+        .fromTo(`.${styles.heroTitle}`, { opacity: 0, y: 25 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, '-=0.35')
+        .fromTo(`.${styles.heroSubtitle}`, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, '-=0.55')
+        .fromTo(`.${styles.heroDesc}`, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, '-=0.55')
+        .fromTo(`.${styles.heroPill}`, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.35, stagger: 0.05, ease: 'power2.out' }, '-=0.45')
+        .fromTo(`.${styles.heroActions}`, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, '-=0.35')
+        .fromTo(`.${styles.heroPricingStrip}`, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, '-=0.45')
+        .fromTo(`.${styles.heroRight}`, { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.8, ease: 'power3.out' }, '-=0.7');
+    }, heroRef);
+
+    return () => ctx.revert();
+  }, [course]);
 
   const handleEnrollClick = () => {
     if (!student) { router.push(`/auth/signin?redirectTo=/courses/${courseId}`); return; }
@@ -271,23 +307,78 @@ export default function CourseDetailPage() {
   let faqs = [];
   try { faqs = course?.faqs ? JSON.parse(course.faqs) : []; } catch { faqs = []; }
 
-  // ── Loading state ──
+  // ── Skeleton loading state ──
   if (loading) {
     return (
       <>
         <Navbar />
-        <main className={styles.loadingShell}>
-          <div className={styles.loadingGrid} />
-          <div className={styles.loadingGlow} />
-          <div className={styles.loadingContent}>
-            <div className={styles.loadingSpinner} />
-            <p className={styles.loadingText}>Fetching course credentials...</p>
+        <main className={styles.skeletonShell}>
+          <div className={styles.heroBgGrid} />
+          <div className={styles.heroBgBlob} />
+
+          <div className={`${styles.heroContainer} container`}>
+            <div className={styles.heroContent}>
+
+              {/* Left skeleton column */}
+              <div className={styles.heroLeft}>
+                {/* Badge */}
+                <div className={styles.skRow}>
+                  <div className={`${styles.sk} ${styles.skBadge}`} />
+                  <div className={`${styles.sk} ${styles.skDuration}`} />
+                </div>
+                {/* Title lines */}
+                <div className={`${styles.sk} ${styles.skTitleLg}`} />
+                <div className={`${styles.sk} ${styles.skTitleMd}`} />
+                {/* Subtitle */}
+                <div className={`${styles.sk} ${styles.skSubtitle}`} />
+                {/* Description lines */}
+                <div className={`${styles.sk} ${styles.skLine}`} />
+                <div className={`${styles.sk} ${styles.skLine}`} />
+                <div className={`${styles.sk} ${styles.skLineShort}`} />
+                {/* Pills */}
+                <div className={styles.skRow}>
+                  <div className={`${styles.sk} ${styles.skPill}`} />
+                  <div className={`${styles.sk} ${styles.skPill}`} />
+                  <div className={`${styles.sk} ${styles.skPill}`} />
+                </div>
+                {/* Buttons */}
+                <div className={styles.skRow}>
+                  <div className={`${styles.sk} ${styles.skBtn}`} />
+                  <div className={`${styles.sk} ${styles.skBtnOutline}`} />
+                </div>
+                {/* Price strip */}
+                <div className={styles.skPriceStrip}>
+                  <div className={`${styles.sk} ${styles.skPrice}`} />
+                  <div className={`${styles.sk} ${styles.skPriceOld}`} />
+                  <div className={`${styles.sk} ${styles.skDiscount}`} />
+                </div>
+              </div>
+
+              {/* Right skeleton — stats card */}
+              <div className={styles.heroRight}>
+                <div className={styles.skStatsCard}>
+                  <div className={`${styles.sk} ${styles.skCourseImg}`} />
+                  <div className={styles.skStatsGrid}>
+                    {[0,1,2,3].map(i => (
+                      <div key={i} className={styles.skStatItem}>
+                        <div className={`${styles.sk} ${styles.skStatIcon}`} />
+                        <div className={`${styles.sk} ${styles.skStatVal}`} />
+                        <div className={`${styles.sk} ${styles.skStatLabel}`} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className={`${styles.sk} ${styles.skLiveStrip}`} />
+                </div>
+              </div>
+
+            </div>
           </div>
         </main>
         <Footer />
       </>
     );
   }
+
 
   // ── Not found state ──
   if (!course) {
