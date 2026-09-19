@@ -4,9 +4,26 @@
   overflow: hidden;
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 1.25rem;
   border-top: 1px solid rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.sectionHeader {
+  text-align: center;
+  z-index: 3;
+  padding: 0 1.5rem;
+}
+
+.sectionHeading {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 /* Linear gradients to fade out edges of scroll */
@@ -93,5 +110,34 @@
   }
   100% {
     transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 768px) {
+  .logosSection {
+    padding: 2rem 0;
+  }
+  .logosSection::before,
+  .logosSection::after {
+    width: 45px;
+  }
+  .marqueeContent {
+    gap: 3.5rem;
+  }
+  .openaiSvg {
+    width: 90px;
+    height: 32px;
+  }
+  .amazonSvg {
+    width: 80px;
+    height: 32px;
+  }
+  .walmartSvg {
+    width: 95px;
+    height: 32px;
+  }
+  .tcsSvg {
+    width: 110px;
+    height: 32px;
   }
 }

@@ -72,11 +72,17 @@ export default function Hero() {
             <img src="/images/avatar4.jpg" alt="Student 4" className={styles.avatar} />
           </div>
           <p className={styles.proofText}>
-            <span className={styles.orangeHighlight}>1 Million+</span> Students learning in our mastery programs
+            <span className={styles.orangeHighlight}>500+</span> Student Builders shipping in our cohorts
           </p>
         </div>
         
-        <button className={styles.ctaButton}>
+        <button 
+          className={styles.ctaButton}
+          onClick={() => {
+            const el = document.getElementById('courses');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
+        >
           Start Journey
           <svg className={styles.arrowIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="5" y1="12" x2="19" y2="12"></line>

@@ -4,6 +4,11 @@ import React from 'react';
 import styles from './StatsGrid.module.css';
 
 export default function StatsGrid() {
+  const handleScrollToCourses = () => {
+    const el = document.getElementById('courses');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <section className={styles.statsSection}>
       <div className={`${styles.container} container`}>
@@ -40,7 +45,7 @@ export default function StatsGrid() {
           </div>
 
           {/* Card 3 - Unlock */}
-          <div className={`${styles.card} ${styles.unlockCard}`}>
+          <div className={`${styles.card} ${styles.unlockCard}`} onClick={handleScrollToCourses} style={{ cursor: 'pointer' }}>
             <h2 className={styles.unlockTitle}>
               UNLOCK 
               <span className={styles.unlockAvatarGroup}>
@@ -54,12 +59,12 @@ export default function StatsGrid() {
             <h2 className={styles.unlockTitle}>FIRST JOB AND INTERNSHIP WITH US!</h2>
             
             <div className={styles.toggleContainer}>
-              <div className={styles.toggleButton}>
+              <button className={styles.toggleButton} aria-label="Unlock Courses">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                   <polyline points="12 5 19 12 12 19"></polyline>
                 </svg>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -73,7 +78,7 @@ export default function StatsGrid() {
               <img src="/images/group_students.png" alt="Students Group" className={styles.groupImage} />
             </div>
 
-            <button className={styles.getInTouchBtn}>
+            <button onClick={handleScrollToCourses} className={styles.getInTouchBtn}>
               Get in touch
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="5" y1="12" x2="19" y2="12"></line>

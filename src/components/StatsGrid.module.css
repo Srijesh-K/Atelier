@@ -3,6 +3,7 @@
   padding: 3rem 0 6rem 0;
   position: relative;
   z-index: 5;
+  overflow: hidden;
 }
 
 .statsSection::before {

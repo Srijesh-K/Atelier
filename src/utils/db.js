@@ -22,14 +22,14 @@ export const saveDB = (key, data) => {
 
 // Default Database mock templates
 export const defaultStudents = [
-  { id: 1, name: 'Jane Doe', email: 'jane.doe@atelier.com', phone: '+91 7411288457', college: 'KVG College of Engineering', gradYear: '2027', enrolledCourses: [1, 2], xp: 450, streak: 7 }
+  { id: 1, name: 'Aditya Rao', email: 'aditya.rao@atelier.academy', phone: '+91 7411288457', college: 'KVG College of Engineering', gradYear: '2027', enrolledCourses: [1, 2], xp: 450, streak: 7 }
 ];
 
 export const defaultCourses = [
   {
     id: 1,
-    title: '3.0 Job Ready AI Powered Cohort: Web Development + DSA + Gen-AI',
-    description: 'Build real scalable products used by thousands of users, learn AI engineering, full stack development, DevOps, system design, and prepare for interviews.',
+    title: 'Full-Stack AI & SaaS Cohort: Web Engineering + System Design + GenAI',
+    description: 'Build real scalable products used by thousands of users, learn AI engineering, full stack development, DevOps, system design, and prepare for tech careers.',
     image: '/images/course_mentor_30.png',
     badges: ['Real Product', 'Certified', '24/7 Support'],
     price: 'Rs. 6999',
@@ -46,18 +46,18 @@ export const defaultCourses = [
     price: 'Rs. 5999',
     originalPrice: 'Rs. 11998',
     discount: '50% OFF',
-    instructorId: 2
+    instructorId: 1
   },
   {
     id: 3,
-    title: '2.0 Job Ready AI Powered Cohort',
-    description: 'Build real scalable products used by thousands of users, learn AI engineering, full stack development, DevOps, system design, and prepare for interviews.',
+    title: 'Applied AI & Autonomous Agents Engineering',
+    description: 'Hands-on training building production AI agents, tool-augmented LLM pipelines, vector databases, and real-time intelligent SaaS workflows.',
     image: '/images/course_cohort_2.png',
-    badges: ['MERN Stack', 'Certified', '24/7 Support'],
+    badges: ['Gen AI', 'Certified', '24/7 Support'],
     price: 'Rs. 4999',
     originalPrice: 'Rs. 9998',
     discount: '50% OFF',
-    instructorId: 1
+    instructorId: 2
   }
 ];
 
@@ -145,15 +145,15 @@ export const defaultMaterials = [
 ];
 
 export const defaultCallbacks = [
-  { id: 1, studentName: 'Jane Doe', phone: '+91 7411288457', topic: 'JavaScript DOM event issue', time: '2026-06-21T17:15:00Z', status: 'Pending' }
+  { id: 1, studentName: 'Aditya Rao', phone: '+91 7411288457', topic: 'JavaScript DOM event issue', time: '2026-06-21T17:15:00Z', status: 'Pending' }
 ];
 
 export const defaultLecturers = [
-  { id: 1, name: 'Sarthak Shrivas', email: 'sarthak@atelier.com', expertise: 'Full Stack & Web Dev', bio: 'Senior architect and founder of Atelier.' },
-  { id: 2, name: 'Arshad Muhammad', email: 'arshad@atelier.com', expertise: 'System Design & Scaling', bio: 'Distributed systems engineer.' }
+  { id: 1, name: 'Arshad Muhammad', email: 'arshad@atelier.academy', expertise: 'Full Stack & Distributed Systems', bio: 'Technical Lead at Sphere Hive and systems engineer building production SaaS platforms.' },
+  { id: 2, name: 'Mohammed Suhail', email: 'suhail@atelier.academy', expertise: 'Cloud Infrastructure & DevOps', bio: 'DevOps & cloud infrastructure architect with expertise in multi-region deployments.' }
 ];
 
 export const defaultTransactions = [
-  { id: 1, studentId: 1, studentName: 'Jane Doe', courseId: 1, courseTitle: '3.0 Job Ready AI Powered Cohort: Web Development + DSA + Gen-AI', amount: 'Rs. 6999', timestamp: '2026-06-21T10:30:00Z', status: 'Success' },
-  { id: 2, studentId: 1, studentName: 'Jane Doe', courseId: 2, courseTitle: 'System Design & Architectural Masterclass', amount: 'Rs. 5999', timestamp: '2026-06-21T11:45:00Z', status: 'Success' }
+  { id: 1, studentId: 1, studentName: 'Aditya Rao', courseId: 1, courseTitle: 'Full-Stack AI & SaaS Cohort: Web Engineering + System Design + GenAI', amount: 'Rs. 6999', timestamp: '2026-06-21T10:30:00Z', status: 'Success' },
+  { id: 2, studentId: 1, studentName: 'Aditya Rao', courseId: 2, courseTitle: 'System Design & Architectural Masterclass', amount: 'Rs. 5999', timestamp: '2026-06-21T11:45:00Z', status: 'Success' }
 ];

@@ -229,15 +229,34 @@
   }
 }
 
+@media (max-width: 768px) {
+  .testimonialsSection::before,
+  .testimonialsSection::after {
+    width: 45px;
+  }
+  .testimonialsSection {
+    padding: 5rem 0;
+  }
+  .headerArea {
+    margin-bottom: 3rem;
+  }
+  .marqueeRow {
+    margin-bottom: 1.5rem;
+  }
+  .marqueeTrack {
+    gap: 1.25rem;
+  }
+}
+
 @media (max-width: 600px) {
   .mainTitle {
     font-size: 1.8rem;
   }
   .testimonialsSection {
-    padding: 6rem 0;
+    padding: 4rem 0;
   }
   .testimonialCard {
-    width: 300px;
-    padding: 1.5rem;
+    width: 290px;
+    padding: 1.25rem;
   }
 }

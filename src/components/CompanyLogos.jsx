@@ -65,6 +65,9 @@ export default function CompanyLogos() {
 
   return (
     <section className={styles.logosSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionHeading}>Engineering Standards Benchmarked Against Top Tech Teams</span>
+      </div>
       <div className={styles.marquee}>
         <div className={styles.marqueeContent}>
           {marqueeItems.map((item, index) => (

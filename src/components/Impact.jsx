@@ -1,78 +1,115 @@
 'use client';
 
 import React, { useRef, useEffect } from 'react';
+import { gsap } from 'gsap/dist/gsap';
+import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
 import styles from './Impact.module.css';
+
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 export default function Impact() {
   const containerRef = useRef(null);
   const trackRef = useRef(null);
   const headingRef = useRef(null);
-  const overlayRef = useRef(null);
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (!containerRef.current || !trackRef.current) return;
+    if (typeof window === 'undefined') return;
 
-      const container = containerRef.current;
-      const track = trackRef.current;
-      const heading = headingRef.current;
-      const overlay = overlayRef.current;
+    const container = containerRef.current;
+    const track = trackRef.current;
+    if (!container || !track) return;
 
-      const containerTop = container.offsetTop;
-      const containerHeight = container.offsetHeight;
-      const windowHeight = window.innerHeight;
+    const ctx = gsap.context(() => {
+      const getScrollAmount = () => {
+        // Total horizontal distance to scroll so last card is fully visible with end padding
+        const trackWidth = track.scrollWidth;
+        const viewportWidth = window.innerWidth;
+        const endPadding = viewportWidth < 768 ? 24 : 80;
+        return -(trackWidth - viewportWidth + endPadding);
+      };
 
-      // Scroll position relative to the container start
-      const scrollY = window.scrollY;
-      const startPos = containerTop;
-      const endPos = containerTop + containerHeight - windowHeight;
+      const tl = gsap.timeline({
+        defaults: { ease: 'none' }
+      });
 
-      if (scrollY >= startPos && scrollY <= endPos) {
-        // Calculate scroll percentage within the sticky range
-        const totalStickyDistance = endPos - startPos;
-        const currentStickyDistance = scrollY - startPos;
-        const progress = currentStickyDistance / totalStickyDistance;
+      tl.to(track, {
+        x: getScrollAmount,
+        ease: 'none',
+        duration: 1
+      });
 
-        // Calculate maximum horizontal scroll translate
-        const maxTranslate = track.scrollWidth - window.innerWidth;
-        const translateX = progress * maxTranslate;
+      // Subtle fade & scale on exit to seamlessly hand off to next section
+      tl.to(track, {
+        opacity: 0.85,
+        scale: 0.98,
+        ease: 'power1.out',
+        duration: 0.12
+      });
 
-        // Apply translate
-        track.style.transform = `translate3d(-${translateX}px, 0, 0) scale(1)`;
-        
-        // Reset opacity when inside sticky range
-        track.style.opacity = '1';
-        if (heading) heading.style.opacity = '1';
-        if (overlay) overlay.style.opacity = '0';
-      } else if (scrollY < startPos) {
-        track.style.transform = 'translate3d(0, 0, 0) scale(1)';
-        track.style.opacity = '1';
-        if (heading) heading.style.opacity = '1';
-        if (overlay) overlay.style.opacity = '0';
-      } else if (scrollY > endPos) {
-        const maxTranslate = track.scrollWidth - window.innerWidth;
+      ScrollTrigger.create({
+        trigger: container,
+        start: 'top top',
+        end: () => {
+          const distance = Math.abs(getScrollAmount());
+          const extra = window.innerWidth < 768 ? window.innerHeight * 1.0 : window.innerHeight * 1.4;
+          return `+=${distance + extra}`;
+        },
+        pin: true,
+        animation: tl,
+        scrub: 0.8,
+        invalidateOnRefresh: true,
+        anticipatePin: 1
+      });
+    }, containerRef);
 
-        // Calculate fade progress (past endPos, up to 1 windowHeight)
-        const fadeProgress = Math.min((scrollY - endPos) / windowHeight, 1);
-        const targetOpacity = 1 - fadeProgress * 0.8; // Fade down to 0.2
-        const scale = 1 - fadeProgress * 0.05; // scales from 1.0 to 0.95
+    // Touch swipe support for mobile: horizontal swipes move the cards smoothly
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isTouching = false;
 
-        track.style.transform = `translate3d(-${maxTranslate}px, 0, 0) scale(${scale})`;
-        track.style.opacity = targetOpacity;
-        if (heading) heading.style.opacity = targetOpacity;
-        if (overlay) overlay.style.opacity = (fadeProgress * 0.95).toString();
+    const onTouchStart = (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      isTouching = true;
+    };
+
+    const onTouchMove = (e) => {
+      if (!isTouching) return;
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      const diffX = touchStartX - currentX;
+      const diffY = touchStartY - currentY;
+
+      // If predominantly a horizontal gesture, translate swipe into vertical scroll distance
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 6) {
+        window.scrollBy(0, diffX * 1.1);
+        touchStartX = currentX;
+        touchStartY = currentY;
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', handleScroll);
-    
-    // Initial run
-    handleScroll();
+    const onTouchEnd = () => {
+      isTouching = false;
+    };
+
+    const trackEl = trackRef.current;
+    if (trackEl) {
+      trackEl.addEventListener('touchstart', onTouchStart, { passive: true });
+      trackEl.addEventListener('touchmove', onTouchMove, { passive: true });
+      trackEl.addEventListener('touchend', onTouchEnd, { passive: true });
+      trackEl.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    }
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
+      ctx.revert();
+      if (trackEl) {
+        trackEl.removeEventListener('touchstart', onTouchStart);
+        trackEl.removeEventListener('touchmove', onTouchMove);
+        trackEl.removeEventListener('touchend', onTouchEnd);
+        trackEl.removeEventListener('touchcancel', onTouchEnd);
+      }
     };
   }, []);
 
@@ -81,8 +118,8 @@ export default function Impact() {
       id: 1,
       image: '/images/impact1.png',
       featured: true,
-      title: 'Coming To Your Campus',
-      description: 'This Time The Feature Was At IIIT Bhopal, Where We Talked About How To Stay Ahead Of The Crowd.'
+      title: 'Campus Hackathons & Summits',
+      description: 'Bringing 24-hour national hackathons and developer summits directly to campus, empowering students to build production-grade software.'
     },
     {
       id: 2,
@@ -110,7 +147,6 @@ export default function Impact() {
   return (
     <section ref={containerRef} className={styles.impactSection}>
       <div className={styles.stickyWrapper}>
-        <div ref={overlayRef} className={styles.darkOverlay} />
         <div ref={headingRef} className={styles.headingArea}>
           <span className={styles.badge}>IMPACT</span>
           <h2 className={styles.title}>The Atelier Advantage</h2>

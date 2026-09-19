@@ -7,8 +7,8 @@ import styles from './dashboard.module.css';
 export default function StudentDashboard({ activeCourseId = 1 }) {
   const [activeNode, setActiveNode] = useState(2); // Node 2 is active by default
   const [showDrawer, setShowDrawer] = useState(false);
-  const [streak, setStreak] = useState(7);
-  const [studentName, setStudentName] = useState('Jane Doe');
+  const [streak, setStreak] = useState(1);
+  const [studentName, setStudentName] = useState('Student Builder');
   
   // Form input states
   const [hotlineTopic, setHotlineTopic] = useState('');

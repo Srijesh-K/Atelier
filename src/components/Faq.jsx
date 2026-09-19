@@ -42,7 +42,7 @@ export default function Faq() {
           </div>
           <h2 className={styles.mainTitle}>Frequently Asked Questions</h2>
           <p className={styles.subtitle}>
-            Have questions about our curriculum, mentoring, or cohorts? We\'ve got you covered.
+            Have questions about our curriculum, mentoring, or cohorts? We&apos;ve got you covered.
           </p>
         </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
+import Link from 'next/link';
 import styles from './Footer.module.css';
 
 export default function Footer() {
@@ -44,7 +45,7 @@ export default function Footer() {
             {/* Social Icons Row */}
             <div className={styles.socialsRow}>
               {/* Instagram */}
-              <a href="#" className={styles.socialIcon} aria-label="Instagram">
+              <a href="https://instagram.com/spherehive" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
                   <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
@@ -52,7 +53,7 @@ export default function Footer() {
                 </svg>
               </a>
               {/* LinkedIn */}
-              <a href="#" className={styles.socialIcon} aria-label="LinkedIn">
+              <a href="https://linkedin.com/company/spherehive" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="LinkedIn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
                   <rect x="2" y="9" width="4" height="12"></rect>
@@ -60,7 +61,7 @@ export default function Footer() {
                 </svg>
               </a>
               {/* Discord */}
-              <a href="#" className={styles.socialIcon} aria-label="Discord">
+              <a href="https://discord.gg" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Discord">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="9" cy="12" r="1"></circle>
                   <circle cx="15" cy="12" r="1"></circle>
@@ -68,14 +69,14 @@ export default function Footer() {
                 </svg>
               </a>
               {/* YouTube */}
-              <a href="#" className={styles.socialIcon} aria-label="YouTube">
+              <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="YouTube">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
                   <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
                 </svg>
               </a>
               {/* X / Twitter */}
-              <a href="#" className={styles.socialIcon} aria-label="X (Twitter)">
+              <a href="https://x.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="X (Twitter)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 4l11.733 16h4.267l-11.733 -16z" />
                   <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772" />
@@ -90,24 +91,23 @@ export default function Footer() {
             <div className={styles.linksColumn}>
               <h4 className={styles.columnHeader}>ABOUT</h4>
               <ul className={styles.linksList}>
-                <li><a href="#" className={styles.footerLink}>About Us</a></li>
-                <li><a href="#" className={styles.footerLink}>Support</a></li>
-                <li><a href="#" className={styles.footerLink}>Privacy Policy</a></li>
-                <li><a href="#" className={styles.footerLink}>Pricing and Refund</a></li>
-                <li><a href="#" className={styles.footerLink}>Terms and Conditions</a></li>
+                <li><Link href="/#bootcamp" className={styles.footerLink}>About Us</Link></li>
+                <li><Link href="/#callback" className={styles.footerLink}>Support</Link></li>
+                <li><Link href="/privacy-policy" className={styles.footerLink}>Privacy Policy</Link></li>
+                <li><Link href="/refund-policy" className={styles.footerLink}>Pricing &amp; Refund</Link></li>
+                <li><Link href="/terms" className={styles.footerLink}>Terms &amp; Conditions</Link></li>
               </ul>
             </div>
 
             {/* Company Column */}
             <div className={styles.linksColumn}>
-              <h4 className={styles.columnHeader}>COMPANY</h4>
+              <h4 className={styles.columnHeader}>PLATFORM</h4>
               <ul className={styles.linksList}>
-                <li><a href="#" className={styles.footerLink}>Resume Checker</a></li>
-                <li><a href="#" className={styles.footerLink}>Hire From Us</a></li>
-                <li><a href="#" className={styles.footerLink}>Discord Community</a></li>
-                <li><a href="#" className={styles.footerLink}>Jobs</a></li>
-                <li><a href="#" className={styles.footerLink}>Submit Projects</a></li>
-                <li><a href="#" className={styles.footerLink}>Feedback</a></li>
+                <li><Link href="/courses" className={styles.footerLink}>All Cohorts</Link></li>
+                <li><Link href="/#bootcamp" className={styles.footerLink}>Why Atelier</Link></li>
+                <li><Link href="/#community" className={styles.footerLink}>Student Community</Link></li>
+                <li><Link href="/#callback" className={styles.footerLink}>Request Callback</Link></li>
+                <li><a href="mailto:spherehive@kvgce.ac.in" className={styles.footerLink}>Submit Project / Feedback</a></li>
               </ul>
             </div>
 

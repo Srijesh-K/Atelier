@@ -74,12 +74,6 @@ export default function DashboardExplorePage() {
           return (
             <div key={course.id} className={styles.card}>
               
-              {/* Mac style Window bar dots */}
-              <div className={styles.windowBar}>
-                <span className={`${styles.dot} ${styles.dotRed}`} />
-                <span className={`${styles.dot} ${styles.dotYellow}`} />
-                <span className={`${styles.dot} ${styles.dotGreen}`} />
-              </div>
 
               {/* Course Thumbnail Image */}
               <div className={styles.imageWrapper}>

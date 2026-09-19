@@ -33,7 +33,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
       const allLecturers = await getLecturers();
       const instructorId = activeCourse ? activeCourse.instructorId || 1 : 1;
       const assignedLecturer = allLecturers.find((l) => l.id === instructorId) || allLecturers[0];
-      const instructorName = assignedLecturer ? assignedLecturer.name : 'Sarthak Shrivas';
+      const instructorName = assignedLecturer ? assignedLecturer.name : 'Sphere Hive Mentor';
 
       // Find first schedule item as "current live"
       if (filteredSchedule.length > 0) {

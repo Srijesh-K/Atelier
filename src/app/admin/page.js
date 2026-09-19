@@ -29,7 +29,6 @@ export default function AdminConsole() {
   const [callbacks, setCallbacks] = useState([]);
   const [lecturers, setLecturers] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [visitors, setVisitors] = useState(1420);
 
   // Search filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,18 +63,6 @@ export default function AdminConsole() {
   useEffect(() => {
     if (!authorized) return;
     loadData();
-
-    if (typeof window !== 'undefined') {
-      const current = parseInt(localStorage.getItem('site_visitors') || '1420', 10);
-      const sessionKey = sessionStorage.getItem('visitorCounted');
-      if (!sessionKey) {
-        localStorage.setItem('site_visitors', (current + 7).toString());
-        sessionStorage.setItem('visitorCounted', 'true');
-        setVisitors(current + 7);
-      } else {
-        setVisitors(current);
-      }
-    }
 
     window.addEventListener('courseChanged', loadData);
     return () => window.removeEventListener('courseChanged', loadData);
@@ -348,8 +335,8 @@ export default function AdminConsole() {
             <p className={styles.statValue}>{transactions.length}</p>
           </div>
           <div className={styles.statCard}>
-            <span className={styles.statLabel}>Total Site Visitors</span>
-            <p className={styles.statValue}>{visitors}</p>
+            <span className={styles.statLabel}>Total Course Enrollments</span>
+            <p className={styles.statValue}>{students.reduce((acc, s) => acc + (s.enrolledCourses?.length || 0), 0)}</p>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>Active Enrolled Students</span>

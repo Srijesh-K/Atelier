@@ -95,6 +95,18 @@ export default function Navbar() {
     };
   }, [activeIndex]);
 
+  // Lock body scroll when mobile menu is active
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
+
   // Scroll handler for navbar hide/show on scroll
   useEffect(() => {
     const coursesEl = document.getElementById('courses');

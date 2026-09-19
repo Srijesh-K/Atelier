@@ -6,23 +6,23 @@ import styles from '../dashboard.module.css';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState({
-    name: 'Jane Doe',
-    email: 'jane.doe@atelier.com',
-    phone: '+91 7411288457',
+    name: 'Student Builder',
+    email: '',
+    phone: '',
     college: 'KVG College of Engineering',
     gradYear: '2027',
-    bio: 'Aspiring Full Stack Engineer and AI enthusiast. Building scalable web apps and learning system designs.',
-    github: 'https://github.com/janedoe',
-    linkedin: 'https://linkedin.com/in/janedoe',
-    portfolio: 'https://janedoe.dev',
-    skills: ['React', 'Next.js', 'Node.js', 'MongoDB', 'System Design']
+    bio: 'Student developer learning modern full stack engineering and system design at Sphere Hive.',
+    github: '',
+    linkedin: '',
+    portfolio: '',
+    skills: ['React', 'Next.js', 'Node.js', 'PostgreSQL', 'System Design']
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ ...profile });
   const [statusMessage, setStatusMessage] = useState('');
-  const [xp, setXp] = useState(450);
-  const [streak, setStreak] = useState(7);
+  const [xp, setXp] = useState(100);
+  const [streak, setStreak] = useState(1);
 
   // Load from database on mount
   useEffect(() => {
