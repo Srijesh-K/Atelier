@@ -1,36 +1,89 @@
-# 🐝 Atelier - The Sphere Hive Learning Workbench
+# 🐝 Atelier - Sphere Hive Academy Platform
 
-Welcome to the **Atelier** platform, a high-fidelity, interactive cohort portal. This application integrates an administrative control dashboard, a student sandbox workbench, real-time mentorship hotlines, and a secure authentication center, all powered by a live **MySQL** relational database backend.
+> **High-Performance Engineering Cohorts, Live Mentorship, and Student Learning Ecosystem.**
+
+Atelier is an enterprise-grade learning workbench and cohort management platform built with **Next.js 16 (Turbopack)**, **React 19**, and a resilient **MySQL** relational database. It features dedicated portals for students, mentors, and administrators, real mathematical curriculum progress calculation, a native embedded **WebRTC Live Classroom (Jitsi Meet)** with mentor host controls, and private backend file storage powered entirely by the **Telegram Bot API** (100% replacing third-party services like Cloudinary).
 
 ---
 
-## 🗺️ System Architecture
+## ⚡ Core Tech Stack
 
-The following flowchart outlines the end-to-end data lifecycle of the application, showing how React client-side states interact with Next.js Server Actions and connection-pooled MySQL databases.
+- **Framework**: [Next.js 16.2.9](https://nextjs.org/) (App Router & Turbopack)
+- **UI Engine**: [React 19.2.4](https://react.dev/)
+- **Database**: MySQL 8.0+ via [`mysql2/promise`](https://github.com/sidorares/node-mysql2) connection pooling with idempotent migrations
+- **File Storage**: Private Telegram Bot API storage backend with zero client-exposed secrets
+- **Live Classroom**: Embedded Jitsi Meet WebRTC API with two-way audio, real-time in-room chat space, mentor screen sharing, and host moderation tools
+- **Payment Gateway**: [Razorpay Node SDK](https://razorpay.com/) (order creation & HMAC SHA-256 signature verification)
+- **Animations & Smooth Scroll**: [GSAP](https://greensock.com/gsap/) & [Lenis](https://lenis.darkroom.engineering/)
+- **Authentication & Security**: Salted `scryptSync` cryptographic password hashing, timing-safe equality checks, JWT session tokens, and 15-minute brute-force lockout protection
+
+---
+
+## 🏛️ System Architecture
 
 ```mermaid
 graph TD
-    Client["Web Browser (Client Side React)"]
-    ServerActions["Next.js Server Actions (src/app/actions.js)"]
-    MySQL["MySQL Database (localhost:3306)"]
-    DBHelper["Database Pool & Init Helper (src/utils/db-sql.js)"]
+    subgraph ClientLayer["Frontend Portals (React 19 / Next.js)"]
+        PublicApp["Public Marketing & Catalog (/courses)"]
+        StudentDash["Student Workspace (/dashboard)"]
+        MentorPortal["Mentor Portal (/mentor)"]
+        AdminConsole["Admin Control Node (/admin)"]
+    end
 
-    Client -- "1. Invokes Server Action" --> ServerActions
-    ServerActions -- "2. Invokes Query/Execute Helper" --> DBHelper
-    DBHelper -- "3. Acquires Connection & Executes SQL" --> MySQL
-    MySQL -- "4. Returns Dataset" --> DBHelper
-    DBHelper -- "5. Formats SnakeCase / Parses CSV Arrays" --> ServerActions
-    ServerActions -- "6. Sends Response Payload" --> Client
+    subgraph ServiceLayer["Next.js Server Actions & API Routes"]
+        AuthService["Auth & Security (scrypt / JWT / Lockout)"]
+        LiveService["Live Class Coordinator (Signaling)"]
+        SyllabusEngine["Mathematical Progress Engine"]
+        TelegramStorage["Telegram Bot Storage Bridge"]
+        RazorpayService["Payment Verification Node"]
+    end
+
+    subgraph ExternalServices["External Infrastructure"]
+        JitsiMeet["Jitsi Meet WebRTC (Embedded Audio/Video/Screen Share)"]
+        TelegramCloud["Telegram Bot API (File Chunks & Blobs)"]
+        RazorpayAPI["Razorpay Payment Gateway"]
+    end
+
+    subgraph DatabaseLayer["MySQL Relational DB (localhost:3306)"]
+        MySQL[(Atelier Relational Database)]
+    end
+
+    StudentDash -- "Polled every 25s" --> LiveService
+    LiveService -- "Mounts WebRTC Room" --> JitsiMeet
+    MentorPortal -- "Host Controls & Screen Share" --> JitsiMeet
+    MentorPortal -- "CRUD Syllabus & Cascade Topics" --> SyllabusEngine
+    SyllabusEngine -- "Calculates % (Completed / Total)" --> MySQL
+    AdminConsole & MentorPortal -- "Uploads Assets / Avatars" --> TelegramStorage
+    TelegramStorage -- "Multipart Stream" --> TelegramCloud
+    StudentDash -- "Enrolls & Pays" --> RazorpayService
+    RazorpayService -- "Verifies Signature" --> RazorpayAPI
+    ServiceLayer <--> MySQL
 ```
 
 ---
 
-## 🗃️ Database Entity Relationship Diagram (ERD)
+## 🗃️ Database Schema & Normalization (ERD)
 
-All tables use the `atelier_` prefix to isolate database namespaces. The schema defines clear foreign keys and cascading rules to maintain database integrity:
+All tables use the `atelier_` namespace with cascading foreign keys to preserve strict data integrity:
 
 ```mermaid
 erDiagram
+    atelier_students ||--o{ atelier_student_courses : "enrolls in"
+    atelier_courses ||--o{ atelier_student_courses : "has students"
+    atelier_lecturers ||--o{ atelier_mentor_courses : "teaches"
+    atelier_courses ||--o{ atelier_mentor_courses : "assigned to"
+    atelier_courses ||--o{ atelier_course_syllabus : "structured by"
+    atelier_course_syllabus ||--o{ atelier_syllabus_topics : "contains"
+    atelier_students ||--o{ atelier_student_progress : "completes"
+    atelier_syllabus_topics ||--o{ atelier_student_progress : "tracked by"
+    atelier_courses ||--o{ atelier_live_sessions : "hosts"
+    atelier_lecturers ||--o{ atelier_live_sessions : "moderates"
+    atelier_courses ||--o{ atelier_materials : "contains"
+    atelier_materials ||--o{ atelier_material_assets : "stores"
+    atelier_students ||--o{ atelier_transactions : "purchases"
+    atelier_courses ||--o{ atelier_transactions : "orders"
+    atelier_students ||--o{ atelier_files : "owns"
+
     atelier_students {
         int id PK
         varchar name
@@ -41,19 +94,24 @@ erDiagram
         int xp
         int streak
         varchar password
+        varchar avatar
         text bio
-        varchar github
-        varchar linkedin
-        varchar portfolio
-        text skills
     }
+
     atelier_lecturers {
         int id PK
         varchar name
-        varchar email
+        varchar email UK
+        varchar password_hash
+        tinyint must_change_password
+        varchar phone
+        varchar avatar
         varchar expertise
         text bio
+        int failed_login_count
+        timestamp locked_until
     }
+
     atelier_courses {
         int id PK
         varchar title
@@ -63,157 +121,181 @@ erDiagram
         varchar price
         varchar original_price
         varchar discount
-        int instructor_id FK
     }
-    atelier_student_courses {
-        int student_id PK, FK
-        int course_id PK, FK
-    }
-    atelier_schedule {
+
+    atelier_course_syllabus {
         int id PK
         int course_id FK
-        varchar time
-        varchar title
-        varchar type
+        varchar module_title
+        int sort_order
     }
-    atelier_recordings {
+
+    atelier_syllabus_topics {
         int id PK
-        int course_id FK
-        varchar title
-        varchar date
-        varchar image
+        int module_id FK
+        varchar topic_title
+        int duration_minutes
+        int sort_order
     }
-    atelier_materials {
-        int id PK
-        int course_id FK
-        varchar title
-    }
-    atelier_material_assets {
-        int id PK
-        int material_id FK
-        varchar name
-        varchar size
-        varchar type
-    }
-    atelier_callbacks {
-        int id PK
-        varchar student_name
-        varchar phone
-        text topic
-        varchar time
-        varchar status
-    }
-    atelier_transactions {
+
+    atelier_student_progress {
         int id PK
         int student_id FK
-        varchar student_name
         int course_id FK
-        varchar course_title
-        varchar amount
-        varchar timestamp
-        varchar status
+        int topic_id FK
+        timestamp completed_at
     }
 
-    atelier_lecturers ||--o{ atelier_courses : teaches
-    atelier_courses ||--o{ atelier_student_courses : "has enrollments"
-    atelier_students ||--o{ atelier_student_courses : enrolls
-    atelier_courses ||--o{ atelier_schedule : schedules
-    atelier_courses ||--o{ atelier_recordings : records
-    atelier_courses ||--o{ atelier_materials : contains
-    atelier_materials ||--o{ atelier_material_assets : holds
-    atelier_students ||--o{ atelier_transactions : pays
-    atelier_courses ||--o{ atelier_transactions : purchases
+    atelier_live_sessions {
+        int id PK
+        int course_id FK
+        int mentor_id FK
+        varchar title
+        datetime scheduled_at
+        varchar meeting_link
+        enum status
+        varchar recording_url
+    }
+
+    atelier_files {
+        int id PK
+        int user_id FK
+        varchar filename
+        varchar telegram_file_id
+        varchar telegram_file_unique_id
+        int telegram_message_id
+        varchar mime_type
+        int size
+        varchar category
+    }
 ```
 
 ---
 
-## 🔐 Authentication & Session Flow
+## 🌟 Key Platform Capabilities
 
-Atelier features an integrated session manager using LocalStorage to enforce authentication states and route guards.
+### 1. 🎓 Student Learning Workspace (`/dashboard`)
+- **Mathematical Progress Engine**: Progress is calculated as:
+  $$\text{Progress \%} = \text{round}\left(\frac{\text{completed\_topics}}{\text{total\_topics}} \times 100\right)$$
+  Derived from normalized syllabus tables. Completing 100% of curriculum topics automatically timestamps `atelier_student_courses.completed_at`.
+- **Initials Avatar Badge**: Zero reliance on default stock images. Users without a uploaded avatar render an initials avatar (`<InitialsAvatar />`) with a deterministic color palette generated from their name.
+- **Real-Time Live Classroom (`/dashboard/live`)**:
+  - Automatically polls every 25 seconds for live mentor broadcasts.
+  - One-click **"Join Live Classroom"** mounts the embedded theater room right on the page.
+  - Two-way microphone audio to ask doubts, raise hand, and text in the in-class chat space.
+- **Resource Materials**: Direct streaming downloads of course PDF slides, cheatsheets, and starter repositories.
 
-```mermaid
-graph TD
-    Start([User opens Atelier])
-    AuthCheck{Has Session in LocalStorage?}
-    SigninPage[Sign In Page /auth/signin]
-    Dashboard[Learning Workbench /dashboard]
-    SignupPage[Sign Up Page /auth/signup]
-    ForgotPassword[Forgot Password Page /auth/forgot-password]
-    DB[(MySQL Student Record)]
+### 2. 👨‍🏫 Mentor Portal & Workspace (`/mentor`)
+- **Enterprise Security**: Salted `scryptSync` password hashing with timing-attack mitigation, 5-attempt/15-minute brute-force lockout, and mandatory password reset on initial sign-in.
+- **Ownership Gating**: Mentors are strictly authorized to view only their assigned cohorts (`assertMentorOwnsCourse`).
+- **4-Tab Cohort Studio (`/mentor/courses/[id]`)**:
+  1. **Enrolled Students**: Student directory with contact details and real-time curriculum progress bars.
+  2. **Live Classes**: Schedule sessions, start live broadcasts with concurrency prevention (maximum 1 active live class per mentor), enter the **Broadcast Studio**, and conclude classes with recorded replay URLs.
+  3. **Syllabus Manager**: Add, edit, and delete modules and curriculum topics (deleting a topic automatically cascades and recalculates student percentages).
+  4. **Course Materials**: Create resource folders and upload files directly.
+- **Host / Moderator Controls**:
+  - **Mute All Participants (`mute-everyone`)**: Instantly silence attendee microphones.
+  - **Kick Disruptive Students**: Eject any attendee from the classroom.
+  - **Screen Sharing**: Broadcast code editors and browser windows in HD.
+  - **In-Room Chat**: Real-time discussions during live sessions.
 
-    Start --> AuthCheck
-    AuthCheck -- "No" --> SigninPage
-    AuthCheck -- "Yes" --> Dashboard
+### 3. 🛡️ Admin Console (`/admin`)
+- Accessible via dual-clearance security keys (`NEXT_PUBLIC_MASTER_SECURITY_KEY` / `NEXT_PUBLIC_CLEARANCE_PASSWORD`).
+- **Mentor Provisioning**: Register mentors, assign one or more cohorts, and receive an auto-generated temporary password to share securely.
+- **Complete CRUD Management**: Students, courses, live timetables, material assets, hotline callback requests, and Razorpay transaction logs.
 
-    SigninPage -- "Click Sign Up" --> SignupPage
-    SigninPage -- "Click Forgot Password" --> ForgotPassword
-    SigninPage -- "Enter Credentials & Submit" --> VerifyAuth{Verify Password}
-    VerifyAuth -- "Correct" --> SaveSession[Save to LocalStorage] --> Dashboard
-    VerifyAuth -- "Incorrect" --> ShowError[Display Error Message] --> SigninPage
-
-    SignupPage -- "Enter Details & Register" --> DBInsert[Insert new student in DB] --> SaveSession
-    ForgotPassword -- "Enter Email, Phone & New Password" --> DBUpdate[Update password in DB if matches] --> SigninPage
-```
+### 4. 📦 Zero-Cloudinary File Storage (Telegram Bot API)
+- Uploaded avatars and course materials are streamed to a private Telegram channel via the Telegram Bot API (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_STORAGE_CHAT_ID`).
+- Supports files up to **50 MB**.
+- All secrets remain on the server; the client interacts solely with sanitized Next.js proxy endpoints (`/api/files/[id]`, `/api/files/upload`).
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Environment Configuration
 
-### 1. Environment Configurations
-Configure the local MySQL server parameters in the `.env.local` file inside the root directory:
+Create a `.env.local` file in the root directory:
 
 ```env
+# ── 1. Application & Domain URLs ──
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=https://atelier.spherehive.com
+
+# ── 2. MySQL Database Connection ──
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=your_mysql_password_here
+DB_PASSWORD=your_mysql_password
 DB_NAME=atelier
 
+# ── 3. Telegram Bot API Storage (Server-side only) ──
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_STORAGE_CHAT_ID=your_channel_chat_id_here
+
+# ── 4. Session & Mentor JWT Security ──
+SESSION_SECRET=a_strong_random_32_character_secret_here
+
+# ── 5. Admin Console Security Keys (Optional overrides) ──
 NEXT_PUBLIC_MASTER_SECURITY_KEY=ARSHAD-SAMVRUDHI
 NEXT_PUBLIC_CLEARANCE_PASSWORD=noor
+
+# ── 6. Razorpay Payment Gateway (Optional) ──
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+
+# ── 7. Social OAuth Sign-In (Optional) ──
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
 ```
 
-### 2. Install & Start Development Server
-```bash
-# Install dependencies
-npm install
+---
 
-# Run the next.js development workspace
+## 🛠️ Getting Started
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Launch Development Server
+```bash
 npm run dev
 ```
-*Note: The MySQL database and all required tables are automatically created and seeded with default data profiles upon launching the application.*
+*Note: All MySQL database tables, composite indexes, and normalized syllabus seeds are initialized automatically upon launch.*
+
+### 3. Production Build & Verification
+```bash
+npm run build
+npm run start
+```
 
 ---
 
 ## 🧪 Testing Credentials
 
-### 🔐 Secure Admin Console
-- **Route Link:** `/admin`
-- **Verification Credentials:**
-  - **Master Security Key:** `ARSHAD-SAMVRUDHI`
-  - **Clearance Password:** `noor`
-
-### 🎓 Student Dashboard Login
-- **Route Link:** `/auth/signin`
-- **Default Profile Credentials:**
-  - **Student Email:** `jane.doe@atelier.com`
-  - **Password:** `password`
+| Portal | Route | Default Credentials |
+| :--- | :--- | :--- |
+| **Admin Console** | `/admin` | Security Key: `ARSHAD-SAMVRUDHI`<br>Password: `noor` |
+| **Mentor Portal** | `/mentor/login` | Email: `mentor@atelier.io` (or any email registered by Admin)<br>Password: `mentor123` (Prompts password reset upon initial login) |
+| **Student Workspace** | `/auth/signin` | Email: `jane.doe@atelier.com`<br>Password: `password` |
 
 ---
 
-## 📁 Route Catalog
+## 🧭 Public Route & SEO Sitemap
 
-- `/` - Premium brand landing page detailing features, cohort comparisons, and testimonials.
-- `/courses` - Public course catalog displaying active cohort tracks loaded directly from the database.
-- `/admin` - Secure console providing full CRUD management capabilities over students, courses, schedules, resources, callbacks, instructors, and transaction logs.
-- `/admin/courses/[id]` - Detailed breakdown of registered students in a cohort, providing audit capabilities.
-- `/admin/lecturers/[id]` - Lecturer profile showcasing assigned cohorts and active students metrics.
-- `/auth/signin` - Authenticates student details against the MySQL student schema.
-- `/auth/signup` - Registers new profiles and hooks up default courses.
-- `/auth/forgot-password` - Password reset form validating email profiles.
-- `/dashboard` - Learning workbench containing tech-tree pathways, sandbox environments, and callback hotlines.
-- `/dashboard/explore` - Explore catalog allowing students to purchase tracks.
-- `/dashboard/my-courses` - Workspace selector containing purchased programs.
-- `/dashboard/live` - Timetables, live room class links, and recorded archives.
-- `/dashboard/materials` - Downloadable PDF slide checklists and repository resources.
-- `/dashboard/profile` - Student portfolio editor updates names, contacts, biography details, social URLs, and core skills lists.
+- `/` - Landing page with SEO metadata and educational organization JSON-LD schema
+- `/courses` - Cohort tracks catalog with category filters and search
+- `/courses/[id]` - Dynamic course details page with Course JSON-LD schema and OpenGraph previews
+- `/contact` - Admissions counseling and callback request form
+- `/privacy-policy` - Data handling, transaction terms, and privacy disclosures
+- `/refund-policy` - Pricing, cancellation, and refund policies
+- `/terms` - Code of conduct and enrollment terms of service
+- `/sitemap.xml` - Dynamic sitemap with priority ratings for search engines
+- `/robots.txt` - SEO robots configuration allowing public indexation while securing private dashboards
+
+---
+
+## 📄 License
+
+Proprietary and confidential. Developed for **Atelier - Sphere Hive Academy**. All rights reserved.

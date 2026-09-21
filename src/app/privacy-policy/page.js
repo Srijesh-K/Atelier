@@ -3,9 +3,21 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import styles from '../legal.module.css';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier.spherehive.com";
+
 export const metadata = {
-  title: 'Privacy Policy | Atelier Coding School',
-  description: 'Privacy Policy and data protection terms for Atelier by Sphere Hive.',
+  title: 'Privacy Policy | Atelier - Sphere Hive Academy',
+  description: 'Understand how Atelier collects, protects, and handles personal data, transaction records, and educational analytics under Indian IT Act and global data standards.',
+  keywords: ['Atelier privacy policy', 'data security', 'terms of data collection', 'Sphere Hive privacy'],
+  alternates: {
+    canonical: `${SITE_URL}/privacy-policy`,
+  },
+  openGraph: {
+    title: 'Privacy Policy | Atelier - Sphere Hive Academy',
+    description: 'Privacy Policy and data protection terms for Atelier by Sphere Hive.',
+    url: `${SITE_URL}/privacy-policy`,
+    images: [`${SITE_URL}/og-banner.png`],
+  },
 };
 
 export default function PrivacyPolicyPage() {

@@ -2,15 +2,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { getLiveSessions, getCourses } from '../../actions';
+import LiveClassroom from '@/components/LiveClassroom';
 import styles from './live.module.css';
 
 export default function LiveClassesPage({ activeCourseId = 1 }) {
   const [sessions, setSessions] = useState([]);
   const [courseTitle, setCourseTitle] = useState('Active Cohort');
   const [loading, setLoading] = useState(true);
+  const [student, setStudent] = useState(null);
+  const [activeInAppRoom, setActiveInAppRoom] = useState(null);
 
   const loadLiveData = async () => {
     try {
+      // Get student identity
+      const profileStr = localStorage.getItem('studentProfile');
+      if (profileStr) {
+        try {
+          setStudent(JSON.parse(profileStr));
+        } catch (e) {}
+      }
+
       const storedCourseId = localStorage.getItem('activeCourseId');
       const courseIdToUse = storedCourseId ? parseInt(storedCourseId, 10) : activeCourseId;
 
@@ -49,6 +60,12 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
   const scheduledSessions = sessions.filter((s) => s.status === 'scheduled');
   const completedSessions = sessions.filter((s) => s.status === 'completed' || s.recording_url);
 
+  // Helper: check if session is an embedded room
+  const isEmbeddedSession = (link) => {
+    if (!link) return false;
+    return link.includes('meet.jit.si') || link.includes('atelier-live') || link.startsWith('embedded:');
+  };
+
   // Format date helper
   const formatSessionTime = (dateStr) => {
     if (!dateStr) return 'TBA';
@@ -73,8 +90,22 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
         Join real-time lectures, live code reviews, and office hours with your mentors for {courseTitle}.
       </p>
 
+      {/* Active In-App Classroom View */}
+      {activeInAppRoom && (
+        <div style={{ marginBottom: '2.5rem' }}>
+          <LiveClassroom
+            roomName={activeInAppRoom.meeting_link}
+            user={{ name: student?.name || 'Student', email: student?.email }}
+            isMentor={false}
+            title={activeInAppRoom.title}
+            cohortName={courseTitle}
+            onClose={() => setActiveInAppRoom(null)}
+          />
+        </div>
+      )}
+
       {/* Top Banner: LIVE NOW or NEXT UPCOMING or NO LIVE */}
-      {currentLiveSession ? (
+      {!activeInAppRoom && currentLiveSession ? (
         <div className={styles.liveBanner}>
           <div className={styles.liveBannerInfo}>
             <div className={styles.statusRow}>
@@ -96,23 +127,40 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
               <span>Mentor: {currentLiveSession.mentor_name || 'Assigned Instructor'}</span>
               <span>•</span>
               <span>{courseTitle}</span>
+              <span>•</span>
+              <span style={{ color: '#30d158', fontWeight: '700' }}>Mic & Chat Active</span>
             </div>
           </div>
 
-          <a
-            href={currentLiveSession.meeting_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.joinBtn}
-          >
-            Join Live Class
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polygon points="23 7 16 12 23 17 23 7" />
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-            </svg>
-          </a>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {isEmbeddedSession(currentLiveSession.meeting_link) ? (
+              <button
+                className={styles.joinBtn}
+                onClick={() => setActiveInAppRoom(currentLiveSession)}
+              >
+                Join Live Classroom
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polygon points="23 7 16 12 23 17 23 7" />
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                </svg>
+              </button>
+            ) : (
+              <a
+                href={currentLiveSession.meeting_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.joinBtn}
+              >
+                Join Live Class
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polygon points="23 7 16 12 23 17 23 7" />
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                </svg>
+              </a>
+            )}
+          </div>
         </div>
-      ) : scheduledSessions.length > 0 ? (
+      ) : !activeInAppRoom && scheduledSessions.length > 0 ? (
         <div className={`${styles.liveBanner} ${styles.liveBannerScheduled}`}>
           <div className={styles.liveBannerInfo}>
             <div className={styles.statusRow}>

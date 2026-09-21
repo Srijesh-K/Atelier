@@ -1,16 +1,44 @@
+import React from 'react';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier.spherehive.com";
+
 export const metadata = {
-  title: "Explore Courses - Expert-Led Coding Cohorts",
-  description:
-    "Browse Atelier's catalog of live coding cohorts: full-stack development, system design, DSA, and more. Learn from industry veterans with hands-on projects and guaranteed placement support.",
+  title: "Engineering Cohorts & Programs | Full-Stack, System Design, AI",
+  description: "Explore immersive software engineering cohorts at Atelier. Master full-stack architectures, high-throughput system design, microservices, and AI engineering through production projects and live mentor syncs.",
+  keywords: [
+    "coding cohorts",
+    "full stack cohort",
+    "system design track",
+    "AI engineering bootcamp",
+    "live coding classes",
+    "software engineering courses",
+    "Atelier cohorts",
+    "Sphere Hive Academy"
+  ],
   alternates: {
-    canonical: "/courses",
+    canonical: `${SITE_URL}/courses`,
   },
   openGraph: {
-    title: "Explore Courses - Expert-Led Coding Cohorts | Atelier",
-    description:
-      "Browse live coding cohorts: full-stack development, system design, DSA & more. Hands-on projects, 1:1 mentorship, placement support.",
-    url: "/courses",
-    images: [{ url: "/og-banner.png", width: 1200, height: 630 }],
+    type: "website",
+    locale: "en_IN",
+    url: `${SITE_URL}/courses`,
+    siteName: "Atelier - A Sphere Hive Academy",
+    title: "Engineering Cohorts & Specialization Tracks | Atelier",
+    description: "Production-grade coding cohorts in Full-Stack, System Design, and AI. Live mentorship and verified project reviews.",
+    images: [
+      {
+        url: `${SITE_URL}/og-banner.png`,
+        width: 1200,
+        height: 630,
+        alt: "Atelier Engineering Cohorts",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Engineering Cohorts & Specialization Tracks | Atelier",
+    description: "Production-grade coding cohorts in Full-Stack, System Design, and AI. Live mentorship and verified project reviews.",
+    images: [`${SITE_URL}/og-banner.png`],
   },
 };
 
