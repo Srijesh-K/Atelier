@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { getStudents, updateStudentProfile } from '../../actions';
+import { getStudents, updateStudentProfile, updateStudentAvatar } from '../../actions';
 import styles from '../dashboard.module.css';
 
 export default function ProfilePage() {
@@ -16,12 +16,14 @@ export default function ProfilePage() {
     github: '',
     linkedin: '',
     portfolio: '',
+    avatar: '/images/avatar1.jpg',
     skills: ['React', 'Next.js', 'Node.js', 'System Design']
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ ...profile });
   const [statusMessage, setStatusMessage] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [streak, setStreak] = useState(1);
   const [enrolledCount, setEnrolledCount] = useState(1);
   const [newSkillInput, setNewSkillInput] = useState('');
@@ -46,6 +48,7 @@ export default function ProfilePage() {
           github: student.github || '',
           linkedin: student.linkedin || '',
           portfolio: student.portfolio || '',
+          avatar: student.avatar || '/images/avatar1.jpg',
           skills: student.skills && student.skills.length > 0 ? student.skills : ['React', 'Next.js', 'Node.js']
         };
         setProfile(profileObj);
@@ -59,6 +62,64 @@ export default function ProfilePage() {
     window.addEventListener('profileChanged', loadProfile);
     return () => window.removeEventListener('profileChanged', loadProfile);
   }, []);
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (e.g. JPG, PNG, WEBP).');
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File size exceeds the 50 MB limit supported by Telegram Bot API storage.');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    setStatusMessage('Uploading profile picture to Telegram storage...');
+
+    try {
+      const email = localStorage.getItem('loggedInStudentEmail');
+      const body = new FormData();
+      body.append('file', file);
+      body.append('category', 'avatar');
+      if (email) body.append('userEmail', email);
+
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: email ? { 'x-user-email': email } : {},
+        body
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to upload avatar.');
+      }
+
+      const avatarUrl = data.file.url;
+      const studentsList = await getStudents();
+      const student = studentsList.find((s) => s.email.toLowerCase() === (email || '').toLowerCase());
+      if (student) {
+        await updateStudentAvatar(student.id, avatarUrl);
+      }
+
+      setProfile(prev => ({ ...prev, avatar: avatarUrl }));
+      setFormData(prev => ({ ...prev, avatar: avatarUrl }));
+      setStatusMessage('Profile picture updated successfully via Telegram storage!');
+      setTimeout(() => setStatusMessage(''), 4000);
+      window.dispatchEvent(new Event('profileChanged'));
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+      alert('Error uploading avatar: ' + err.message);
+      setStatusMessage('');
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
+
 
   // Calculate actual Profile Completion Percentage (0-100%)
   const completionStats = useMemo(() => {
@@ -234,7 +295,43 @@ export default function ProfilePage() {
         {/* Left Column: Avatar & Summary */}
         <div className={styles.cardPanel} style={{ height: 'fit-content' }}>
           <div className={styles.profileSidebarCard}>
-            <img src="/images/avatar1.jpg" alt="Student Profile Avatar" className={styles.profileAvatarLarge} />
+            <div style={{ position: 'relative', display: 'inline-block', margin: '0 auto 1rem' }}>
+              <img
+                src={profile.avatar || '/images/avatar1.jpg'}
+                alt="Student Profile Avatar"
+                className={styles.profileAvatarLarge}
+                style={{ objectFit: 'cover' }}
+              />
+              <label
+                style={{
+                  position: 'absolute',
+                  bottom: '4px',
+                  right: '4px',
+                  background: 'var(--accent-orange, #f25522)',
+                  color: '#ffffff',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: uploadingAvatar ? 'wait' : 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                  fontSize: '14px',
+                  border: '2px solid #141416'
+                }}
+                title={uploadingAvatar ? 'Uploading...' : 'Upload new photo to Telegram storage'}
+              >
+                {uploadingAvatar ? '⏳' : '📷'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleAvatarUpload}
+                  disabled={uploadingAvatar}
+                />
+              </label>
+            </div>
             <h3 className={styles.profileNameLarge}>{profile.name || 'Student Builder'}</h3>
             <span className={styles.profileRoleBadge}>Premium Cohort</span>
             

@@ -264,6 +264,35 @@ async function initDb() {
     await p.execute("ALTER TABLE atelier_transactions ADD COLUMN razorpay_signature VARCHAR(500)");
   }
 
+  // Telegram File Storage Table
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_files (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NULL,
+      filename VARCHAR(500) NOT NULL,
+      telegram_file_id VARCHAR(500) NOT NULL,
+      telegram_file_unique_id VARCHAR(255) NOT NULL,
+      telegram_message_id INT NULL,
+      mime_type VARCHAR(255) NOT NULL,
+      size INT NOT NULL,
+      category VARCHAR(50) DEFAULT 'general',
+      course_id INT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES atelier_students(id) ON DELETE SET NULL,
+      FOREIGN KEY(course_id) REFERENCES atelier_courses(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB
+  `);
+
+  // Ensure file_id column exists on atelier_material_assets
+  const [matAssetCols] = await p.execute("SHOW COLUMNS FROM atelier_material_assets");
+  const matAssetColNames = matAssetCols.map(c => c.Field);
+  if (!matAssetColNames.includes('file_id')) {
+    await p.execute("ALTER TABLE atelier_material_assets ADD COLUMN file_id INT NULL");
+  }
+  if (!matAssetColNames.includes('url')) {
+    await p.execute("ALTER TABLE atelier_material_assets ADD COLUMN url VARCHAR(500) NULL");
+  }
+
   // Check if seeding is needed
   const [rows] = await p.execute("SELECT COUNT(*) as count FROM atelier_students");
   const isSeeded = rows[0].count > 0;
@@ -377,4 +406,74 @@ export async function getConnection() {
   await initDb();
   const p = await getPool();
   return p.getConnection();
+}
+
+// --- FILE STORAGE HELPERS ---
+export async function createFileRecord({ userId, filename, telegramFileId, telegramFileUniqueId, telegramMessageId, mimeType, size, category = 'general', courseId = null }) {
+  await initDb();
+  const p = await getPool();
+  const [result] = await p.execute(
+    `INSERT INTO atelier_files (user_id, filename, telegram_file_id, telegram_file_unique_id, telegram_message_id, mime_type, size, category, course_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [userId || null, filename, telegramFileId, telegramFileUniqueId, telegramMessageId || null, mimeType, size, category, courseId || null]
+  );
+  return {
+    id: result.insertId,
+    userId,
+    filename,
+    telegramFileId,
+    telegramFileUniqueId,
+    telegramMessageId,
+    mimeType,
+    size,
+    category,
+    courseId
+  };
+}
+
+export async function getFileRecordById(id) {
+  await initDb();
+  const p = await getPool();
+  const [rows] = await p.execute('SELECT * FROM atelier_files WHERE id = ?', [id]);
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    userId: r.user_id,
+    filename: r.filename,
+    telegramFileId: r.telegram_file_id,
+    telegramFileUniqueId: r.telegram_file_unique_id,
+    telegramMessageId: r.telegram_message_id,
+    mimeType: r.mime_type,
+    size: r.size,
+    category: r.category,
+    courseId: r.course_id,
+    createdAt: r.created_at
+  };
+}
+
+export async function deleteFileRecord(id) {
+  await initDb();
+  const p = await getPool();
+  const [result] = await p.execute('DELETE FROM atelier_files WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+}
+
+export async function getFilesForUser(userId) {
+  await initDb();
+  const p = await getPool();
+  const [rows] = await p.execute('SELECT * FROM atelier_files WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+  return rows.map(r => ({
+    id: r.id,
+    userId: r.user_id,
+    filename: r.filename,
+    telegramFileId: r.telegram_file_id,
+    telegramFileUniqueId: r.telegram_file_unique_id,
+    telegramMessageId: r.telegram_message_id,
+    mimeType: r.mime_type,
+    size: r.size,
+    category: r.category,
+    courseId: r.course_id,
+    createdAt: r.created_at
+  }));
 }
