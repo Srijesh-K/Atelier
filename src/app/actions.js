@@ -1484,9 +1484,16 @@ export async function getLiveSessions(courseId = null) {
 /**
  * Schedule a new live session (Ownership checked; prevents multiple concurrent live classes)
  */
-export async function createLiveSession(mentorId, sessionData) {
+export async function createLiveSession(mentorIdOrData, sessionData = null) {
   try {
-    const { courseId, title, description, scheduledAt, durationMinutes, meetingLink } = sessionData;
+    let mentorId = mentorIdOrData;
+    let data = sessionData;
+    if (typeof mentorIdOrData === 'object' && mentorIdOrData !== null && !sessionData) {
+      mentorId = mentorIdOrData.mentorId;
+      data = mentorIdOrData;
+    }
+
+    const { courseId, title, description, scheduledAt, durationMinutes, meetingLink } = data || {};
     if (mentorId) {
       await assertMentorOwnsCourse(mentorId, courseId);
     }
