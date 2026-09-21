@@ -1,6 +1,7 @@
 'use server';
 
-import { query, execute, getConnection } from '../utils/db-sql';
+import { query, execute, getConnection, createFileRecord, getFileRecordById, deleteFileRecord, getFilesForUser } from '../utils/db-sql';
+import { deleteMessageFromTelegram } from '../lib/telegram';
 
 // --- STUDENTS ACTIONS ---
 export async function getStudents() {
@@ -92,19 +93,67 @@ export async function deleteStudent(id) {
   }
 }
 
-export async function updateStudentProfile(id, name, email, phone, college, degree, gradYear, bio, github, linkedin, portfolio, skills) {
+export async function updateStudentProfile(id, name, email, phone, college, degree, gradYear, bio, github, linkedin, portfolio, skills, avatar = null) {
   try {
     const skillsStr = Array.isArray(skills) ? skills.join(',') : (skills || '');
-    await execute(
-      `UPDATE atelier_students SET name = ?, email = ?, phone = ?, college = ?, degree = ?, grad_year = ?, bio = ?, github = ?, linkedin = ?, portfolio = ?, skills = ? WHERE id = ?`,
-      [name, email, phone, college, degree || null, gradYear, bio || null, github || null, linkedin || null, portfolio || null, skillsStr || null, id]
-    );
+    if (avatar) {
+      await execute(
+        `UPDATE atelier_students SET name = ?, email = ?, phone = ?, college = ?, degree = ?, grad_year = ?, bio = ?, github = ?, linkedin = ?, portfolio = ?, skills = ?, avatar = ? WHERE id = ?`,
+        [name, email, phone, college, degree || null, gradYear, bio || null, github || null, linkedin || null, portfolio || null, skillsStr || null, avatar, id]
+      );
+    } else {
+      await execute(
+        `UPDATE atelier_students SET name = ?, email = ?, phone = ?, college = ?, degree = ?, grad_year = ?, bio = ?, github = ?, linkedin = ?, portfolio = ?, skills = ? WHERE id = ?`,
+        [name, email, phone, college, degree || null, gradYear, bio || null, github || null, linkedin || null, portfolio || null, skillsStr || null, id]
+      );
+    }
     return { success: true };
   } catch (e) {
     console.error("SQL Error in updateStudentProfile:", e);
     throw new Error(e.message);
   }
 }
+
+export async function updateStudentAvatar(id, avatarUrl) {
+  try {
+    await execute("UPDATE atelier_students SET avatar = ? WHERE id = ?", [avatarUrl, id]);
+    return { success: true, avatar: avatarUrl };
+  } catch (e) {
+    console.error("SQL Error in updateStudentAvatar:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function deleteUploadedFile(fileId, userEmail = null, isAdmin = false) {
+  try {
+    const file = await getFileRecordById(fileId);
+    if (!file) {
+      throw new Error("File not found");
+    }
+
+    if (!isAdmin && userEmail) {
+      const studentRows = await query("SELECT id FROM atelier_students WHERE LOWER(email) = LOWER(?)", [userEmail]);
+      if (studentRows.length === 0 || studentRows[0].id !== file.userId) {
+        throw new Error("Unauthorized to delete this file.");
+      }
+    }
+
+    // Delete message from Telegram channel if telegramMessageId is stored
+    if (file.telegramMessageId) {
+      await deleteMessageFromTelegram(file.telegramMessageId).catch((err) => {
+        console.warn("Could not delete message from Telegram:", err.message);
+      });
+    }
+
+    // Delete from database
+    await deleteFileRecord(fileId);
+    return { success: true };
+  } catch (e) {
+    console.error("Error in deleteUploadedFile:", e);
+    throw new Error(e.message);
+  }
+}
+
 
 export async function recordStudentDailyStreak(studentEmail) {
   try {
@@ -315,8 +364,15 @@ export async function getMaterials() {
       m.courseId = m.course_id;
       delete m.course_id;
 
-      const assets = await query("SELECT name, size, type FROM atelier_material_assets WHERE material_id = ?", [m.id]);
-      m.assets = assets;
+      const assets = await query("SELECT id, name, size, type, file_id, url FROM atelier_material_assets WHERE material_id = ?", [m.id]);
+      m.assets = assets.map(a => ({
+        id: a.id,
+        name: a.name,
+        size: a.size,
+        type: a.type,
+        fileId: a.file_id,
+        url: a.url || (a.file_id ? `/api/files/${a.file_id}` : null)
+      }));
     }
     return materials;
   } catch (e) {
@@ -344,8 +400,10 @@ export async function saveMaterial(mat) {
         await conn.execute("DELETE FROM atelier_material_assets WHERE material_id = ?", [mat.id]);
         if (mat.assets) {
           for (const a of mat.assets) {
-            await conn.execute("INSERT INTO atelier_material_assets (material_id, name, size, type) VALUES (?, ?, ?, ?)",
-              [mat.id, a.name, a.size, a.type]);
+            await conn.execute(
+              "INSERT INTO atelier_material_assets (material_id, name, size, type, file_id, url) VALUES (?, ?, ?, ?, ?, ?)",
+              [mat.id, a.name, a.size, a.type, a.fileId || a.file_id || null, a.url || null]
+            );
           }
         }
       } else {
@@ -355,8 +413,10 @@ export async function saveMaterial(mat) {
         const newMatId = result.insertId;
         if (mat.assets) {
           for (const a of mat.assets) {
-            await conn.execute("INSERT INTO atelier_material_assets (material_id, name, size, type) VALUES (?, ?, ?, ?)",
-              [newMatId, a.name, a.size, a.type]);
+            await conn.execute(
+              "INSERT INTO atelier_material_assets (material_id, name, size, type, file_id, url) VALUES (?, ?, ?, ?, ?, ?)",
+              [newMatId, a.name, a.size, a.type, a.fileId || a.file_id || null, a.url || null]
+            );
           }
         }
       }
@@ -378,6 +438,18 @@ export async function saveMaterial(mat) {
 
 export async function deleteMaterial(id) {
   try {
+    const assets = await query("SELECT file_id FROM atelier_material_assets WHERE material_id = ?", [id]);
+    for (const a of assets) {
+      if (a.file_id) {
+        const fileRec = await getFileRecordById(a.file_id);
+        if (fileRec) {
+          if (fileRec.telegramMessageId) {
+            await deleteMessageFromTelegram(fileRec.telegramMessageId).catch(() => {});
+          }
+          await deleteFileRecord(fileRec.id).catch(() => {});
+        }
+      }
+    }
     await execute("DELETE FROM atelier_materials WHERE id = ?", [id]);
     return { success: true };
   } catch (e) {

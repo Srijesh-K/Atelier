@@ -38,6 +38,7 @@ export default function AdminConsole() {
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({});
+  const [adminUploading, setAdminUploading] = useState(false);
 
   // Check sessionStorage for admin clearances
   useEffect(() => {
@@ -123,7 +124,11 @@ export default function AdminConsole() {
     setModalMode(mode);
     if (mode === 'edit' && entity) {
       setEditId(entity.id);
-      setFormData({ ...entity });
+      const initialData = { ...entity };
+      if (activeTab === 'materials' && entity.assets) {
+        initialData.assetsJson = JSON.stringify(entity.assets, null, 2);
+      }
+      setFormData(initialData);
     } else {
       setEditId(null);
       // Initialize default inputs based on active tab
@@ -226,6 +231,75 @@ export default function AdminConsole() {
       alert("Error saving entity: " + err.message);
     }
   };
+
+  const handleAdminFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File size exceeds the 50 MB limit supported by Telegram Bot API storage.');
+      return;
+    }
+
+    setAdminUploading(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      body.append('category', 'material');
+      if (formData.courseId) body.append('courseId', formData.courseId);
+      body.append('adminKey', securityKey || 'ARSHAD-SAMVRUDHI');
+
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: {
+          'x-admin-key': securityKey || 'ARSHAD-SAMVRUDHI'
+        },
+        body
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to upload file to Telegram storage.');
+      }
+
+      const sizeStr = file.size > 1024 * 1024 
+        ? (file.size / (1024 * 1024)).toFixed(1) + ' MB' 
+        : (file.size / 1024).toFixed(0) + ' KB';
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      const assetType = ['pdf', 'zip', 'md', 'png', 'jpg', 'jpeg'].includes(ext) ? ext : 'doc';
+
+      let currentAssets = [];
+      try {
+        currentAssets = JSON.parse(formData.assetsJson || '[]');
+      } catch (err) {
+        currentAssets = [];
+      }
+
+      const newAsset = {
+        name: file.name,
+        size: sizeStr,
+        type: assetType,
+        fileId: data.file.id,
+        url: data.file.url
+      };
+
+      currentAssets.push(newAsset);
+      setFormData(prev => ({
+        ...prev,
+        assetsJson: JSON.stringify(currentAssets, null, 2)
+      }));
+
+      alert(`File "${file.name}" uploaded to Telegram storage successfully and added to assets!`);
+    } catch (err) {
+      console.error('Admin file upload error:', err);
+      alert('Upload error: ' + err.message);
+    } finally {
+      setAdminUploading(false);
+      e.target.value = '';
+    }
+  };
+
 
   // Hotline callback operations
   const handleResolveCallback = async (id) => {
@@ -869,7 +943,22 @@ export default function AdminConsole() {
                     </select>
                   </div>
                   <div className={styles.profileFormGroup}>
-                    <label className={styles.modalLabel}>Assets Array JSON</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <label className={styles.modalLabel} style={{ margin: 0 }}>Assets Array JSON</label>
+                      <label style={{ 
+                        cursor: adminUploading ? 'wait' : 'pointer', 
+                        color: 'var(--accent-orange, #f25522)', 
+                        fontSize: '0.78rem', 
+                        fontWeight: '700',
+                        background: 'rgba(242, 85, 34, 0.1)',
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(242, 85, 34, 0.2)'
+                      }}>
+                        {adminUploading ? '⏳ Uploading to Telegram...' : '➕ Upload File to Telegram'}
+                        <input type="file" style={{ display: 'none' }} onChange={handleAdminFileUpload} disabled={adminUploading} />
+                      </label>
+                    </div>
                     <textarea 
                       name="assetsJson" 
                       required 
@@ -879,7 +968,7 @@ export default function AdminConsole() {
                       onChange={handleFormChange} 
                     />
                     <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>
-                      {'Format: [{"name":"File.pdf","size":"1.2 MB","type":"pdf"}] (Types: pdf, zip, link, md)'}
+                      {'Format: [{"name":"File.pdf","size":"1.2 MB","type":"pdf","fileId":1}] — Upload files directly using the button above to store them in Telegram Bot API storage.'}
                     </span>
                   </div>
                 </>
