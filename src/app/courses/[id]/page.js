@@ -681,36 +681,108 @@ export default function CourseDetailPage() {
         </section>
       )}
 
-      {/* ═══════════ BOTTOM CTA ═══════════ */}
-      <section className={styles.bottomCta}>
-        <div className={styles.bottomCtaGrid} />
-        <div className={styles.bottomCtaGlow} />
+      {/* ═══════════ PRICING CARD SECTION ═══════════ */}
+      <section className={styles.pricingCardSection} id="pricing">
+        <div className={styles.pricingCardGridBg} />
         <div className={`${styles.sectionContainer} container`}>
           <Reveal>
-            <div className={styles.bottomCtaContent}>
-              <div className={styles.sectionLabel}>START TODAY</div>
-              <h2 className={styles.bottomCtaTitle}>
-                Transform Your Learning Journey<br />
-                Into A <span className={styles.textAccent}>Career Breakthrough</span>
-              </h2>
-              <p className={styles.bottomCtaDesc}>
-                Join hundreds of developers who have accelerated their careers through real-world projects, live mentorship, and an industry-grade curriculum.
-              </p>
-              <div className={styles.heroActions}>
-                <button className={styles.ctaBtn} onClick={handleEnrollClick}>
-                  <span>{isEnrolled ? 'Access Workspace' : student ? `Enroll - ${course.price || 'Free'}` : 'Get Started Now'}</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </button>
-                <button className={styles.ctaBtnOutline} onClick={() => router.push('/courses')}>
-                  View All Courses
-                </button>
-              </div>
+            <div className={styles.pricingCardWrap}>
+              <div className={styles.pricingCard}>
+                {/* Vibrant ambient orange glow in top-left */}
+                <div className={styles.pricingCardGlowLeft} />
 
-              {/* Pricing below CTA */}
-              <div className={styles.bottomCtaPricing}>
-                <span className={styles.heroPriceMain}>{course.price || 'Free'}</span>
-                {course.originalPrice && <span className={styles.heroPriceSlash}>{course.originalPrice}</span>}
-                {course.discount && <span className={styles.heroDiscountBadge}>{course.discount}</span>}
+                {/* Decorative abstract 3D ribbon & sparkles in top-right */}
+                <div className={styles.pricingCardDecorRight}>
+                  <svg viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.pricingDecorSvg}>
+                    <defs>
+                      <linearGradient id="glowGradRibbon" x1="20%" y1="0%" x2="80%" y2="100%">
+                        <stop offset="0%" stopColor="#bf5022" stopOpacity="0.45" />
+                        <stop offset="60%" stopColor="#692410" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#250d06" stopOpacity="0.05" />
+                      </linearGradient>
+                      <filter id="softRibbonBlur" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="8" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
+                    <path d="M140 15 C185 45, 205 105, 175 160 C150 195, 100 205, 80 170 C60 135, 95 85, 140 65" stroke="url(#glowGradRibbon)" strokeWidth="28" strokeLinecap="round" filter="url(#softRibbonBlur)" />
+                    <path d="M180 50 C205 90, 195 145, 150 190 C105 220, 50 195, 40 150" stroke="url(#glowGradRibbon)" strokeWidth="20" strokeLinecap="round" opacity="0.6" />
+                    <path d="M185 75 Q185 83 193 83 Q185 83 185 91 Q185 83 177 83 Q185 83 185 75 Z" fill="#d97742" opacity="0.75" />
+                    <path d="M155 42 Q155 48 161 48 Q155 48 155 54 Q155 48 149 48 Q155 48 155 42 Z" fill="#d97742" opacity="0.55" />
+                    <path d="M202 125 Q202 129 206 129 Q202 129 202 133 Q202 129 198 129 Q202 129 202 125 Z" fill="#d97742" opacity="0.45" />
+                  </svg>
+                </div>
+
+                <div className={styles.pricingCardGrid}>
+                  {/* Left Column */}
+                  <div className={styles.pricingCardLeft}>
+                    <h3 className={styles.pricingCourseTitle}>
+                      {course.title || 'Data Science and Analytics with GenAI'}
+                    </h3>
+
+                    <p className={styles.pricingCourseDesc}>
+                      {course.subtitle || course.description || 'Gain hands-on experience in data analysis, visualization, and AI integration.'}
+                    </p>
+
+                    <div className={styles.pricingPriceRow}>
+                      <span className={styles.pricingPriceMain}>
+                        {(() => {
+                          const val = course.price;
+                          if (!val) return '₹ 9799';
+                          if (String(val).toLowerCase() === 'free') return 'Free';
+                          const d = String(val).replace(/[^0-9]/g, '');
+                          return d ? `₹ ${d}` : val;
+                        })()}
+                      </span>
+                      {(() => {
+                        const val = course.originalPrice;
+                        const d = val ? String(val).replace(/[^0-9]/g, '') : '19999';
+                        return <span className={styles.pricingPriceSlash}>{`₹ ${d}`}</span>;
+                      })()}
+                      <span className={styles.pricingPriceTax}>(+ GST)</span>
+                    </div>
+
+                    <button
+                      className={styles.pricingEnrollBtn}
+                      onClick={isEnrolled ? handleAccessWorkspace : handleEnrollClick}
+                    >
+                      {isEnrolled ? 'Access Workspace' : 'Enroll Now'}
+                    </button>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className={styles.pricingCardRight}>
+                    <div className={styles.pricingBadgeRow}>
+                      <span className={styles.pricingPopularBadge}>Most popular</span>
+                    </div>
+
+                    <div className={styles.pricingMetaList}>
+                      <div className={styles.pricingMetaItem}>
+                        <span className={styles.pricingMetaLabel}>Duration</span>
+                        <span className={styles.pricingMetaValue}>
+                          {course.duration || (course.totalHours ? `${course.totalHours}+ Hours` : '115+ Hours')}
+                        </span>
+                      </div>
+                      <div className={styles.pricingMetaItem}>
+                        <span className={styles.pricingMetaLabel}>Category</span>
+                        <span className={styles.pricingMetaValue}>
+                          {course.category || (course.badges && course.badges[0]) || 'Gen Ai'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className={styles.pricingDividerRow}>
+                      <span className={styles.pricingDividerLine} />
+                      <span className={styles.pricingDividerText}>the next big thing +</span>
+                      <span className={styles.pricingDividerLine} />
+                    </div>
+
+                    <div className={styles.pricingPerksList}>
+                      <div className={styles.pricingPerkItem}>Personalized Guidance &amp; Doubt Solving</div>
+                      <div className={styles.pricingPerkItem}>One Step Solution For Placement</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </Reveal>

@@ -1174,70 +1174,244 @@
   max-width: 780px;
 }
 
-/* ═══════════ BOTTOM CTA ═══════════ */
-.bottomCta {
+/* ═══════════ PRICING CARD SECTION ═══════════ */
+.pricingCardSection {
   position: relative;
-  background: #050505;
-  border-top: 1px solid rgba(255,255,255,0.04);
+  background: #08080a;
+  padding: 5rem 0 6rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   overflow: hidden;
-  text-align: center;
 }
 
-.bottomCtaGrid {
+.pricingCardGridBg {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
   background-size: 60px 60px;
   pointer-events: none;
 }
 
-.bottomCtaGlow {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 700px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(242,85,34,0.1) 0%, transparent 70%);
-  filter: blur(80px);
-  pointer-events: none;
+.pricingCardWrap {
+  max-width: 1060px;
+  margin: 0 auto;
+  position: relative;
 }
 
-.bottomCtaContent {
+.pricingCard {
   position: relative;
+  background: radial-gradient(ellipse 65% 65% at 0% 0%, rgba(220, 85, 22, 0.38) 0%, rgba(20, 21, 24, 0) 65%), #0f1013;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  padding: 3.25rem 3.5rem;
+  overflow: hidden;
+  box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.75), 0 0 45px -10px rgba(220, 85, 22, 0.08);
+}
+
+/* Vibrant orange ambient glow in top-left */
+.pricingCardGlowLeft {
+  position: absolute;
+  top: -85px;
+  left: -85px;
+  width: 440px;
+  height: 340px;
+  background: radial-gradient(circle at 35% 35%, rgba(230, 92, 28, 0.55) 0%, rgba(190, 68, 18, 0.22) 45%, transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
   z-index: 1;
-  max-width: 700px;
-  margin: 0 auto;
+}
+
+/* Subtle decorative shape in top-right */
+.pricingCardDecorRight {
+  position: absolute;
+  top: -15px;
+  right: -15px;
+  width: 250px;
+  height: 250px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.85;
+}
+
+.pricingDecorSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.pricingCardGrid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1.25fr 0.9fr;
+  gap: 3.5rem;
+  align-items: start;
+}
+
+/* Left Column */
+.pricingCardLeft {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
 }
 
-.bottomCtaTitle {
-  font-family: var(--font-heading);
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
-  line-height: 1.15;
-  color: #fff;
+.pricingCourseTitle {
+  font-family: var(--font-heading), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(1.85rem, 3.2vw, 2.35rem);
+  font-weight: 600;
+  line-height: 1.2;
+  color: #f5f5f7;
+  letter-spacing: -0.015em;
+  margin: 0 0 1.15rem 0;
+}
+
+.pricingCourseDesc {
+  font-size: 1.02rem;
+  color: #a1a1aa;
+  line-height: 1.55;
+  margin: 0 0 2.5rem 0;
+  max-width: 500px;
+}
+
+.pricingPriceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  margin-bottom: 1.75rem;
+  flex-wrap: wrap;
+}
+
+.pricingPriceMain {
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(2.2rem, 3.5vw, 2.75rem);
+  font-weight: 700;
+  color: #ffffff;
   letter-spacing: -0.02em;
+  line-height: 1;
 }
 
-.bottomCtaDesc {
-  font-size: 1rem;
-  color: rgba(255,255,255,0.45);
-  line-height: 1.65;
-  max-width: 560px;
+.pricingPriceSlash {
+  font-size: 1.1rem;
+  color: #71717a;
+  text-decoration: line-through;
+  font-weight: 400;
 }
 
-.bottomCtaPricing {
+.pricingPriceTax {
+  font-size: 0.95rem;
+  color: #71717a;
+  font-weight: 400;
+}
+
+.pricingEnrollBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 220px;
+  padding: 0.9rem 2.5rem;
+  background: linear-gradient(180deg, #be4f1f 0%, #9e3d14 100%);
+  color: #ffffff;
+  font-size: 1.02rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 18px rgba(190, 79, 31, 0.35);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.01em;
+}
+
+.pricingEnrollBtn:hover {
+  filter: brightness(1.12);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 25px rgba(190, 79, 31, 0.5);
+}
+
+.pricingEnrollBtn:active {
+  transform: translateY(1px);
+}
+
+/* Right Column */
+.pricingCardRight {
+  display: flex;
+  flex-direction: column;
+}
+
+.pricingBadgeRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 2.75rem;
+}
+
+.pricingPopularBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.38rem 1.25rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #d4d4d8;
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(8px);
+}
+
+.pricingMetaList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pricingMetaItem {
   display: flex;
   align-items: center;
+  gap: 1.25rem;
+}
+
+.pricingMetaLabel {
+  font-size: 0.95rem;
+  color: #a1a1aa;
+  min-width: 80px;
+}
+
+.pricingMetaValue {
+  font-size: 0.95rem;
+  color: #71717a;
+  font-weight: 400;
+}
+
+.pricingDividerRow {
+  display: flex;
+  align-items: center;
+  margin: 1.75rem 0 1.35rem 0;
   gap: 0.75rem;
-  justify-content: center;
-  padding-top: 0.5rem;
-  flex-wrap: wrap;
+}
+
+.pricingDividerLine {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.pricingDividerText {
+  font-size: 0.78rem;
+  color: #71717a;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  padding: 0 0.2rem;
+}
+
+.pricingPerksList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pricingPerkItem {
+  font-size: 0.92rem;
+  color: #71717a;
+  line-height: 1.45;
 }
 
 /* ═══════════ RESPONSIVE ═══════════ */
@@ -1300,10 +1474,26 @@
   .certMockupName { font-size: 1.5rem; }
 }
 
+@media (max-width: 900px) {
+  .pricingCardGrid {
+    grid-template-columns: 1fr;
+    gap: 2.25rem;
+  }
+  .pricingBadgeRow {
+    justify-content: flex-start;
+    margin-bottom: 1.5rem;
+  }
+  .pricingCard {
+    padding: 2.25rem 1.75rem;
+    border-radius: 22px;
+  }
+}
+
 @media (max-width: 480px) {
   .heroStatsGrid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
   .heroTitle { font-size: 1.9rem; }
   .sectionTitle { font-size: 1.6rem; margin-bottom: 2rem; }
   .accordionQ { font-size: 0.88rem; }
-  .bottomCtaTitle { font-size: 1.75rem; }
+  .pricingCourseTitle { font-size: 1.65rem; }
+  .pricingEnrollBtn { width: 100%; }
 }
