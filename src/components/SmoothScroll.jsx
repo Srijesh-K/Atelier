@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import { gsap } from 'gsap/dist/gsap';
@@ -8,22 +9,38 @@ import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
 
 export default function SmoothScroll({ children }) {
   const lenisRef = useRef(null);
+  const pathname = usePathname();
 
   useEffect(() => {
+    // Disable Lenis on dashboard, admin, and onboarding routes so native scrolling works cleanly
+    const isDashboardOrAdmin = pathname?.startsWith('/dashboard') || pathname?.startsWith('/admin');
+    if (isDashboardOrAdmin) {
+      if (lenisRef.current) {
+        lenisRef.current.destroy();
+        lenisRef.current = null;
+      }
+      if (typeof document !== 'undefined') {
+        document.documentElement.classList.remove('lenis', 'lenis-smooth', 'lenis-scrolling', 'lenis-stopped');
+        document.documentElement.style.removeProperty('overflow');
+        document.body.style.removeProperty('overflow');
+      }
+      return;
+    }
+
     // Register ScrollTrigger if not already registered
     if (typeof window !== 'undefined') {
       gsap.registerPlugin(ScrollTrigger);
     }
 
-    // Initialize Lenis with gentle, calm dampening to prevent jumpy/hyper-sensitive scrolling
+    // Initialize Lenis with calm dampening for marketing pages
     const lenis = new Lenis({
       duration: 1.1,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 0.75, // Gently dampens mouse wheel sensitivity
-      touchMultiplier: 0.9,  // Controlled touch sensitivity
+      wheelMultiplier: 0.75,
+      touchMultiplier: 0.9,
       infinite: false,
     });
 
@@ -43,8 +60,9 @@ export default function SmoothScroll({ children }) {
     return () => {
       gsap.ticker.remove(updateLenis);
       lenis.destroy();
+      lenisRef.current = null;
     };
-  }, []);
+  }, [pathname]);
 
   return <>{children}</>;
 }

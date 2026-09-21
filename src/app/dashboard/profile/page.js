@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { getStudents, updateStudentProfile, updateStudentAvatar } from '../../actions';
+import InitialsAvatar from '@/components/InitialsAvatar';
 import styles from '../dashboard.module.css';
 
 export default function ProfilePage() {
@@ -16,7 +17,7 @@ export default function ProfilePage() {
     github: '',
     linkedin: '',
     portfolio: '',
-    avatar: '/images/avatar1.jpg',
+    avatar: null,
     skills: ['React', 'Next.js', 'Node.js', 'System Design']
   });
 
@@ -48,7 +49,7 @@ export default function ProfilePage() {
           github: student.github || '',
           linkedin: student.linkedin || '',
           portfolio: student.portfolio || '',
-          avatar: student.avatar || '/images/avatar1.jpg',
+          avatar: student.avatar || null,
           skills: student.skills && student.skills.length > 0 ? student.skills : ['React', 'Next.js', 'Node.js']
         };
         setProfile(profileObj);
@@ -73,12 +74,12 @@ export default function ProfilePage() {
     }
 
     if (file.size > 50 * 1024 * 1024) {
-      alert('File size exceeds the 50 MB limit supported by Telegram Bot API storage.');
+      alert('File size exceeds the 50 MB limit.');
       return;
     }
 
     setUploadingAvatar(true);
-    setStatusMessage('Uploading profile picture to Telegram storage...');
+    setStatusMessage('Uploading profile picture...');
 
     try {
       const email = localStorage.getItem('loggedInStudentEmail');
@@ -107,7 +108,7 @@ export default function ProfilePage() {
 
       setProfile(prev => ({ ...prev, avatar: avatarUrl }));
       setFormData(prev => ({ ...prev, avatar: avatarUrl }));
-      setStatusMessage('Profile picture updated successfully via Telegram storage!');
+      setStatusMessage('Profile picture updated successfully!');
       setTimeout(() => setStatusMessage(''), 4000);
       window.dispatchEvent(new Event('profileChanged'));
     } catch (err) {
@@ -258,7 +259,7 @@ export default function ProfilePage() {
           </div>
 
           <span style={{ fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.45)', fontWeight: '500' }}>
-            {completionStats.score === 100 ? '✓ Workspace Ready' : `${completionStats.missing.length} field${completionStats.missing.length > 1 ? 's' : ''} remaining`}
+            {completionStats.score === 100 ? '✓ Profile Complete' : `${completionStats.missing.length} field${completionStats.missing.length > 1 ? 's' : ''} remaining`}
           </span>
         </div>
 
@@ -296,12 +297,21 @@ export default function ProfilePage() {
         <div className={styles.cardPanel} style={{ height: 'fit-content' }}>
           <div className={styles.profileSidebarCard}>
             <div style={{ position: 'relative', display: 'inline-block', margin: '0 auto 1rem' }}>
-              <img
-                src={profile.avatar || '/images/avatar1.jpg'}
-                alt="Student Profile Avatar"
-                className={styles.profileAvatarLarge}
-                style={{ objectFit: 'cover' }}
-              />
+              {profile.avatar ? (
+                <img
+                  src={profile.avatar}
+                  alt="Student Profile Avatar"
+                  className={styles.profileAvatarLarge}
+                  style={{ objectFit: 'cover' }}
+                />
+              ) : (
+                <InitialsAvatar
+                  name={profile.name || 'Student Builder'}
+                  size={96}
+                  fontSize={36}
+                  className={styles.profileAvatarLarge}
+                />
+              )}
               <label
                 style={{
                   position: 'absolute',
@@ -320,7 +330,7 @@ export default function ProfilePage() {
                   fontSize: '14px',
                   border: '2px solid #141416'
                 }}
-                title={uploadingAvatar ? 'Uploading...' : 'Upload new photo to Telegram storage'}
+                title={uploadingAvatar ? 'Uploading...' : 'Upload new photo'}
               >
                 {uploadingAvatar ? '⏳' : '📷'}
                 <input

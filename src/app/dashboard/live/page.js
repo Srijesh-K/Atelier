@@ -1,149 +1,274 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getSchedule, getRecordings, getCourses, getLecturers } from '../../actions';
-import styles from '../dashboard.module.css';
+import { getLiveSessions, getCourses } from '../../actions';
+import styles from './live.module.css';
 
 export default function LiveClassesPage({ activeCourseId = 1 }) {
-  const [scheduleList, setScheduleList] = useState([]);
-  const [recordingsList, setRecordingsList] = useState([]);
-  const [currentLive, setCurrentLive] = useState({
-    title: 'No upcoming live session',
-    time: 'Check back later',
-    cohort: 'Workspace Cohort',
-    instructor: 'Atelier Advisor'
-  });
+  const [sessions, setSessions] = useState([]);
+  const [courseTitle, setCourseTitle] = useState('Active Cohort');
+  const [loading, setLoading] = useState(true);
+
+  const loadLiveData = async () => {
+    try {
+      const storedCourseId = localStorage.getItem('activeCourseId');
+      const courseIdToUse = storedCourseId ? parseInt(storedCourseId, 10) : activeCourseId;
+
+      // Get courses to resolve active cohort title
+      const courses = await getCourses();
+      const currentCourse = courses.find((c) => c.id === courseIdToUse);
+      if (currentCourse) {
+        setCourseTitle(currentCourse.title);
+      }
+
+      // Fetch real sessions from MySQL database
+      const liveSessions = await getLiveSessions(courseIdToUse);
+      setSessions(liveSessions || []);
+    } catch (err) {
+      console.error('Failed to load live sessions:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadLiveData = async () => {
-      const allSchedule = await getSchedule();
-      const filteredSchedule = allSchedule.filter((s) => s.courseId === activeCourseId);
-      setScheduleList(filteredSchedule);
-
-      const allRecordings = await getRecordings();
-      const filteredRecordings = allRecordings.filter((r) => r.courseId === activeCourseId);
-      setRecordingsList(filteredRecordings);
-
-      // Resolve cohort title
-      const allCourses = await getCourses();
-      const activeCourse = allCourses.find((c) => c.id === activeCourseId);
-      const cohortName = activeCourse ? (activeCourse.title.includes(':') ? activeCourse.title.split(':')[0] : activeCourse.title) : 'Active Cohort';
-
-      // Resolve instructor details
-      const allLecturers = await getLecturers();
-      const instructorId = activeCourse ? activeCourse.instructorId || 1 : 1;
-      const assignedLecturer = allLecturers.find((l) => l.id === instructorId) || allLecturers[0];
-      const instructorName = assignedLecturer ? assignedLecturer.name : 'Sphere Hive Mentor';
-
-      // Find first schedule item as "current live"
-      if (filteredSchedule.length > 0) {
-        setCurrentLive({
-          title: filteredSchedule[0].title,
-          time: `Starts at ${filteredSchedule[0].time}`,
-          cohort: cohortName,
-          instructor: instructorName
-        });
-      } else {
-        setCurrentLive({
-          title: 'No upcoming sessions scheduled',
-          time: 'Schedule empty',
-          cohort: cohortName,
-          instructor: 'N/A'
-        });
-      }
-    };
-
     loadLiveData();
+
+    // 25-second polling to reflect when mentor starts a class in real time
+    const interval = setInterval(loadLiveData, 25000);
     window.addEventListener('courseChanged', loadLiveData);
-    return () => window.removeEventListener('courseChanged', loadLiveData);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('courseChanged', loadLiveData);
+    };
   }, [activeCourseId]);
 
-  return (
-    <div className={styles.simplePageWrapper}>
-      
-      {/* Live class callout banner */}
-      <div className={styles.liveCalloutBanner}>
-        <div className={styles.liveBannerInfo}>
-          <div className={styles.liveBannerStatusRow}>
-            <span className={styles.livePulsingBadge}>
-              <span className={styles.livePulsingDot} />
-              Live session
-            </span>
-            <span className={styles.liveBannerCountdown}>{currentLive.time}</span>
-          </div>
-          <h3 className={styles.liveBannerTitle}>
-            {currentLive.title}
-          </h3>
-          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.35rem' }}>
-            Instructor: {currentLive.instructor} • {currentLive.cohort}
-          </p>
-        </div>
+  // Filter sessions by status
+  const currentLiveSession = sessions.find((s) => s.status === 'live');
+  const scheduledSessions = sessions.filter((s) => s.status === 'scheduled');
+  const completedSessions = sessions.filter((s) => s.status === 'completed' || s.recording_url);
 
-        {scheduleList.length > 0 && (
-          <button 
-            className={styles.liveJoinBtn}
-            onClick={() => window.open('https://zoom.us', '_blank')}
+  // Format date helper
+  const formatSessionTime = (dateStr) => {
+    if (!dateStr) return 'TBA';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  return (
+    <div className={styles.pageWrapper}>
+      <h2 className={styles.headerTitle}>Live Sessions & Cohort Syncs</h2>
+      <p className={styles.headerSubtitle}>
+        Join real-time lectures, live code reviews, and office hours with your mentors for {courseTitle}.
+      </p>
+
+      {/* Top Banner: LIVE NOW or NEXT UPCOMING or NO LIVE */}
+      {currentLiveSession ? (
+        <div className={styles.liveBanner}>
+          <div className={styles.liveBannerInfo}>
+            <div className={styles.statusRow}>
+              <span className={styles.pulsingBadgeLive}>
+                <span className={styles.pulsingDot} />
+                Live Now
+              </span>
+              <span style={{ fontSize: '0.8rem', color: '#ff3b30', fontWeight: '700' }}>
+                Broadcasting in progress
+              </span>
+            </div>
+            <h3 className={styles.bannerTitle}>{currentLiveSession.title}</h3>
+            {currentLiveSession.description && (
+              <p style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.5rem' }}>
+                {currentLiveSession.description}
+              </p>
+            )}
+            <div className={styles.bannerMeta}>
+              <span>Mentor: {currentLiveSession.mentor_name || 'Assigned Instructor'}</span>
+              <span>•</span>
+              <span>{courseTitle}</span>
+            </div>
+          </div>
+
+          <a
+            href={currentLiveSession.meeting_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.joinBtn}
           >
-            Join Session
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
+            Join Live Class
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polygon points="23 7 16 12 23 17 23 7" />
               <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
             </svg>
-          </button>
-        )}
-      </div>
-
-      {/* Main split grid */}
-      <div className={styles.liveContentSplit}>
-        
-        {/* Weekly schedule */}
-        <div className={styles.cardPanel}>
-          <h3 className={styles.cardTitle} style={{ marginBottom: '1.25rem' }}>
-            Weekly Cohort Schedule
-          </h3>
-
-          <div className={styles.scheduleList}>
-            {scheduleList.map((item) => (
-              <div key={item.id} className={styles.scheduleItem}>
-                <div className={styles.scheduleLeft}>
-                  <span className={styles.scheduleTime}>{item.time}</span>
-                  <span className={styles.scheduleTitle}>{item.title}</span>
-                </div>
-                <span className={styles.scheduleBadge}>{item.type}</span>
-              </div>
-            ))}
-            {scheduleList.length === 0 && (
-              <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', padding: '1rem 0' }}>No streams scheduled for this workspace container.</p>
+          </a>
+        </div>
+      ) : scheduledSessions.length > 0 ? (
+        <div className={`${styles.liveBanner} ${styles.liveBannerScheduled}`}>
+          <div className={styles.liveBannerInfo}>
+            <div className={styles.statusRow}>
+              <span className={styles.pulsingBadgeScheduled}>
+                <span className={styles.pulsingDotBlue} />
+                Next Scheduled Session
+              </span>
+              <span style={{ fontSize: '0.8rem', color: '#007aff', fontWeight: '700' }}>
+                {formatSessionTime(scheduledSessions[0].scheduled_at)}
+              </span>
+            </div>
+            <h3 className={styles.bannerTitle}>{scheduledSessions[0].title}</h3>
+            {scheduledSessions[0].description && (
+              <p style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.5rem' }}>
+                {scheduledSessions[0].description}
+              </p>
             )}
+            <div className={styles.bannerMeta}>
+              <span>Mentor: {scheduledSessions[0].mentor_name || 'Assigned Instructor'}</span>
+              <span>•</span>
+              <span>{courseTitle}</span>
+            </div>
           </div>
+
+          {scheduledSessions[0].meeting_link ? (
+            <a
+              href={scheduledSessions[0].meeting_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${styles.joinBtn} ${styles.joinBtnSecondary}`}
+            >
+              Session Room
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          ) : null}
+        </div>
+      ) : (
+        <div className={styles.liveBannerEmpty}>
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', color: '#ffffff', marginBottom: '0.4rem' }}>
+            No Live Sessions Currently Running
+          </h3>
+          <p style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.45)', margin: 0 }}>
+            Your mentor will post upcoming scheduled cohort classes and office hours here.
+          </p>
+        </div>
+      )}
+
+      {/* Main split grid: Upcoming vs Replays */}
+      <div className={styles.splitGrid}>
+        {/* Scheduled Sessions */}
+        <div className={styles.panel}>
+          <div className={styles.panelTitle}>
+            <span>Upcoming Cohort Schedule</span>
+            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '400' }}>
+              {scheduledSessions.length} {scheduledSessions.length === 1 ? 'session' : 'sessions'}
+            </span>
+          </div>
+
+          {scheduledSessions.length > 0 ? (
+            <div>
+              {scheduledSessions.map((session) => (
+                <div key={session.id} className={styles.sessionCard}>
+                  <div className={styles.sessionTop}>
+                    <div className={styles.sessionTitle}>{session.title}</div>
+                    <span className={styles.sessionTimeBadge}>
+                      {formatSessionTime(session.scheduled_at)}
+                    </span>
+                  </div>
+
+                  {session.description && (
+                    <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                      {session.description}
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                    <div className={styles.sessionMentor}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      {session.mentor_name || 'Mentor'}
+                    </div>
+
+                    {session.meeting_link && (
+                      <a
+                        href={session.meeting_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: '0.78rem', color: 'var(--accent-orange)', fontWeight: '700', textDecoration: 'none' }}
+                      >
+                        Room Link &rarr;
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.emptyState}>
+              No scheduled classes for this week. Check back soon!
+            </div>
+          )}
         </div>
 
-        {/* Previous Session replays */}
-        <div className={styles.cardPanel}>
-          <h3 className={styles.cardTitle} style={{ marginBottom: '1.25rem' }}>
-            Recorded Replays
-          </h3>
-
-          <div className={styles.replayGallery}>
-            {recordingsList.map((rec) => (
-              <div key={rec.id} className={styles.replayItem} onClick={() => alert('Launching video playback stream...')}>
-                <div className={styles.replayThumbWrapper}>
-                  <img src={rec.image} alt={rec.title} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }} />
-                </div>
-                <div className={styles.replayMeta}>
-                  <span className={styles.replayTitle}>{rec.title}</span>
-                  <span className={styles.replayDate}>{rec.date}</span>
-                </div>
-              </div>
-            ))}
-            {recordingsList.length === 0 && (
-              <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', padding: '1rem 0' }}>No replay playbacks recorded yet.</p>
-            )}
+        {/* Recorded Replays */}
+        <div className={styles.panel}>
+          <div className={styles.panelTitle}>
+            <span>Recorded Replays</span>
+            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '400' }}>
+              {completedSessions.length} {completedSessions.length === 1 ? 'recording' : 'recordings'}
+            </span>
           </div>
+
+          {completedSessions.length > 0 ? (
+            <div className={styles.replayGrid}>
+              {completedSessions.map((rec) => (
+                <div key={rec.id} className={styles.replayCard}>
+                  <div className={styles.replayInfo}>
+                    <div className={styles.replayTitle}>{rec.title}</div>
+                    <div className={styles.replayDate}>
+                      {formatSessionTime(rec.scheduled_at)} • {rec.mentor_name || 'Mentor'}
+                    </div>
+                  </div>
+
+                  {rec.recording_url ? (
+                    <a
+                      href={rec.recording_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.watchBtn}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                      Watch
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
+                      Processing
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.emptyState}>
+              No recorded session replays available yet.
+            </div>
+          )}
         </div>
-
       </div>
-
     </div>
   );
 }

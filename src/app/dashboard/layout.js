@@ -4,11 +4,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getStudents, getCourses, recordStudentDailyStreak } from '../actions';
+import InitialsAvatar from '@/components/InitialsAvatar';
 import styles from './dashboard.module.css';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
 
   const [activeCourseId, setActiveCourseId] = useState(1);
@@ -16,6 +18,7 @@ export default function DashboardLayout({ children }) {
   const dropdownRef = useRef(null);
 
   const [userName, setUserName] = useState('Student');
+  const [userAvatar, setUserAvatar] = useState(null);
   const [streak, setStreak] = useState(1);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [dbCourses, setDbCourses] = useState([]);
@@ -40,6 +43,7 @@ export default function DashboardLayout({ children }) {
   // Sync active course and username profile states
   useEffect(() => {
     setIsMounted(true);
+    setMobileNavOpen(false);
 
     const email = localStorage.getItem('loggedInStudentEmail');
     if (!email) {
@@ -56,6 +60,7 @@ export default function DashboardLayout({ children }) {
       try {
         const parsed = JSON.parse(cachedProfile);
         setUserName(parsed.name || 'Student');
+        setUserAvatar(parsed.avatar || null);
         setStreak(parsed.streak || 1);
         setEnrolledCourses(parsed.enrolledCourses || [1]);
       } catch (e) {}
@@ -86,6 +91,7 @@ export default function DashboardLayout({ children }) {
 
         if (student) {
           setUserName(student.name);
+          setUserAvatar(student.avatar || null);
           setStreak(student.streak || streakRes.streak || 1);
           setEnrolledCourses(student.enrolledCourses || [1]);
           // Sync cache
@@ -100,6 +106,7 @@ export default function DashboardLayout({ children }) {
             github: student.github || '',
             linkedin: student.linkedin || '',
             portfolio: student.portfolio || '',
+            avatar: student.avatar || null,
             skills: student.skills || [],
             streak: student.streak || streakRes.streak || 1,
             enrolledCourses: student.enrolledCourses || [1]
@@ -147,14 +154,14 @@ export default function DashboardLayout({ children }) {
     };
   }, [pathname]);
 
-  // Auth gate check - render secure loading UI
+  // Auth check loading state
   if (!isMounted || checkingAuth) {
     return (
-      <div className={styles.authLoaderWrapper}>
+      <div className={styles.authLoaderWrapper} data-lenis-prevent>
         <div className={styles.authLoaderCard}>
           <div className={styles.authSpinner} />
-          <h2 className={styles.authLoaderTitle}>Securing Workspace</h2>
-          <p className={styles.authLoaderText}>Verifying credentials and establishing secure terminal link...</p>
+          <h2 className={styles.authLoaderTitle}>Loading Dashboard</h2>
+          <p className={styles.authLoaderText}>Setting up your workspace...</p>
         </div>
       </div>
     );
@@ -257,8 +264,17 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className={`${styles.shell} ${collapsed ? styles.shellCollapsed : ''}`}>
+      {/* Mobile Drawer Backdrop */}
+      {mobileNavOpen && (
+        <div 
+          className={styles.mobileBackdrop} 
+          onClick={() => setMobileNavOpen(false)} 
+          aria-hidden="true" 
+        />
+      )}
+
       {/* Sidebar navigation */}
-      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
+      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${mobileNavOpen ? styles.sidebarMobileOpen : ''}`}>
         <div className={styles.sidebarHeader}>
           <img src="/logo.png" alt="Atelier Logo" className={styles.logoImg} />
           <div className={styles.logoText}>
@@ -276,6 +292,7 @@ export default function DashboardLayout({ children }) {
                 href={item.href}
                 className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
                 title={collapsed ? item.label : ''}
+                onClick={() => setMobileNavOpen(false)}
               >
                 <div className={styles.navIcon}>{item.icon}</div>
                 <span className={styles.navLabel}>{item.label}</span>
@@ -285,8 +302,12 @@ export default function DashboardLayout({ children }) {
         </nav>
 
         <div className={styles.sidebarFooter}>
-          <Link href="/dashboard/profile" className={styles.footerUserRow}>
-            <img src="/images/avatar1.jpg" alt="Student Profile" className={styles.avatar} />
+          <Link href="/dashboard/profile" className={styles.footerUserRow} onClick={() => setMobileNavOpen(false)}>
+            {userAvatar ? (
+              <img src={userAvatar} alt="Student Profile" className={styles.avatar} />
+            ) : (
+              <InitialsAvatar name={userName} size={36} />
+            )}
             <div className={styles.userInfo}>
               <span className={styles.username}>{userName}</span>
               <span className={styles.userRole}>Premium Cohort</span>
@@ -311,12 +332,32 @@ export default function DashboardLayout({ children }) {
       </aside>
 
       {/* Main content viewport */}
-      <div className={styles.contentArea}>
+      <div className={styles.contentArea} data-lenis-prevent>
         {/* Background Grid & Orange Glow Layers */}
         <div className={styles.bgGrid} />
         <div className={styles.glow} />
 
         <header className={styles.topHeader}>
+          {/* Mobile hamburger button */}
+          <button 
+            className={styles.mobileMenuToggle}
+            onClick={() => setMobileNavOpen(!mobileNavOpen)}
+            aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
+          >
+            {mobileNavOpen ? (
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
+
           <div className={styles.courseSelectorWrapper}>
             <h1 className={styles.pageTitle} style={{ marginRight: '1rem' }}>
               {getPageTitle()}

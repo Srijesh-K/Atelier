@@ -22,7 +22,7 @@ export default function MaterialsPage({ activeCourseId = 1 }) {
 
   const handleDownloadAsset = async (asset) => {
     if (!asset.fileId && !asset.url) {
-      alert(`Resource "${asset.name}" is a curriculum reference item. Upload genuine files via Admin Command Center.`);
+      alert(`"${asset.name}" is currently being prepared. Check back shortly!`);
       return;
     }
 
@@ -74,7 +74,7 @@ export default function MaterialsPage({ activeCourseId = 1 }) {
         Reference Materials & Assets
       </h2>
       <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', marginBottom: '2rem' }}>
-        Browse and download course slideshows, project templates, cheatsheets, and repository assets securely powered by Telegram Storage.
+        Browse and download course slideshows, project templates, cheatsheets, and source code assets.
       </p>
 
       <div className={styles.materialsGrid}>
@@ -101,7 +101,7 @@ export default function MaterialsPage({ activeCourseId = 1 }) {
                     className={styles.assetLink}
                     onClick={() => handleDownloadAsset(asset)}
                     style={{ cursor: isDownloading ? 'wait' : 'pointer', opacity: isDownloading ? 0.7 : 1 }}
-                    title={asset.fileId ? `Download ${asset.name} from Telegram storage` : asset.name}
+                    title={asset.name}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span>{isDownloading ? '⏳' : getAssetIcon(asset.type)}</span>

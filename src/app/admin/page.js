@@ -128,6 +128,9 @@ export default function AdminConsole() {
       if (activeTab === 'materials' && entity.assets) {
         initialData.assetsJson = JSON.stringify(entity.assets, null, 2);
       }
+      if (activeTab === 'lecturers') {
+        initialData.assignedCourses = Array.isArray(entity.assignedCourses) ? [...entity.assignedCourses] : [];
+      }
       setFormData(initialData);
     } else {
       setEditId(null);
@@ -141,7 +144,7 @@ export default function AdminConsole() {
       } else if (activeTab === 'materials') {
         setFormData({ courseId: '1', title: '', assetsJson: '[]' });
       } else if (activeTab === 'lecturers') {
-        setFormData({ name: '', email: '', expertise: '', bio: '' });
+        setFormData({ name: '', email: '', phone: '', expertise: '', bio: '', assignedCourses: [] });
       }
     }
     setShowModal(true);
@@ -220,7 +223,10 @@ export default function AdminConsole() {
         if (modalMode === 'edit') {
           formattedLecturer.id = editId;
         }
-        await saveLecturer(formattedLecturer);
+        const result = await saveLecturer(formattedLecturer);
+        if (result?.tempPassword) {
+          alert(`Mentor account created successfully!\n\nEmail: ${formData.email}\nTemporary Password: ${result.tempPassword}\n\nPlease share this securely with the mentor. They will be prompted to change their password upon their first login at /mentor/login.`);
+        }
       }
 
       // Close modal and reload lists
@@ -237,7 +243,7 @@ export default function AdminConsole() {
     if (!file) return;
 
     if (file.size > 50 * 1024 * 1024) {
-      alert('File size exceeds the 50 MB limit supported by Telegram Bot API storage.');
+      alert('File size exceeds the 50 MB upload limit.');
       return;
     }
 
@@ -259,7 +265,7 @@ export default function AdminConsole() {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to upload file to Telegram storage.');
+        throw new Error(data.error || 'Failed to upload file.');
       }
 
       const sizeStr = file.size > 1024 * 1024 
@@ -290,7 +296,7 @@ export default function AdminConsole() {
         assetsJson: JSON.stringify(currentAssets, null, 2)
       }));
 
-      alert(`File "${file.name}" uploaded to Telegram storage successfully and added to assets!`);
+      alert(`File "${file.name}" uploaded successfully and added to course assets!`);
     } catch (err) {
       console.error('Admin file upload error:', err);
       alert('Upload error: ' + err.message);
@@ -378,7 +384,7 @@ export default function AdminConsole() {
           <button className={`${styles.tabBtn} ${activeTab === 'live' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('live'); setSearchTerm(''); }}>Live Schedule ({schedule.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'materials' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('materials'); setSearchTerm(''); }}>Materials ({materials.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'callbacks' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('callbacks'); setSearchTerm(''); }}>Hotline Callback Logs ({callbacks.length})</button>
-          <button className={`${styles.tabBtn} ${activeTab === 'lecturers' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('lecturers'); setSearchTerm(''); }}>Lecturers ({lecturers.length})</button>
+          <button className={`${styles.tabBtn} ${activeTab === 'lecturers' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('lecturers'); setSearchTerm(''); }}>Mentors ({lecturers.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'payments' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('payments'); setSearchTerm(''); }}>Payments ({transactions.length})</button>
         </div>
 
@@ -401,7 +407,7 @@ export default function AdminConsole() {
             <p className={styles.statValue} style={{ color: 'var(--accent-orange)' }}>{callbacks.filter(c => c.status === 'Pending').length}</p>
           </div>
           <div className={styles.statCard}>
-            <span className={styles.statLabel}>Registered Lecturers</span>
+            <span className={styles.statLabel}>Registered Mentors</span>
             <p className={styles.statValue}>{lecturers.length}</p>
           </div>
           <div className={styles.statCard}>
@@ -630,51 +636,57 @@ export default function AdminConsole() {
             </table>
           )}
 
-          {/* TAB 6: LECTURERS ENTITIES */}
+          {/* TAB 6: MENTORS ENTITIES */}
           {activeTab === 'lecturers' && (
             <table className={styles.adminTable}>
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Expertise</th>
-                  <th>Biography</th>
-                  <th>Active Students</th>
+                  <th>Mentor Name</th>
+                  <th>Contact Info</th>
+                  <th>Expertise Focus</th>
+                  <th>Assigned Cohorts</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLecturers.map((l) => (
-                  <tr key={l.id}>
-                    <td>{l.id}</td>
-                    <td>
-                      <a href={`/admin/lecturers/${l.id}`} style={{ color: '#2ecc71', fontWeight: '600', textDecoration: 'underline' }}>
-                        {l.name}
-                      </a>
-                    </td>
-                    <td>{l.email}</td>
-                    <td>{l.expertise}</td>
-                    <td style={{ maxWidth: '280px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={l.bio}>{l.bio}</td>
-                    <td>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {students.filter(s => s.enrolledCourses && s.enrolledCourses.some(cId => courses.filter(c => c.instructorId === l.id).map(c => c.id).includes(cId))).map(s => (
-                          <span key={s.id} className={styles.adminBadge} style={{ background: 'rgba(46, 204, 113, 0.08)', border: '1px solid rgba(46, 204, 113, 0.2)', color: '#2ecc71' }}>
-                            {s.name}
-                          </span>
-                        ))}
-                        {students.filter(s => s.enrolledCourses && s.enrolledCourses.some(cId => courses.filter(c => c.instructorId === l.id).map(c => c.id).includes(cId))).length === 0 && (
-                          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>No Active Students</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <button className={`${styles.actionBtn} ${styles.editBtn}`} onClick={() => openModal('edit', l)}>Edit</button>
-                      <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(l.id)}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-                {filteredLecturers.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2rem' }}>No lecturer profiles matching filters.</td></tr>}
+                {filteredLecturers.map((l) => {
+                  const assignedCourseList = courses.filter(c => (l.assignedCourses || []).includes(c.id));
+
+                  return (
+                    <tr key={l.id}>
+                      <td>{l.id}</td>
+                      <td>
+                        <div style={{ fontWeight: '700', color: '#ffffff' }}>{l.name}</div>
+                        {l.role && <span style={{ fontSize: '0.7rem', color: 'var(--accent-orange)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{l.role}</span>}
+                      </td>
+                      <td>
+                        <div>{l.email}</div>
+                        {l.phone && <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>{l.phone}</div>}
+                      </td>
+                      <td style={{ maxWidth: '200px' }}>
+                        <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.8)' }}>{l.expertise || 'General'}</span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {assignedCourseList.map(c => (
+                            <span key={c.id} className={styles.adminBadge} style={{ background: 'rgba(242, 85, 34, 0.1)', border: '1px solid rgba(242, 85, 34, 0.3)', color: '#f25522' }}>
+                              {c.title.includes(':') ? c.title.split(':')[0] : c.title}
+                            </span>
+                          ))}
+                          {assignedCourseList.length === 0 && (
+                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>None Assigned</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <button className={`${styles.actionBtn} ${styles.editBtn}`} onClick={() => openModal('edit', l)}>Edit</button>
+                        <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(l.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredLecturers.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2rem' }}>No mentor profiles matching filters.</td></tr>}
               </tbody>
             </table>
           )}
@@ -743,7 +755,9 @@ export default function AdminConsole() {
             
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
-                {modalMode === 'edit' ? `Modify ${activeTab.slice(0, -1)} Entity` : `Create ${activeTab.slice(0, -1)} Log`}
+                {activeTab === 'lecturers' 
+                  ? (modalMode === 'edit' ? 'Modify Mentor Profile' : 'Register New Mentor')
+                  : (modalMode === 'edit' ? `Modify ${activeTab.slice(0, -1)} Entity` : `Create ${activeTab.slice(0, -1)} Log`)}
               </h3>
               <button className={styles.modalClose} onClick={() => setShowModal(false)}>✕</button>
             </div>
@@ -955,7 +969,7 @@ export default function AdminConsole() {
                         borderRadius: '4px',
                         border: '1px solid rgba(242, 85, 34, 0.2)'
                       }}>
-                        {adminUploading ? '⏳ Uploading to Telegram...' : '➕ Upload File to Telegram'}
+                        {adminUploading ? '⏳ Uploading...' : '➕ Upload File'}
                         <input type="file" style={{ display: 'none' }} onChange={handleAdminFileUpload} disabled={adminUploading} />
                       </label>
                     </div>
@@ -968,31 +982,66 @@ export default function AdminConsole() {
                       onChange={handleFormChange} 
                     />
                     <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>
-                      {'Format: [{"name":"File.pdf","size":"1.2 MB","type":"pdf","fileId":1}] — Upload files directly using the button above to store them in Telegram Bot API storage.'}
+                      {'Format: [{"name":"File.pdf","size":"1.2 MB","type":"pdf","fileId":1}] — Upload files directly using the button above to store them in assets.'}
                     </span>
                   </div>
                 </>
               )}
 
-              {/* TAB INPUTS: LECTURERS */}
+              {/* TAB INPUTS: MENTORS */}
               {activeTab === 'lecturers' && (
                 <>
                   <div className={styles.profileFormGroup}>
-                    <label className={styles.modalLabel}>Lecturer Name</label>
+                    <label className={styles.modalLabel}>Mentor Full Name</label>
                     <input type="text" name="name" required className={styles.modalInput} value={formData.name || ''} onChange={handleFormChange} />
                   </div>
                   <div className={styles.profileFormGroup}>
-                    <label className={styles.modalLabel}>Email Address</label>
+                    <label className={styles.modalLabel}>Email Address (Used for Login)</label>
                     <input type="email" name="email" required className={styles.modalInput} value={formData.email || ''} onChange={handleFormChange} />
                   </div>
                   <div className={styles.profileFormGroup}>
-                    <label className={styles.modalLabel}>Expertise Focus (e.g. Distributed Systems)</label>
+                    <label className={styles.modalLabel}>Phone Number (Optional)</label>
+                    <input type="tel" name="phone" className={styles.modalInput} placeholder="+91 9876543210" value={formData.phone || ''} onChange={handleFormChange} />
+                  </div>
+                  <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>Expertise Focus (e.g. Distributed Systems & Rust)</label>
                     <input type="text" name="expertise" required className={styles.modalInput} value={formData.expertise || ''} onChange={handleFormChange} />
                   </div>
                   <div className={styles.profileFormGroup}>
-                    <label className={styles.modalLabel}>Lecturer Biography</label>
+                    <label className={styles.modalLabel}>Biography</label>
                     <textarea name="bio" required className={styles.modalTextarea} value={formData.bio || ''} onChange={handleFormChange} />
                   </div>
+                  <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>Assigned Cohorts (Mentorship Access)</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0.5rem 0', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', paddingLeft: '10px' }}>
+                      {courses.map(course => {
+                        const isAssigned = (formData.assignedCourses || []).includes(course.id);
+                        return (
+                          <label key={course.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: isAssigned ? '#ffffff' : 'rgba(255,255,255,0.6)' }}>
+                            <input
+                              type="checkbox"
+                              checked={isAssigned}
+                              onChange={(e) => {
+                                const current = formData.assignedCourses || [];
+                                if (e.target.checked) {
+                                  setFormData(prev => ({ ...prev, assignedCourses: [...current, course.id] }));
+                                } else {
+                                  setFormData(prev => ({ ...prev, assignedCourses: current.filter(id => id !== course.id) }));
+                                }
+                              }}
+                            />
+                            <span>{course.title}</span>
+                          </label>
+                        );
+                      })}
+                      {courses.length === 0 && <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>No courses available.</span>}
+                    </div>
+                  </div>
+                  {modalMode === 'add' && (
+                    <div style={{ padding: '0.75rem', background: 'rgba(242, 85, 34, 0.08)', border: '1px solid rgba(242, 85, 34, 0.25)', borderRadius: '6px', fontSize: '0.78rem', color: '#ff8a65', lineHeight: '1.4' }}>
+                      <strong>Security Note:</strong> A secure temporary password will be automatically generated upon creation. You will be provided with the credentials to share with the mentor, and they will be prompted to reset their password upon initial login.
+                    </div>
+                  )}
                 </>
               )}
 
