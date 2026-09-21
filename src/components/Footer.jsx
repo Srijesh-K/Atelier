@@ -126,7 +126,7 @@ export default function Footer() {
           </div>
 
           {/* CONTACT Column */}
-          <div className={styles.linksCol}>
+          <div className={`${styles.linksCol} ${styles.contactCol}`}>
             <h4 className={styles.colTitle}>CONTACT</h4>
             <div className={styles.contactInfo}>
               <div className={styles.contactItem}>

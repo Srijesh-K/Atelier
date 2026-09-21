@@ -1475,6 +1475,9 @@
 }
 
 @media (max-width: 900px) {
+  .pricingCardSection {
+    padding: 3.5rem 0 4.5rem 0;
+  }
   .pricingCardGrid {
     grid-template-columns: 1fr;
     gap: 2.25rem;
@@ -1484,8 +1487,8 @@
     margin-bottom: 1.5rem;
   }
   .pricingCard {
-    padding: 2.25rem 1.75rem;
-    border-radius: 22px;
+    padding: 2.5rem 2rem;
+    border-radius: 24px;
   }
 }
 
@@ -1494,6 +1497,57 @@
   .heroTitle { font-size: 1.9rem; }
   .sectionTitle { font-size: 1.6rem; margin-bottom: 2rem; }
   .accordionQ { font-size: 0.88rem; }
-  .pricingCourseTitle { font-size: 1.65rem; }
-  .pricingEnrollBtn { width: 100%; }
+  .pricingCardSection {
+    padding: 2.5rem 0 3rem 0;
+  }
+  .pricingCard {
+    padding: 1.75rem 1.25rem;
+    border-radius: 20px;
+  }
+  .pricingCourseTitle {
+    font-size: 1.55rem;
+    line-height: 1.25;
+    margin-bottom: 0.75rem;
+  }
+  .pricingCourseDesc {
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin-bottom: 1.75rem;
+  }
+  .pricingPriceRow {
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+  }
+  .pricingPriceMain {
+    font-size: 2rem;
+  }
+  .pricingPriceSlash {
+    font-size: 1rem;
+  }
+  .pricingPriceTax {
+    font-size: 0.85rem;
+  }
+  .pricingEnrollBtn {
+    width: 100%;
+    min-width: 0;
+    padding: 0.85rem 1.25rem;
+    font-size: 0.98rem;
+  }
+  .pricingCardDecorRight {
+    width: 150px;
+    height: 150px;
+    opacity: 0.45;
+  }
+  .pricingCardGlowLeft {
+    width: 250px;
+    height: 180px;
+    top: -50px;
+    left: -50px;
+  }
+  .pricingDividerRow {
+    margin: 1.25rem 0 1rem 0;
+  }
+  .pricingPerkItem {
+    font-size: 0.86rem;
+  }
 }

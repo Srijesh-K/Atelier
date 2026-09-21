@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { getStudents, getCourses } from '../actions';
+import { getStudents, getCourses, recordStudentDailyStreak } from '../actions';
 import styles from './dashboard.module.css';
 
 export default function DashboardLayout({ children }) {
@@ -16,8 +16,7 @@ export default function DashboardLayout({ children }) {
   const dropdownRef = useRef(null);
 
   const [userName, setUserName] = useState('Student');
-  const [xp, setXp] = useState(0);
-  const [streak, setStreak] = useState(0);
+  const [streak, setStreak] = useState(1);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [dbCourses, setDbCourses] = useState([]);
 
@@ -57,8 +56,7 @@ export default function DashboardLayout({ children }) {
       try {
         const parsed = JSON.parse(cachedProfile);
         setUserName(parsed.name || 'Student');
-        setXp(parsed.xp || 0);
-        setStreak(parsed.streak || 0);
+        setStreak(parsed.streak || 1);
         setEnrolledCourses(parsed.enrolledCourses || [1]);
       } catch (e) {}
     }
@@ -77,13 +75,18 @@ export default function DashboardLayout({ children }) {
         return;
       }
       try {
+        // Record and calculate real daily streak based on active calendar days
+        const streakRes = await recordStudentDailyStreak(currentEmail);
+        if (streakRes && streakRes.streak) {
+          setStreak(streakRes.streak);
+        }
+
         const studentsList = await getStudents();
         const student = studentsList.find((s) => s.email.toLowerCase() === currentEmail.toLowerCase());
 
         if (student) {
           setUserName(student.name);
-          setXp(student.xp || 0);
-          setStreak(student.streak || 0);
+          setStreak(student.streak || streakRes.streak || 1);
           setEnrolledCourses(student.enrolledCourses || [1]);
           // Sync cache
           localStorage.setItem('studentProfile', JSON.stringify({
@@ -91,14 +94,14 @@ export default function DashboardLayout({ children }) {
             email: student.email,
             phone: student.phone || '',
             college: student.college || '',
+            degree: student.degree || '',
             gradYear: student.gradYear || '',
             bio: student.bio || '',
             github: student.github || '',
             linkedin: student.linkedin || '',
             portfolio: student.portfolio || '',
             skills: student.skills || [],
-            xp: student.xp || 0,
-            streak: student.streak || 0,
+            streak: student.streak || streakRes.streak || 1,
             enrolledCourses: student.enrolledCourses || [1]
           }));
         } else {
@@ -309,6 +312,10 @@ export default function DashboardLayout({ children }) {
 
       {/* Main content viewport */}
       <div className={styles.contentArea}>
+        {/* Background Grid & Orange Glow Layers */}
+        <div className={styles.bgGrid} />
+        <div className={styles.glow} />
+
         <header className={styles.topHeader}>
           <div className={styles.courseSelectorWrapper}>
             <h1 className={styles.pageTitle} style={{ marginRight: '1rem' }}>
@@ -322,10 +329,7 @@ export default function DashboardLayout({ children }) {
                   aria-haspopup="listbox"
                   aria-expanded={dropdownOpen}
                 >
-                  <svg className={styles.dropdownToggleIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                  </svg>
+                  <span className={styles.dropdownActiveDot} />
                   <div className={styles.dropdownToggleText}>
                     <span className={styles.dropdownLabel}>Active Workspace</span>
                     <span className={styles.dropdownValue}>{activeCourse.name}</span>
@@ -343,6 +347,7 @@ export default function DashboardLayout({ children }) {
 
                 {dropdownOpen && (
                   <div className={styles.dropdownMenu} role="listbox">
+                    <div className={styles.dropdownMenuHeader}>Switch Cohort Workspace</div>
                     {courses.map((c) => {
                       const isSelected = c.id === activeCourseId;
                       return (
@@ -377,16 +382,9 @@ export default function DashboardLayout({ children }) {
           </div>
           
           <div className={styles.headerMetrics}>
-            <div className={`${styles.metricItem} ${styles.metricOrange}`}>
-              <svg className={styles.metricIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-              <span>{xp} XP</span>
-            </div>
-            
-            <div className={styles.metricItem}>
-              <svg className={styles.metricIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            <div className={`${styles.metricItem} ${styles.metricFlame}`} title="Active daily streak">
+              <svg className={styles.metricIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
               </svg>
               <span>{streak} Day Streak</span>
             </div>

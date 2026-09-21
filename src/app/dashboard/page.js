@@ -9,10 +9,13 @@ export default function StudentDashboard({ activeCourseId = 1 }) {
   const [showDrawer, setShowDrawer] = useState(false);
   const [streak, setStreak] = useState(1);
   const [studentName, setStudentName] = useState('Student Builder');
+  const [toastMessage, setToastMessage] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
   
   // Form input states
   const [hotlineTopic, setHotlineTopic] = useState('');
   const [hotlinePhone, setHotlinePhone] = useState('');
+  const [submittingCallback, setSubmittingCallback] = useState(false);
 
   // Reset active node index on course switch
   useEffect(() => {
@@ -39,19 +42,24 @@ export default function StudentDashboard({ activeCourseId = 1 }) {
     };
   }, []);
 
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 3500);
+  };
+
   // Curriculum node tree details based on selected course
   const nodes = activeCourseId === 2 ? [
-    { id: 1, label: 'Load Balancers & CDN', x: 250, y: 30, status: 'completed' },
-    { id: 2, label: 'Database Partitioning', x: 250, y: 110, status: 'active' },
-    { id: 3, label: 'Caching (Redis/Memcached)', x: 150, y: 200, status: 'locked' },
-    { id: 4, label: 'Message Queues (Kafka)', x: 350, y: 200, status: 'locked' },
-    { id: 5, label: 'Microservices Mesh', x: 250, y: 290, status: 'locked' }
+    { id: 1, label: 'Load Balancers & CDN', x: 250, y: 35, status: 'completed' },
+    { id: 2, label: 'Database Partitioning', x: 250, y: 115, status: 'active' },
+    { id: 3, label: 'Caching (Redis/Memcached)', x: 150, y: 205, status: 'locked' },
+    { id: 4, label: 'Message Queues (Kafka)', x: 350, y: 205, status: 'locked' },
+    { id: 5, label: 'Microservices Mesh', x: 250, y: 295, status: 'locked' }
   ] : [
-    { id: 1, label: 'HTML/CSS Basics', x: 250, y: 30, status: 'completed' },
-    { id: 2, label: 'JavaScript & DOM', x: 250, y: 110, status: 'active' },
-    { id: 3, label: 'Database Schemes', x: 150, y: 200, status: 'locked' },
-    { id: 4, label: 'API Development', x: 350, y: 200, status: 'locked' },
-    { id: 5, label: 'System Design Root', x: 250, y: 290, status: 'locked' }
+    { id: 1, label: 'HTML/CSS Basics', x: 250, y: 35, status: 'completed' },
+    { id: 2, label: 'JavaScript & DOM', x: 250, y: 115, status: 'active' },
+    { id: 3, label: 'Database Schemes', x: 150, y: 205, status: 'locked' },
+    { id: 4, label: 'API Development', x: 350, y: 205, status: 'locked' },
+    { id: 5, label: 'System Design Root', x: 250, y: 295, status: 'locked' }
   ];
 
   const getCodeSnippet = () => {
@@ -127,8 +135,59 @@ function lockedNode() {
     return 'workspace/sandbox/index.js';
   };
 
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(getCodeSnippet());
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleSubmitCallback = async (e) => {
+    e.preventDefault();
+    setSubmittingCallback(true);
+    try {
+      const cbData = {
+        studentName: studentName,
+        phone: hotlinePhone,
+        topic: hotlineTopic,
+        status: 'Pending'
+      };
+      await saveCallback(cbData);
+      window.dispatchEvent(new Event('courseChanged'));
+      setShowDrawer(false);
+      showToast(`Callback requested! An instructor will reach out at ${hotlinePhone} shortly.`);
+    } catch (err) {
+      showToast('Unable to schedule callback. Please try again.');
+    } finally {
+      setSubmittingCallback(false);
+    }
+  };
+
   return (
     <div className={styles.bentoContainer}>
+      {/* Dynamic Toast Feedback */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '5rem',
+          right: '2rem',
+          background: '#08080a',
+          border: '1px solid var(--accent-orange)',
+          padding: '0.85rem 1.25rem',
+          borderRadius: '8px',
+          color: '#ffffff',
+          zIndex: 1000,
+          boxShadow: '0 12px 36px rgba(0,0,0,0.8), 0 0 20px rgba(242, 85, 34, 0.2)',
+          fontFamily: 'var(--font-heading)',
+          fontSize: '0.85rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <span style={{ color: 'var(--accent-orange)' }}>◆</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
       
       {/* LEFT DASHBOARD PANEL */}
       <div className={styles.dashboardLeft}>
@@ -137,6 +196,14 @@ function lockedNode() {
         <div className={styles.cardPanel}>
           <div className={styles.cardPanelHeader}>
             <h2 className={styles.cardTitle}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)" strokeWidth="2.5">
+                <circle cx="12" cy="5" r="3" />
+                <circle cx="6" cy="19" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M12 8v4" />
+                <path d="M12 12l-6 4" />
+                <path d="M12 12l6 4" />
+              </svg>
               Curriculum Tech-Tree
             </h2>
             <span className={styles.cardHeaderAction} onClick={() => setActiveNode(2)}>
@@ -145,13 +212,13 @@ function lockedNode() {
           </div>
 
           <div className={styles.techTreeContainer}>
-            <svg className={styles.treeSvg} viewBox="0 0 500 350">
+            <svg className={styles.treeSvg} viewBox="0 0 500 340">
               {/* Connection Paths */}
-              <path d="M 250,30 L 250,110" className={styles.treePathActive} />
-              <path d="M 250,110 L 150,200" className={styles.treePath} />
-              <path d="M 250,110 L 350,200" className={styles.treePath} />
-              <path d="M 150,200 L 250,290" className={styles.treePath} />
-              <path d="M 350,200 L 250,290" className={styles.treePath} />
+              <path d="M 250,35 L 250,115" className={styles.treePathActive} />
+              <path d="M 250,115 L 150,205" className={styles.treePath} />
+              <path d="M 250,115 L 350,205" className={styles.treePath} />
+              <path d="M 150,205 L 250,295" className={styles.treePath} />
+              <path d="M 350,205 L 250,295" className={styles.treePath} />
 
               {/* Node Items */}
               {nodes.map((node) => {
@@ -186,11 +253,20 @@ function lockedNode() {
         <div className={styles.cardPanel}>
           <div className={styles.cardPanelHeader}>
             <h2 className={styles.cardTitle}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)" strokeWidth="2.5">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
               Active Target Workbench
             </h2>
-            <span className={styles.cardHeaderAction}>
-              {getFilename().split('/').pop()}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <span className={styles.cardHeaderAction} onClick={handleCopyCode}>
+                {copiedCode ? '✓ Copied' : 'Copy Code'}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+                {getFilename().split('/').pop()}
+              </span>
+            </div>
           </div>
 
           <div className={styles.ideWrapper}>
@@ -205,7 +281,7 @@ function lockedNode() {
 
             <div className={styles.ideBody}>
               <div className={styles.ideGutter}>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
                   <span key={n}>{n}</span>
                 ))}
               </div>
@@ -221,42 +297,78 @@ function lockedNode() {
       {/* RIGHT DASHBOARD PANEL */}
       <div className={styles.dashboardRight}>
         
-        {/* Streak XP summary card */}
+        {/* Daily Streak Tracker card */}
         <div className={styles.cardPanel}>
           <div className={styles.cardPanelHeader}>
             <h2 className={styles.cardTitle}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)" strokeWidth="2.5">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+              </svg>
               Daily Streaks Tracker
             </h2>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.2rem 0.6rem', borderRadius: '12px', background: 'rgba(48, 209, 88, 0.1)', border: '1px solid rgba(48, 209, 88, 0.25)', fontSize: '0.72rem', color: '#30d158', fontWeight: '700' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#30d158', display: 'inline-block' }} />
+              Active Today
+            </div>
           </div>
 
-          <div style={{ padding: '0.5rem 0 1.5rem' }}>
-            <h3 style={{ fontSize: '2.5rem', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>
-              {streak} <span style={{ fontSize: '1rem', color: 'var(--accent-orange)' }}>DAYS ACTIVE</span>
+          <div style={{ padding: '0.5rem 0 1.25rem' }}>
+            <h3 style={{ fontSize: '2.5rem', fontWeight: '800', fontFamily: 'var(--font-heading)', color: '#ffffff', display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+              {streak} <span style={{ fontSize: '0.95rem', color: 'var(--accent-orange)', letterSpacing: '0.08em' }}>{streak === 1 ? 'DAY STREAK' : 'DAYS ACTIVE'}</span>
             </h3>
-            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.25rem' }}>
-              {activeCourseId === 2 ? 'Complete database sharding tasks to unlock cache design nodes.' : 'Keep coding daily to unlock System Design nodes.'}
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', marginTop: '0.35rem', lineHeight: '1.45' }}>
+              {activeCourseId === 2 ? 'Complete database sharding tasks to unlock cache design nodes.' : 'Keep coding daily to unlock advanced System Architecture nodes.'}
             </p>
           </div>
 
+          {/* 7-day Activity Cadence */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '0.75rem' }}>
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+              const isToday = idx === ((new Date().getDay() + 6) % 7);
+              return (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.68rem', color: isToday ? 'var(--accent-orange)' : 'rgba(255,255,255,0.3)', fontWeight: '700' }}>{day}</span>
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: isToday ? 'var(--accent-orange)' : 'rgba(255,255,255,0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.65rem',
+                    color: isToday ? '#000000' : 'rgba(255,255,255,0.4)',
+                    fontWeight: '800'
+                  }}>
+                    {isToday ? '✓' : '·'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: '600', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Daily Goal</span>
-              <p style={{ fontSize: '1rem', fontWeight: '800', color: '#ffffff', marginTop: '0.25rem' }}>100%</p>
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '0.85rem', textAlign: 'center' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Daily Status</span>
+              <p style={{ fontSize: '1.05rem', fontWeight: '800', color: '#ffffff', marginTop: '0.25rem' }}>Recorded</p>
             </div>
-            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: '600', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Rank</span>
-              <p style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--accent-orange)', marginTop: '0.25rem' }}>{streak > 5 ? '#124' : '#612'}</p>
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '0.85rem', textAlign: 'center' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cohort Rank</span>
+              <p style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--accent-orange)', marginTop: '0.25rem' }}>{streak > 5 ? 'Top 10%' : 'Active Tier'}</p>
             </div>
           </div>
         </div>
 
         {/* Mentor Callback hotline card */}
-        <div className={styles.cardPanel} style={{ background: 'radial-gradient(circle at top right, rgba(242, 85, 34, 0.05) 0%, transparent 80%), #09090a' }}>
+        <div className={styles.cardPanel} style={{ background: 'radial-gradient(circle at top right, rgba(242, 85, 34, 0.08) 0%, transparent 75%), #08080a' }}>
           <h2 className={styles.cardTitle} style={{ marginBottom: '0.5rem' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)" strokeWidth="2.5">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
             1-on-1 Mentorship Hotline
           </h2>
-          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.5', marginBottom: '1.5rem' }}>
-            Stuck on a node? Instantly schedule a callback request with an expert workspace instructor.
+          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5', marginBottom: '1.5rem' }}>
+            Stuck on an active node? Schedule an immediate 15-minute callback with an expert workspace instructor.
           </p>
 
           <button 
@@ -276,63 +388,56 @@ function lockedNode() {
       {/* Mentor Hotline slide-out Drawer overlay */}
       {showDrawer && (
         <div 
-          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' }}
+          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.2s ease' }}
           onClick={() => setShowDrawer(false)}
         >
           <div 
-            style={{ width: '100%', maxWidth: '400px', height: '100vh', background: '#09090a', borderLeft: '1px solid rgba(255,255,255,0.08)', padding: '2.5rem', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}
+            style={{ width: '100%', maxWidth: '420px', height: '100vh', background: '#08080a', borderLeft: '1px solid rgba(255,255,255,0.08)', padding: '2.5rem', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', boxShadow: '-12px 0 40px rgba(0,0,0,0.8)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: '800', color: '#ffffff' }}>Hotline Schedule</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-orange)', boxShadow: '0 0 8px var(--accent-orange)' }} />
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: '800', color: '#ffffff' }}>Hotline Schedule</h3>
+              </div>
               <button 
                 onClick={() => setShowDrawer(false)}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1.1rem' }}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', width: '30px', height: '30px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ✕
               </button>
             </div>
 
-            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.5', marginBottom: '2rem' }}>
-              Confirm your workspace callback request. Instructors typically respond in under 15 minutes.
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5', marginBottom: '2rem' }}>
+              Confirm your workspace callback request. Mentors typically initiate voice session in under 15 minutes.
             </p>
 
             <form 
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const cbData = {
-                  studentName: studentName,
-                  phone: hotlinePhone,
-                  topic: hotlineTopic,
-                  status: 'Pending'
-                };
-                await saveCallback(cbData);
-                window.dispatchEvent(new Event('courseChanged'));
-                setShowDrawer(false);
-                alert(`Callback logged successfully! Instructors will call you at ${hotlinePhone} shortly.`);
-              }} 
+              onSubmit={handleSubmitCallback} 
               style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: '600', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Topic Focus</label>
+              <div className={styles.profileFormGroup}>
+                <label style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Topic Focus</label>
                 <input 
                   type="text" 
                   required
                   value={hotlineTopic}
                   onChange={(e) => setHotlineTopic(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem 0.85rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
+                  className={styles.profileInput}
+                  disabled={submittingCallback}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: '600', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Phone Number</label>
+              <div className={styles.profileFormGroup}>
+                <label style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Phone Number</label>
                 <input 
                   type="tel" 
                   placeholder="+91 98765 43210" 
                   required
                   value={hotlinePhone}
                   onChange={(e) => setHotlinePhone(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem 0.85rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
+                  className={styles.profileInput}
+                  disabled={submittingCallback}
                 />
               </div>
 
@@ -340,8 +445,9 @@ function lockedNode() {
                 type="submit" 
                 className={styles.onboardBtn}
                 style={{ marginTop: '1.5rem', width: '100%' }}
+                disabled={submittingCallback}
               >
-                Submit Request
+                {submittingCallback ? 'Scheduling...' : 'Submit Request'}
               </button>
             </form>
           </div>

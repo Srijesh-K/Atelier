@@ -1,28 +1,30 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getStudents, updateStudentProfile } from '../../actions';
 import styles from '../dashboard.module.css';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState({
-    name: 'Student Builder',
+    name: '',
     email: '',
     phone: '',
-    college: 'KVG College of Engineering',
-    gradYear: '2027',
-    bio: 'Student developer learning modern full stack engineering and system design at Sphere Hive.',
+    college: '',
+    degree: '',
+    gradYear: '2026',
+    bio: '',
     github: '',
     linkedin: '',
     portfolio: '',
-    skills: ['React', 'Next.js', 'Node.js', 'PostgreSQL', 'System Design']
+    skills: ['React', 'Next.js', 'Node.js', 'System Design']
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ ...profile });
   const [statusMessage, setStatusMessage] = useState('');
-  const [xp, setXp] = useState(100);
   const [streak, setStreak] = useState(1);
+  const [enrolledCount, setEnrolledCount] = useState(1);
+  const [newSkillInput, setNewSkillInput] = useState('');
 
   // Load from database on mount
   useEffect(() => {
@@ -37,18 +39,19 @@ export default function ProfilePage() {
           name: student.name || '',
           email: student.email || '',
           phone: student.phone || '',
-          college: student.college || '',
-          gradYear: student.gradYear || '',
-          bio: student.bio || 'Aspiring Full Stack Engineer and AI enthusiast.',
+          college: student.college && !student.college.includes('Not specified') ? student.college : '',
+          degree: student.degree || '',
+          gradYear: student.gradYear || '2026',
+          bio: student.bio && !student.bio.includes('Initialized workspace') ? student.bio : '',
           github: student.github || '',
           linkedin: student.linkedin || '',
           portfolio: student.portfolio || '',
-          skills: student.skills || ['React', 'Next.js', 'Node.js', 'System Design']
+          skills: student.skills && student.skills.length > 0 ? student.skills : ['React', 'Next.js', 'Node.js']
         };
         setProfile(profileObj);
         setFormData(profileObj);
-        setXp(student.xp || 0);
-        setStreak(student.streak || 0);
+        setStreak(student.streak || 1);
+        setEnrolledCount((student.enrolledCourses || []).length || 1);
       }
     };
     
@@ -57,9 +60,47 @@ export default function ProfilePage() {
     return () => window.removeEventListener('profileChanged', loadProfile);
   }, []);
 
+  // Calculate actual Profile Completion Percentage (0-100%)
+  const completionStats = useMemo(() => {
+    const target = isEditing ? formData : profile;
+    let score = 0;
+    const missing = [];
+
+    if (target.name && target.name.trim()) score += 10; else missing.push('Full Name');
+    if (target.email && target.email.trim()) score += 10; else missing.push('Email Address');
+    if (target.phone && target.phone.trim()) score += 10; else missing.push('Phone Number');
+    if (target.college && target.college.trim()) score += 10; else missing.push('College / University');
+    if (target.degree && target.degree.trim()) score += 10; else missing.push('Degree / Major');
+    if (target.gradYear && target.gradYear.trim()) score += 10; else missing.push('Graduation Year');
+    if (target.bio && target.bio.trim()) score += 10; else missing.push('Bio / Summary');
+    if (target.github && target.github.trim()) score += 10; else missing.push('GitHub Link');
+    if ((target.linkedin && target.linkedin.trim()) || (target.portfolio && target.portfolio.trim())) score += 10; else missing.push('LinkedIn or Portfolio');
+    if (Array.isArray(target.skills) && target.skills.length >= 3) score += 10; else missing.push('Technical Skills (min 3)');
+
+    return { score, missing };
+  }, [profile, formData, isEditing]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddSkill = (e) => {
+    e.preventDefault();
+    if (!newSkillInput.trim()) return;
+    const skillName = newSkillInput.trim();
+    if (!formData.skills.includes(skillName)) {
+      setFormData((prev) => ({ ...prev, skills: [...prev.skills, skillName] }));
+    }
+    setNewSkillInput('');
+  };
+
+  const handleRemoveSkill = (skillToRemove) => {
+    if (!isEditing) return;
+    setFormData((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((s) => s !== skillToRemove)
+    }));
   };
 
   const handleSave = async (e) => {
@@ -78,6 +119,7 @@ export default function ProfilePage() {
           formData.email,
           formData.phone,
           formData.college,
+          formData.degree,
           formData.gradYear,
           formData.bio,
           formData.github,
@@ -87,57 +129,127 @@ export default function ProfilePage() {
         );
 
         setProfile(formData);
-        localStorage.setItem('studentProfile', JSON.stringify(formData));
+        
+        // Update cached session profile
+        const cached = localStorage.getItem('studentProfile');
+        let parsed = {};
+        try { parsed = JSON.parse(cached || '{}'); } catch (err) {}
+        localStorage.setItem('studentProfile', JSON.stringify({
+          ...parsed,
+          ...formData,
+          streak: student.streak || streak || 1,
+          enrolledCourses: student.enrolledCourses || [1]
+        }));
 
         // Keep loggedInStudentEmail synced in case email changes
         if (formData.email && formData.email.toLowerCase() !== email.toLowerCase()) {
           localStorage.setItem('loggedInStudentEmail', formData.email.toLowerCase());
         }
         
-        // Dispatch event to sync username changes in the sidebar layout
         window.dispatchEvent(new Event('profileChanged'));
         window.dispatchEvent(new Event('courseChanged'));
         
         setIsEditing(false);
-        setStatusMessage('Profile node updated successfully.');
+        setStatusMessage('Profile updated successfully.');
         setTimeout(() => setStatusMessage(''), 3000);
       }
     } catch (err) {
       console.error(err);
-      setStatusMessage('Error updating profile.');
+      setStatusMessage('Error updating profile. Please try again.');
+      setTimeout(() => setStatusMessage(''), 3000);
     }
   };
 
   return (
     <div className={styles.simplePageWrapper}>
       {statusMessage && (
-        <div style={{ position: 'fixed', top: '2rem', right: '2rem', background: '#09090a', border: '1px solid var(--accent-orange)', padding: '1rem 1.5rem', borderRadius: '6px', color: '#ffffff', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', fontFamily: 'var(--font-heading)', fontSize: '0.85rem', animation: 'fadeIn 0.3s ease' }}>
-          <span style={{ color: 'var(--accent-orange)', marginRight: '0.5rem' }}>◆</span>
+        <div style={{ position: 'fixed', top: '5rem', right: '2rem', background: '#08080a', border: '1px solid var(--accent-orange)', padding: '0.85rem 1.25rem', borderRadius: '8px', color: '#ffffff', zIndex: 1000, boxShadow: '0 12px 36px rgba(0,0,0,0.8), 0 0 20px rgba(242, 85, 34, 0.2)', fontFamily: 'var(--font-heading)', fontSize: '0.85rem', animation: 'fadeIn 0.3s ease', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <span style={{ color: 'var(--accent-orange)' }}>◆</span>
           {statusMessage}
         </div>
       )}
+
+      {/* Profile Completion Bar Banner */}
+      <div style={{
+        background: '#08080a',
+        border: '1px solid rgba(255, 255, 255, 0.07)',
+        borderRadius: '14px',
+        padding: '1.5rem 1.75rem',
+        marginBottom: '1.75rem',
+        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: '800', color: '#ffffff' }}>
+              Profile Completion
+            </span>
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: '800',
+              padding: '0.2rem 0.6rem',
+              borderRadius: '20px',
+              background: completionStats.score === 100 ? 'rgba(48, 209, 88, 0.15)' : 'rgba(242, 85, 34, 0.12)',
+              color: completionStats.score === 100 ? '#30d158' : 'var(--accent-orange)',
+              border: `1px solid ${completionStats.score === 100 ? 'rgba(48, 209, 88, 0.3)' : 'rgba(242, 85, 34, 0.3)'}`
+            }}>
+              {completionStats.score}% Complete
+            </span>
+          </div>
+
+          <span style={{ fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.45)', fontWeight: '500' }}>
+            {completionStats.score === 100 ? '✓ Workspace Ready' : `${completionStats.missing.length} field${completionStats.missing.length > 1 ? 's' : ''} remaining`}
+          </span>
+        </div>
+
+        {/* Bar */}
+        <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '0.75rem' }}>
+          <div style={{
+            height: '100%',
+            width: `${completionStats.score}%`,
+            background: completionStats.score === 100 
+              ? 'linear-gradient(90deg, #30d158 0%, #34c759 100%)' 
+              : 'linear-gradient(90deg, var(--accent-orange) 0%, #ff8c42 100%)',
+            borderRadius: '10px',
+            transition: 'width 0.4s ease'
+          }} />
+        </div>
+
+        {/* Missing fields hints */}
+        {completionStats.missing.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+            <span style={{ fontSize: '0.72rem', color: 'rgba(255, 255, 255, 0.35)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '700' }}>
+              Suggestions:
+            </span>
+            {completionStats.missing.slice(0, 4).map((m, idx) => (
+              <span key={idx} style={{ fontSize: '0.72rem', color: 'rgba(242, 85, 34, 0.85)', background: 'rgba(242, 85, 34, 0.05)', border: '1px solid rgba(242, 85, 34, 0.15)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                + Add {m}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className={styles.profileContainer}>
         
         {/* Left Column: Avatar & Summary */}
         <div className={styles.cardPanel} style={{ height: 'fit-content' }}>
           <div className={styles.profileSidebarCard}>
-            <img src="/images/avatar1.jpg" alt="Student Large Profile" className={styles.profileAvatarLarge} />
-            <h3 className={styles.profileNameLarge}>{profile.name}</h3>
+            <img src="/images/avatar1.jpg" alt="Student Profile Avatar" className={styles.profileAvatarLarge} />
+            <h3 className={styles.profileNameLarge}>{profile.name || 'Student Builder'}</h3>
             <span className={styles.profileRoleBadge}>Premium Cohort</span>
             
-            <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.5', margin: '0 0 1.5rem 0' }}>
-              {profile.bio || "No bio added yet."}
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5', margin: '0 0 1.75rem 0' }}>
+              {profile.bio || "Aspiring Software Engineer learning modern web architectures and systems."}
             </p>
 
             <div className={styles.profileStatRow}>
-              <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
-                <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', fontWeight: '600' }}>XP Points</span>
-                <p style={{ fontSize: '1.2rem', fontWeight: '800', color: '#ffffff', marginTop: '0.2rem' }}>{xp}</p>
+              <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>Daily Streak</span>
+                <p style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--accent-orange)', marginTop: '0.25rem' }}>{streak} Days</p>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', fontWeight: '600' }}>Day Streak</span>
-                <p style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--accent-orange)', marginTop: '0.2rem' }}>{streak} Days</p>
+                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>Cohorts</span>
+                <p style={{ fontSize: '1.35rem', fontWeight: '800', color: '#ffffff', marginTop: '0.25rem' }}>{enrolledCount} Active</p>
               </div>
             </div>
           </div>
@@ -148,13 +260,14 @@ export default function ProfilePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <div>
               <h3 className={styles.cardTitle} style={{ marginBottom: '0.25rem' }}>Student Profile Details</h3>
-              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)' }}>
-                View and edit your workspace details, cohort credentials, and portfolio links.
+              <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)' }}>
+                Manage your credentials, educational background, portfolio, and active tech stack.
               </p>
             </div>
             {!isEditing && (
               <button 
                 className={styles.onboardBtn}
+                style={{ width: 'auto', padding: '0.75rem 1.5rem' }}
                 onClick={() => setIsEditing(true)}
               >
                 Edit Profile
@@ -165,9 +278,9 @@ export default function ProfilePage() {
           <form onSubmit={handleSave}>
             <div className={styles.profileFormGrid}>
               
-              {/* Name */}
+              {/* Full Name */}
               <div className={styles.profileFormGroup}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Full Name</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Name</label>
                 <input 
                   type="text" 
                   name="name" 
@@ -179,9 +292,9 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Email */}
+              {/* Email Address */}
               <div className={styles.profileFormGroup}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Email Address</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email Address</label>
                 <input 
                   type="email" 
                   name="email" 
@@ -193,12 +306,13 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Phone */}
+              {/* Phone Number */}
               <div className={styles.profileFormGroup}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Phone Number</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Phone Number</label>
                 <input 
                   type="tel" 
                   name="phone" 
+                  placeholder="+91 98765 43210"
                   value={isEditing ? formData.phone : profile.phone} 
                   onChange={handleChange}
                   disabled={!isEditing}
@@ -206,13 +320,28 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* College */}
+              {/* College / University */}
               <div className={styles.profileFormGroup}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>College / University</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>College / University</label>
                 <input 
                   type="text" 
                   name="college" 
+                  placeholder="e.g. National Institute of Technology"
                   value={isEditing ? formData.college : profile.college} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                  className={styles.profileInput} 
+                />
+              </div>
+
+              {/* Degree / Branch */}
+              <div className={styles.profileFormGroup}>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Degree / Major</label>
+                <input 
+                  type="text" 
+                  name="degree" 
+                  placeholder="e.g. B.Tech in Computer Science"
+                  value={isEditing ? formData.degree : profile.degree} 
                   onChange={handleChange}
                   disabled={!isEditing}
                   className={styles.profileInput} 
@@ -221,10 +350,11 @@ export default function ProfilePage() {
 
               {/* Graduation Year */}
               <div className={styles.profileFormGroup}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Graduation Year</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Graduation Year</label>
                 <input 
                   type="number" 
                   name="gradYear" 
+                  placeholder="2026"
                   value={isEditing ? formData.gradYear : profile.gradYear} 
                   onChange={handleChange}
                   disabled={!isEditing}
@@ -234,9 +364,10 @@ export default function ProfilePage() {
 
               {/* Bio */}
               <div className={`${styles.profileFormGroup} ${styles.profileFullRow}`}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Bio / Summary</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bio / Developer Summary</label>
                 <textarea 
                   name="bio" 
+                  placeholder="Tell us about your background, what you are building, and your engineering goals..."
                   value={isEditing ? formData.bio : profile.bio} 
                   onChange={handleChange}
                   disabled={!isEditing}
@@ -246,7 +377,7 @@ export default function ProfilePage() {
 
               {/* GitHub */}
               <div className={styles.profileFormGroup}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>GitHub Link</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>GitHub Profile</label>
                 <input 
                   type="url" 
                   name="github" 
@@ -260,7 +391,7 @@ export default function ProfilePage() {
 
               {/* LinkedIn */}
               <div className={styles.profileFormGroup}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>LinkedIn Link</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>LinkedIn Profile</label>
                 <input 
                   type="url" 
                   name="linkedin" 
@@ -274,52 +405,75 @@ export default function ProfilePage() {
 
               {/* Portfolio */}
               <div className={`${styles.profileFormGroup} ${styles.profileFullRow}`}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Portfolio Website</label>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Personal Portfolio Website</label>
                 <input 
                   type="url" 
                   name="portfolio" 
                   value={isEditing ? formData.portfolio : profile.portfolio} 
                   onChange={handleChange}
                   disabled={!isEditing}
-                  placeholder="https://portfolio.com"
+                  placeholder="https://yourname.dev"
                   className={styles.profileInput} 
                 />
               </div>
 
-              {/* Skills */}
-              <div className={`${styles.profileFormGroup} ${styles.profileFullRow}`} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
-                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Core Skills Tags</label>
+              {/* Core Skills */}
+              <div className={`${styles.profileFormGroup} ${styles.profileFullRow}`} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
+                <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Technical Stack & Skills</label>
                 <div className={styles.profileSkillsList}>
-                  {profile.skills.map((skill, idx) => (
-                    <span key={idx} className={styles.profileSkillTag}>{skill}</span>
+                  {(isEditing ? formData.skills : profile.skills).map((skill, idx) => (
+                    <span key={idx} className={styles.profileSkillTag} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      {skill}
+                      {isEditing && (
+                        <span 
+                          onClick={() => handleRemoveSkill(skill)}
+                          style={{ cursor: 'pointer', opacity: 0.6, fontSize: '0.9rem', marginLeft: '2px' }}
+                          title="Remove skill"
+                        >
+                          ×
+                        </span>
+                      )}
+                    </span>
                   ))}
-                  {isEditing && (
-                    <span 
-                      style={{ fontSize: '0.75rem', background: 'rgba(242, 85, 34, 0.05)', border: '1px dashed rgba(242, 85, 34, 0.3)', color: 'var(--accent-orange)', padding: '0.3rem 0.75rem', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
-                      onClick={() => {
-                        const newSkill = prompt('Enter a new skill tag:');
-                        if (newSkill && newSkill.trim()) {
-                          const updatedSkills = [...formData.skills, newSkill.trim()];
-                          setFormData((prev) => ({ ...prev, skills: updatedSkills }));
-                          setProfile((prev) => ({ ...prev, skills: updatedSkills }));
+                </div>
+
+                {isEditing && (
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', maxWidth: '380px' }}>
+                    <input 
+                      type="text"
+                      placeholder="Add a new skill (e.g. Docker, Redis)"
+                      value={newSkillInput}
+                      onChange={(e) => setNewSkillInput(e.target.value)}
+                      className={styles.profileInput}
+                      style={{ padding: '0.5rem 0.75rem', fontSize: '0.82rem' }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddSkill(e);
                         }
                       }}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={handleAddSkill}
+                      className={styles.onboardBtn}
+                      style={{ width: 'auto', padding: '0.5rem 1rem', fontSize: '0.78rem' }}
                     >
-                      + Add Skill
-                    </span>
-                  )}
-                </div>
+                      + Add
+                    </button>
+                  </div>
+                )}
               </div>
 
             </div>
 
-            {/* Save Buttons */}
+            {/* Save Actions */}
             {isEditing && (
               <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem', justifyContent: 'flex-end' }}>
                 <button 
                   type="button" 
                   className={styles.onboardBtnDisabled}
-                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}
+                  style={{ width: 'auto', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}
                   onClick={() => {
                     setFormData({ ...profile });
                     setIsEditing(false);
@@ -330,6 +484,7 @@ export default function ProfilePage() {
                 <button 
                   type="submit" 
                   className={styles.onboardBtn}
+                  style={{ width: 'auto', padding: '0.85rem 2rem' }}
                 >
                   Save Changes
                 </button>

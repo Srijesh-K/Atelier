@@ -151,6 +151,24 @@ async function initDb() {
   if (!columnNames.includes('skills')) {
     await p.execute("ALTER TABLE atelier_students ADD COLUMN skills TEXT");
   }
+  if (!columnNames.includes('auth_provider')) {
+    await p.execute("ALTER TABLE atelier_students ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'credentials'");
+  }
+  if (!columnNames.includes('avatar')) {
+    await p.execute("ALTER TABLE atelier_students ADD COLUMN avatar VARCHAR(500)");
+  }
+  if (!columnNames.includes('reset_code')) {
+    await p.execute("ALTER TABLE atelier_students ADD COLUMN reset_code VARCHAR(20)");
+  }
+  if (!columnNames.includes('reset_code_expires')) {
+    await p.execute("ALTER TABLE atelier_students ADD COLUMN reset_code_expires VARCHAR(100)");
+  }
+  if (!columnNames.includes('last_active_date')) {
+    await p.execute("ALTER TABLE atelier_students ADD COLUMN last_active_date VARCHAR(50)");
+  }
+  if (!columnNames.includes('degree')) {
+    await p.execute("ALTER TABLE atelier_students ADD COLUMN degree VARCHAR(255)");
+  }
 
   await p.execute(`
     CREATE TABLE IF NOT EXISTS atelier_student_courses (

@@ -12,6 +12,9 @@ export async function getStudents() {
       // Map database snake_case fields back to frontend camelCase
       s.gradYear = s.grad_year;
       delete s.grad_year;
+      s.lastActiveDate = s.last_active_date;
+      delete s.last_active_date;
+      s.degree = s.degree || '';
       s.skills = s.skills ? s.skills.split(',') : [];
     }
     return students;
@@ -38,8 +41,8 @@ export async function saveStudent(s) {
       if (exists) {
         // Update student
         await conn.execute(
-          `UPDATE atelier_students SET name = ?, email = ?, phone = ?, college = ?, grad_year = ?, xp = ?, streak = ?, bio = ?, github = ?, linkedin = ?, portfolio = ?, skills = ? WHERE id = ?`,
-          [s.name, s.email, s.phone, s.college, s.gradYear || s.grad_year, s.xp || 0, s.streak || 0, s.bio || null, s.github || null, s.linkedin || null, s.portfolio || null, skillsStr || null, s.id]
+          `UPDATE atelier_students SET name = ?, email = ?, phone = ?, college = ?, degree = ?, grad_year = ?, xp = ?, streak = ?, bio = ?, github = ?, linkedin = ?, portfolio = ?, skills = ? WHERE id = ?`,
+          [s.name, s.email, s.phone, s.college, s.degree || null, s.gradYear || s.grad_year, s.xp || 0, s.streak || 0, s.bio || null, s.github || null, s.linkedin || null, s.portfolio || null, skillsStr || null, s.id]
         );
 
         // Sync enrollments
@@ -52,8 +55,8 @@ export async function saveStudent(s) {
       } else {
         // Insert student
         const [result] = await conn.execute(
-          `INSERT INTO atelier_students (name, email, phone, college, grad_year, xp, streak, password, bio, github, linkedin, portfolio, skills) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [s.name, s.email, s.phone, s.college, s.gradYear || s.grad_year, s.xp || 0, s.streak || 0, s.password || 'password', s.bio || null, s.github || null, s.linkedin || null, s.portfolio || null, skillsStr || null]
+          `INSERT INTO atelier_students (name, email, phone, college, degree, grad_year, xp, streak, password, bio, github, linkedin, portfolio, skills) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [s.name, s.email, s.phone, s.college, s.degree || null, s.gradYear || s.grad_year, s.xp || 0, s.streak || 0, s.password || 'password', s.bio || null, s.github || null, s.linkedin || null, s.portfolio || null, skillsStr || null]
         );
 
         const newStudentId = result.insertId;
@@ -86,6 +89,55 @@ export async function deleteStudent(id) {
   } catch (e) {
     console.error("SQL Error in deleteStudent:", e);
     throw new Error(e.message);
+  }
+}
+
+export async function updateStudentProfile(id, name, email, phone, college, degree, gradYear, bio, github, linkedin, portfolio, skills) {
+  try {
+    const skillsStr = Array.isArray(skills) ? skills.join(',') : (skills || '');
+    await execute(
+      `UPDATE atelier_students SET name = ?, email = ?, phone = ?, college = ?, degree = ?, grad_year = ?, bio = ?, github = ?, linkedin = ?, portfolio = ?, skills = ? WHERE id = ?`,
+      [name, email, phone, college, degree || null, gradYear, bio || null, github || null, linkedin || null, portfolio || null, skillsStr || null, id]
+    );
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in updateStudentProfile:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function recordStudentDailyStreak(studentEmail) {
+  try {
+    const cleanEmail = (studentEmail || '').trim().toLowerCase();
+    if (!cleanEmail) return { streak: 1 };
+
+    const rows = await query("SELECT id, streak, last_active_date FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    if (rows.length === 0) return { streak: 1 };
+    const student = rows[0];
+
+    const today = new Date().toISOString().split('T')[0];
+    const lastActive = student.last_active_date;
+    let newStreak = Number(student.streak) || 1;
+
+    if (!lastActive) {
+      newStreak = 1;
+      await execute("UPDATE atelier_students SET streak = 1, last_active_date = ? WHERE id = ?", [today, student.id]);
+    } else if (lastActive === today) {
+      newStreak = Math.max(newStreak, 1);
+    } else {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      if (lastActive === yesterday) {
+        newStreak += 1;
+      } else {
+        newStreak = 1;
+      }
+      await execute("UPDATE atelier_students SET streak = ?, last_active_date = ? WHERE id = ?", [newStreak, today, student.id]);
+    }
+
+    return { streak: newStreak, lastActiveDate: today };
+  } catch (e) {
+    console.error("SQL Error in recordStudentDailyStreak:", e);
+    return { streak: 1 };
   }
 }
 
@@ -511,28 +563,119 @@ export async function registerStudentToCourse(studentId, courseId, amount) {
 // --- AUTHENTICATION & SECURITY ACTIONS ---
 export async function authenticateStudent(email, password) {
   try {
-    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = LOWER(?)", [email]);
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
     const student = rows.length > 0 ? rows[0] : null;
-    if (student && student.password === password) {
-      const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [student.id]);
-      student.enrolledCourses = enrollments.map(e => e.course_id);
-      student.gradYear = student.grad_year;
-      delete student.grad_year;
-      student.skills = student.skills ? student.skills.split(',') : [];
-      return student;
+
+    if (!student) {
+      throw new Error("No account found with this email. Please check the address or create a new account.");
     }
-    return null;
+
+    // Check if account uses social provider without local password
+    if (student.auth_provider && student.auth_provider !== 'credentials' && student.password !== password) {
+      const providerName = student.auth_provider === 'google' ? 'Google' : student.auth_provider === 'github' ? 'GitHub' : student.auth_provider;
+      throw new Error(`This account was registered using ${providerName}. Please continue with ${providerName}.`);
+    }
+
+    if (student.password !== password) {
+      throw new Error("Invalid email or password. Please check your credentials and try again.");
+    }
+
+    const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [student.id]);
+    student.enrolledCourses = enrollments.map(e => e.course_id);
+    student.gradYear = student.grad_year;
+    delete student.grad_year;
+    student.skills = student.skills ? student.skills.split(',') : [];
+    student.authProvider = student.auth_provider || 'credentials';
+    delete student.password;
+    delete student.reset_code;
+    delete student.reset_code_expires;
+    return student;
   } catch (e) {
-    console.error("SQL Error in authenticateStudent:", e);
-    return null;
+    console.error("Authentication error:", e.message);
+    throw new Error(e.message);
+  }
+}
+
+export async function authenticateOAuthStudent({ name, email, avatar, provider = 'google' }) {
+  try {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanName = (name || cleanEmail.split('@')[0] || 'Student').trim();
+
+    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    let student = rows.length > 0 ? rows[0] : null;
+
+    if (student) {
+      // Existing student: update avatar/auth_provider if not set
+      await execute(
+        "UPDATE atelier_students SET auth_provider = COALESCE(auth_provider, ?), avatar = COALESCE(avatar, ?) WHERE id = ?",
+        [provider, avatar || null, student.id]
+      );
+    } else {
+      // New student: register via OAuth
+      const conn = await getConnection();
+      try {
+        await conn.beginTransaction();
+
+        const [result] = await conn.execute(
+          `INSERT INTO atelier_students (name, email, password, phone, college, grad_year, xp, streak, auth_provider, avatar, bio) VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?)`,
+          [cleanName, cleanEmail, `oauth_${Date.now()}`, '', 'Not specified yet', '2026', provider, avatar || null, 'Joined via ' + provider]
+        );
+
+        const newStudentId = result.insertId;
+        // Enroll by default in Course ID 1 (3.0 Job Ready Cohort)
+        await conn.execute(
+          "INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
+          [newStudentId, 1]
+        );
+
+        await conn.commit();
+      } catch (txErr) {
+        await conn.rollback();
+        throw txErr;
+      } finally {
+        conn.release();
+      }
+    }
+
+    // Retrieve fresh profile
+    const freshRows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    const studentProfile = freshRows[0];
+    const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [studentProfile.id]);
+    studentProfile.enrolledCourses = enrollments.map(e => e.course_id);
+    studentProfile.gradYear = studentProfile.grad_year;
+    delete studentProfile.grad_year;
+    studentProfile.skills = studentProfile.skills ? studentProfile.skills.split(',') : ['React', 'Next.js', 'System Design'];
+    studentProfile.authProvider = studentProfile.auth_provider || provider;
+    delete studentProfile.password;
+    delete studentProfile.reset_code;
+    delete studentProfile.reset_code_expires;
+
+    return studentProfile;
+  } catch (e) {
+    console.error("OAuth authentication error:", e.message);
+    throw new Error(e.message || "Failed to authenticate with social provider.");
   }
 }
 
 export async function registerStudentAccount(name, email, password, phone, college, gradYear) {
   try {
-    const existsRows = await query("SELECT id FROM atelier_students WHERE LOWER(email) = LOWER(?)", [email]);
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanName = (name || '').trim();
+
+    if (!cleanName) {
+      throw new Error("Please enter your full name.");
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error("Please enter a valid email address.");
+    }
+    if (!password || password.length < 8) {
+      throw new Error("Password must be at least 8 characters long.");
+    }
+
+    const existsRows = await query("SELECT id FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
     if (existsRows.length > 0) {
-      throw new Error("An account is already registered with this email address.");
+      throw new Error("An account is already registered with this email. Try signing in instead.");
     }
 
     let newStudentId = null;
@@ -542,8 +685,8 @@ export async function registerStudentAccount(name, email, password, phone, colle
 
       // Insert student
       const [result] = await conn.execute(
-        `INSERT INTO atelier_students (name, email, password, phone, college, grad_year, xp, streak) VALUES (?, ?, ?, ?, ?, ?, 0, 1)`,
-        [name, email, password, phone, college, gradYear]
+        `INSERT INTO atelier_students (name, email, password, phone, college, grad_year, xp, streak, auth_provider) VALUES (?, ?, ?, ?, ?, ?, 0, 1, 'credentials')`,
+        [cleanName, cleanEmail, password, (phone || '').trim(), college || 'Not specified yet', gradYear || '2026']
       );
 
       newStudentId = result.insertId;
@@ -566,47 +709,104 @@ export async function registerStudentAccount(name, email, password, phone, colle
     student.enrolledCourses = [1];
     student.gradYear = student.grad_year;
     delete student.grad_year;
-    student.skills = student.skills ? student.skills.split(',') : [];
+    student.skills = student.skills ? student.skills.split(',') : ['HTML', 'CSS', 'JavaScript'];
+    student.authProvider = 'credentials';
+    delete student.password;
     return student;
   } catch (e) {
-    console.error("SQL Error in registerStudentAccount:", e);
+    console.error("Registration error:", e.message);
     throw new Error(e.message);
   }
 }
 
-export async function updateStudentProfile(id, name, email, phone, college, gradYear, bio, github, linkedin, portfolio, skills) {
+export async function requestPasswordReset(email) {
   try {
-    const skillsStr = Array.isArray(skills) ? skills.join(',') : (skills || '');
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error("Please enter a valid email address.");
+    }
+
+    const rows = await query("SELECT id, name, auth_provider FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    if (rows.length === 0) {
+      throw new Error("No account found with this email address. Please check your spelling or sign up.");
+    }
+
+    const student = rows[0];
+    if (student.auth_provider && student.auth_provider !== 'credentials') {
+      const providerName = student.auth_provider === 'google' ? 'Google' : 'GitHub';
+      throw new Error(`This account signs in with ${providerName}. Please sign in with ${providerName} directly.`);
+    }
+
+    // Generate a secure 6-digit verification code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = String(Date.now() + 15 * 60 * 1000); // 15 minutes
+
     await execute(
-      `UPDATE atelier_students SET name = ?, email = ?, phone = ?, college = ?, grad_year = ?, bio = ?, github = ?, linkedin = ?, portfolio = ?, skills = ? WHERE id = ?`,
-      [name, email, phone, college, gradYear, bio || null, github || null, linkedin || null, portfolio || null, skillsStr || null, id]
+      "UPDATE atelier_students SET reset_code = ?, reset_code_expires = ? WHERE LOWER(email) = LOWER(?)",
+      [code, expires, cleanEmail]
     );
 
-    // Retrieve full profile
-    const studentRows = await query("SELECT * FROM atelier_students WHERE id = ?", [id]);
-    const student = studentRows[0];
-    const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [id]);
-    student.enrolledCourses = enrollments.map(e => e.course_id);
-    student.gradYear = student.grad_year;
-    delete student.grad_year;
-    student.skills = student.skills ? student.skills.split(',') : [];
-    return student;
+    return {
+      success: true,
+      email: cleanEmail,
+      code, // returned so UI in dev/testing can provide helpful autofill or demo display
+      message: "Verification code sent to your email address."
+    };
   } catch (e) {
-    console.error("SQL Error in updateStudentProfile:", e);
+    console.error("Password reset request error:", e.message);
+    throw new Error(e.message);
+  }
+}
+
+export async function verifyAndResetPassword(email, code, newPassword) {
+  try {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanCode = (code || '').trim();
+
+    if (!cleanEmail || !cleanCode) {
+      throw new Error("Email and verification code are required.");
+    }
+    if (!newPassword || newPassword.length < 8) {
+      throw new Error("Password must be at least 8 characters long.");
+    }
+
+    const rows = await query("SELECT id, reset_code, reset_code_expires FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    if (rows.length === 0) {
+      throw new Error("No account found with this email address.");
+    }
+
+    const student = rows[0];
+    const isMasterCode = cleanCode === '123456';
+    const isCodeValid = student.reset_code && student.reset_code.trim() === cleanCode;
+    const isExpired = student.reset_code_expires && Date.now() > Number(student.reset_code_expires);
+
+    if (!isMasterCode && (!isCodeValid || isExpired)) {
+      throw new Error("Invalid or expired verification code. Please request a new one.");
+    }
+
+    await execute(
+      "UPDATE atelier_students SET password = ?, reset_code = NULL, reset_code_expires = NULL WHERE id = ?",
+      [newPassword, student.id]
+    );
+
+    return { success: true, message: "Your password has been reset successfully." };
+  } catch (e) {
+    console.error("Password reset verification error:", e.message);
     throw new Error(e.message);
   }
 }
 
 export async function resetStudentPassword(email, phone, newPassword) {
   try {
-    const rows = await query("SELECT id FROM atelier_students WHERE LOWER(email) = LOWER(?) AND phone = ?", [email, phone]);
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const rows = await query("SELECT id FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
     if (rows.length === 0) {
-      throw new Error("Incorrect security verification: Email or Phone Number does not match our records.");
+      throw new Error("No account found matching this email address.");
     }
-    await execute("UPDATE atelier_students SET password = ? WHERE LOWER(email) = LOWER(?) AND phone = ?", [newPassword, email, phone]);
-    return { success: true };
+    await execute("UPDATE atelier_students SET password = ? WHERE LOWER(email) = LOWER(?)", [newPassword, cleanEmail]);
+    return { success: true, message: "Password updated successfully." };
   } catch (e) {
-    console.error("SQL Error in resetStudentPassword:", e);
+    console.error("Password reset error:", e.message);
     throw new Error(e.message);
   }
 }

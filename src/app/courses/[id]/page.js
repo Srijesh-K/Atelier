@@ -249,18 +249,26 @@ export default function CourseDetailPage() {
       const updatedStudent = studentsList.find(s => s.id === student.id);
       if (updatedStudent) {
         localStorage.setItem('studentProfile', JSON.stringify({
-          name: updatedStudent.name, email: updatedStudent.email,
-          phone: updatedStudent.phone || '', college: updatedStudent.college || '',
-          gradYear: updatedStudent.gradYear || '', bio: updatedStudent.bio || '',
-          github: updatedStudent.github || '', linkedin: updatedStudent.linkedin || '',
-          portfolio: updatedStudent.portfolio || '', skills: updatedStudent.skills || []
+          name: updatedStudent.name,
+          email: updatedStudent.email,
+          phone: updatedStudent.phone || '',
+          college: updatedStudent.college || '',
+          degree: updatedStudent.degree || '',
+          gradYear: updatedStudent.gradYear || '',
+          bio: updatedStudent.bio || '',
+          github: updatedStudent.github || '',
+          linkedin: updatedStudent.linkedin || '',
+          portfolio: updatedStudent.portfolio || '',
+          skills: updatedStudent.skills || [],
+          streak: updatedStudent.streak || 1,
+          enrolledCourses: updatedStudent.enrolledCourses || [courseId]
         }));
       }
     }
     localStorage.setItem('activeCourseId', courseId.toString());
     window.dispatchEvent(new Event('profileChanged'));
     window.dispatchEvent(new Event('courseChanged'));
-    router.push('/dashboard');
+    router.push('/dashboard/my-courses');
   };
 
   // Parse structured data from course fields
