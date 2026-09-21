@@ -762,11 +762,16 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
         );
 
         const newStudentId = result.insertId;
-        // Enroll by default in Course ID 1 (3.0 Job Ready Cohort)
-        await conn.execute(
-          "INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
-          [newStudentId, 1]
+        // Enroll by default in Course ID 1 (3.0 Job Ready Cohort) or first available course
+        const [availCourses] = await conn.execute(
+          "SELECT id FROM atelier_courses WHERE id = 1 UNION SELECT id FROM atelier_courses ORDER BY id ASC LIMIT 1"
         );
+        if (availCourses && availCourses.length > 0) {
+          await conn.execute(
+            "INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
+            [newStudentId, availCourses[0].id]
+          );
+        }
 
         await conn.commit();
       } catch (txErr) {
@@ -829,10 +834,16 @@ export async function registerStudentAccount(name, email, password, phone, colle
       );
 
       newStudentId = result.insertId;
-
-      // Enroll by default in Course ID 1 (3.0 Job Ready Cohort)
-      await conn.execute("INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
-        [newStudentId, 1]);
+ 
+      // Enroll by default in Course ID 1 (3.0 Job Ready Cohort) or first available course
+      const [availCourses] = await conn.execute(
+        "SELECT id FROM atelier_courses WHERE id = 1 UNION SELECT id FROM atelier_courses ORDER BY id ASC LIMIT 1"
+      );
+      const defaultCourseId = (availCourses && availCourses.length > 0) ? availCourses[0].id : null;
+      if (defaultCourseId) {
+        await conn.execute("INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
+          [newStudentId, defaultCourseId]);
+      }
 
       await conn.commit();
     } catch (txErr) {
@@ -845,7 +856,7 @@ export async function registerStudentAccount(name, email, password, phone, colle
     // Retrieve full profile
     const studentRows = await query("SELECT * FROM atelier_students WHERE id = ?", [newStudentId]);
     const student = studentRows[0];
-    student.enrolledCourses = [1];
+    student.enrolledCourses = defaultCourseId ? [defaultCourseId] : [];
     student.gradYear = student.grad_year;
     delete student.grad_year;
     student.skills = student.skills ? student.skills.split(',') : ['HTML', 'CSS', 'JavaScript'];
