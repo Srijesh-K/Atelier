@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getStudents, getCourses } from '../../actions';
+import { getStudents, getCourses, getStudentCourseProgress } from '../../actions';
 import styles from '../dashboard.module.css';
 
 export default function MyCoursesPage() {
   const router = useRouter();
   const [coursesList, setCoursesList] = useState([]);
+  const [progressMap, setProgressMap] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,6 +23,17 @@ export default function MyCoursesPage() {
       const allCourses = await getCourses();
       const filtered = allCourses.filter((c) => enrolledIds.includes(c.id));
       setCoursesList(filtered);
+
+      // Compute mathematical progress for each enrolled course
+      if (student && student.id) {
+        const pMap = {};
+        for (const c of filtered) {
+          const stats = await getStudentCourseProgress(student.id, c.id);
+          pMap[c.id] = stats;
+        }
+        setProgressMap(pMap);
+      }
+
       setLoading(false);
     };
 
@@ -35,7 +47,7 @@ export default function MyCoursesPage() {
       <div className={styles.simplePageWrapper}>
         <div style={{ color: 'rgba(255,255,255,0.4)', padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div className={styles.dropdownActiveDot} />
-          <span>Synchronizing workspace cohorts...</span>
+          <span>Loading your courses...</span>
         </div>
       </div>
     );
@@ -44,10 +56,10 @@ export default function MyCoursesPage() {
   return (
     <div className={styles.simplePageWrapper}>
       <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.65rem', fontWeight: '800', marginBottom: '0.5rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
-        Your Active Workspace Cohorts
+        My Enrolled Courses
       </h2>
       <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)', marginBottom: '2.25rem', lineHeight: '1.5' }}>
-        Select an enrolled cohort program below to access curriculum sandbox environments, assignments, and live classes.
+        Select an enrolled course below to access your curriculum roadmap, reference materials, and live classes.
       </p>
 
       {coursesList.length === 0 ? (
@@ -58,9 +70,9 @@ export default function MyCoursesPage() {
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
             </svg>
           </div>
-          <h3 style={{ fontFamily: 'var(--font-heading)', color: '#ffffff', fontSize: '1.15rem', marginBottom: '0.5rem' }}>No Active Cohorts Found</h3>
+          <h3 style={{ fontFamily: 'var(--font-heading)', color: '#ffffff', fontSize: '1.15rem', marginBottom: '0.5rem' }}>No Enrolled Courses Found</h3>
           <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '1.75rem', fontSize: '0.88rem', maxWidth: '400px', margin: '0 auto 1.75rem' }}>
-            You have not enrolled in any programs yet. Explore the curriculum catalog to get started.
+            You have not enrolled in any courses yet. Explore the catalog to get started.
           </p>
           <Link href="/dashboard/explore" className={styles.onboardBtn} style={{ textDecoration: 'none', display: 'inline-flex', width: 'auto', padding: '0.85rem 2rem' }}>
             Explore Catalog
@@ -68,8 +80,9 @@ export default function MyCoursesPage() {
         </div>
       ) : (
         <div className={styles.myCoursesGrid}>
-          {coursesList.map((course, idx) => {
-            const progress = idx === 0 ? 35 : 15;
+          {coursesList.map((course) => {
+            const progressData = progressMap[course.id] || { percentage: 0, completed: 0, total: 0 };
+            const isCompleted = progressData.percentage === 100 && progressData.total > 0;
 
             return (
               <div key={course.id} className={styles.courseDeckCard}>
@@ -85,18 +98,28 @@ export default function MyCoursesPage() {
                 {/* Progress bar */}
                 <div className={styles.progressContainer}>
                   <div className={styles.progressBarLabelRow}>
-                    <span>Curriculum Progress</span>
-                    <span className={styles.progressPercent}>{progress}%</span>
+                    <span>
+                      Curriculum Progress {progressData.total > 0 ? `(${progressData.completed} of ${progressData.total} topics)` : ''}
+                    </span>
+                    <span className={styles.progressPercent}>{progressData.percentage}%</span>
                   </div>
                   <div className={styles.progressBarWrapper}>
-                    <div className={styles.progressBarFill} style={{ width: `${progress}%` }} />
+                    <div 
+                      className={styles.progressBarFill} 
+                      style={{ 
+                        width: `${progressData.percentage}%`,
+                        background: isCompleted ? 'linear-gradient(90deg, #30d158, #34c759)' : undefined
+                      }} 
+                    />
                   </div>
                 </div>
 
                 {/* Workspace Status */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0.65rem 0.85rem', background: 'rgba(242, 85, 34, 0.04)', border: '1px solid rgba(242, 85, 34, 0.15)', borderRadius: '8px' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-orange)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</span>
-                  <span style={{ fontSize: '0.72rem', color: '#ffffff', fontWeight: '800', textTransform: 'uppercase', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.6rem', borderRadius: '4px' }}>In Progress</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0.65rem 0.85rem', background: isCompleted ? 'rgba(48, 209, 88, 0.06)' : 'rgba(242, 85, 34, 0.04)', border: isCompleted ? '1px solid rgba(48, 209, 88, 0.25)' : '1px solid rgba(242, 85, 34, 0.15)', borderRadius: '8px' }}>
+                  <span style={{ fontSize: '0.72rem', color: isCompleted ? '#30d158' : 'var(--accent-orange)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</span>
+                  <span style={{ fontSize: '0.72rem', color: isCompleted ? '#30d158' : '#ffffff', fontWeight: '800', textTransform: 'uppercase', background: isCompleted ? 'rgba(48, 209, 88, 0.12)' : 'rgba(255,255,255,0.06)', padding: '0.25rem 0.6rem', borderRadius: '4px' }}>
+                    {isCompleted ? 'Completed ✓' : 'In Progress'}
+                  </span>
                 </div>
 
                 {/* Active Sandbox Environment */}

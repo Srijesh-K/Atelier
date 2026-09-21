@@ -2,6 +2,7 @@
 
 import { query, execute, getConnection, createFileRecord, getFileRecordById, deleteFileRecord, getFilesForUser } from '../utils/db-sql';
 import { deleteMessageFromTelegram } from '../lib/telegram';
+import { hashPassword, verifyPassword, generateTempPassword, signMentorSession, isMentorLocked, assertMentorOwnsCourse } from '../utils/auth';
 
 // --- STUDENTS ACTIONS ---
 export async function getStudents() {
@@ -507,10 +508,18 @@ export async function deleteCallback(id) {
   }
 }
 
-// --- LECTURERS ACTIONS ---
+// --- LECTURERS / MENTORS ACTIONS ---
 export async function getLecturers() {
   try {
-    return await query("SELECT * FROM atelier_lecturers");
+    // Never expose password_hash to the client
+    const lecturers = await query(
+      "SELECT id, name, email, expertise, bio, phone, avatar, role, must_change_password as mustChangePassword, failed_login_count as failedLoginCount, locked_until as lockedUntil FROM atelier_lecturers"
+    );
+    for (const l of lecturers) {
+      const assigned = await query("SELECT course_id FROM atelier_mentor_courses WHERE mentor_id = ?", [l.id]);
+      l.assignedCourses = assigned.map(a => a.course_id);
+    }
+    return lecturers;
   } catch (e) {
     console.error("SQL Error in getLecturers:", e);
     return [];
@@ -525,14 +534,55 @@ export async function saveLecturer(l) {
       exists = rows.length > 0 ? rows[0] : null;
     }
 
-    if (exists) {
-      await execute("UPDATE atelier_lecturers SET name = ?, email = ?, expertise = ?, bio = ? WHERE id = ?",
-        [l.name, l.email, l.expertise, l.bio, l.id]);
-    } else {
-      await execute("INSERT INTO atelier_lecturers (name, email, expertise, bio) VALUES (?, ?, ?, ?)",
-        [l.name, l.email, l.expertise, l.bio]);
+    const conn = await getConnection();
+    let tempPassword = null;
+
+    try {
+      await conn.beginTransaction();
+
+      if (exists) {
+        // Update existing mentor
+        await conn.execute(
+          "UPDATE atelier_lecturers SET name = ?, email = ?, expertise = ?, bio = ?, phone = ?, avatar = ? WHERE id = ?",
+          [l.name, l.email, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null, l.id]
+        );
+
+        // Sync assigned courses
+        if (Array.isArray(l.assignedCourses)) {
+          await conn.execute("DELETE FROM atelier_mentor_courses WHERE mentor_id = ?", [l.id]);
+          for (const cId of l.assignedCourses) {
+            await conn.execute("INSERT INTO atelier_mentor_courses (mentor_id, course_id) VALUES (?, ?)", [l.id, cId]);
+          }
+        }
+      } else {
+        // Create new mentor with a secure temporary password
+        tempPassword = generateTempPassword(10);
+        const passHash = hashPassword(tempPassword);
+
+        const [result] = await conn.execute(
+          "INSERT INTO atelier_lecturers (name, email, password_hash, must_change_password, expertise, bio, phone, avatar, role) VALUES (?, ?, ?, 1, ?, ?, ?, ?, 'mentor')",
+          [l.name, l.email, passHash, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null]
+        );
+
+        const newMentorId = result.insertId;
+
+        // Assign courses
+        if (Array.isArray(l.assignedCourses)) {
+          for (const cId of l.assignedCourses) {
+            await conn.execute("INSERT INTO atelier_mentor_courses (mentor_id, course_id) VALUES (?, ?)", [newMentorId, cId]);
+          }
+        }
+      }
+
+      await conn.commit();
+    } catch (txErr) {
+      await conn.rollback();
+      throw txErr;
+    } finally {
+      conn.release();
     }
-    return { success: true };
+
+    return { success: true, tempPassword };
   } catch (e) {
     console.error("SQL Error in saveLecturer:", e);
     throw new Error(e.message);
@@ -919,5 +969,617 @@ export async function getSiteStats() {
       activeEnrolledCount: 0,
       avgXP: 0
     };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ─── MENTOR AUTHENTICATION & PORTAL SERVER ACTIONS ───────────
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Mentor Login with rate-limiting / lockout protection
+ */
+export async function mentorLogin(email, password) {
+  try {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const rows = await query("SELECT * FROM atelier_lecturers WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+
+    if (rows.length === 0) {
+      // Use generic error message to prevent user enumeration
+      throw new Error("Invalid email address or password.");
+    }
+
+    const mentor = rows[0];
+
+    // Check account lockout
+    const lockStatus = isMentorLocked(mentor);
+    if (lockStatus && lockStatus.locked) {
+      throw new Error(`Account temporarily locked due to consecutive failed attempts. Please try again in ${lockStatus.remainingMinutes} minute(s).`);
+    }
+
+    // Verify password hash
+    const isValid = verifyPassword(password, mentor.password_hash);
+
+    if (!isValid) {
+      const newFailCount = (mentor.failed_login_count || 0) + 1;
+      if (newFailCount >= 5) {
+        // Lock for 15 minutes
+        await execute(
+          "UPDATE atelier_lecturers SET failed_login_count = ?, locked_until = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id = ?",
+          [newFailCount, mentor.id]
+        );
+        throw new Error("Too many failed attempts. Account has been locked for 15 minutes.");
+      } else {
+        await execute(
+          "UPDATE atelier_lecturers SET failed_login_count = ? WHERE id = ?",
+          [newFailCount, mentor.id]
+        );
+        throw new Error("Invalid email address or password.");
+      }
+    }
+
+    // Reset failed login counter on success
+    await execute(
+      "UPDATE atelier_lecturers SET failed_login_count = 0, locked_until = NULL WHERE id = ?",
+      [mentor.id]
+    );
+
+    // Fetch assigned courses
+    const assigned = await query("SELECT course_id FROM atelier_mentor_courses WHERE mentor_id = ?", [mentor.id]);
+    const assignedCourses = assigned.map(a => a.course_id);
+
+    // Sign session token
+    const token = signMentorSession({
+      id: mentor.id,
+      email: mentor.email,
+      name: mentor.name
+    });
+
+    return {
+      success: true,
+      token,
+      mentor: {
+        id: mentor.id,
+        name: mentor.name,
+        email: mentor.email,
+        phone: mentor.phone || '',
+        avatar: mentor.avatar || null,
+        expertise: mentor.expertise || '',
+        bio: mentor.bio || '',
+        role: mentor.role || 'mentor',
+        mustChangePassword: Boolean(mentor.must_change_password),
+        assignedCourses
+      }
+    };
+  } catch (err) {
+    console.error("Mentor login error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Change Mentor Password (required on first login or via profile)
+ */
+export async function changeMentorPassword(mentorId, oldPassword, newPassword) {
+  try {
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error("New password must be at least 6 characters long.");
+    }
+
+    const rows = await query("SELECT password_hash FROM atelier_lecturers WHERE id = ?", [mentorId]);
+    if (rows.length === 0) {
+      throw new Error("Mentor not found.");
+    }
+
+    const currentHash = rows[0].password_hash;
+    const isValid = verifyPassword(oldPassword, currentHash);
+    if (!isValid) {
+      throw new Error("Incorrect current password.");
+    }
+
+    const newHash = hashPassword(newPassword);
+    await execute(
+      "UPDATE atelier_lecturers SET password_hash = ?, must_change_password = 0, failed_login_count = 0 WHERE id = ?",
+      [newHash, mentorId]
+    );
+
+    return { success: true, message: "Password updated successfully." };
+  } catch (err) {
+    console.error("Change mentor password error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Update Mentor Profile
+ */
+export async function updateMentorProfile(mentorId, data) {
+  try {
+    const { name, bio, expertise, phone, avatar } = data;
+    await execute(
+      "UPDATE atelier_lecturers SET name = ?, bio = ?, expertise = ?, phone = ?, avatar = ? WHERE id = ?",
+      [name, bio || null, expertise || null, phone || null, avatar || null, mentorId]
+    );
+    return { success: true };
+  } catch (err) {
+    console.error("Update mentor profile error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Get courses assigned to a mentor
+ */
+export async function getMentorCourses(mentorId) {
+  try {
+    const courses = await query(
+      `SELECT c.* FROM atelier_courses c
+       JOIN atelier_mentor_courses mc ON c.id = mc.course_id
+       WHERE mc.mentor_id = ?
+       ORDER BY c.id ASC`,
+      [mentorId]
+    );
+    for (const c of courses) {
+      const [countRow] = await query("SELECT COUNT(*) as count FROM atelier_student_courses WHERE course_id = ?", [c.id]);
+      c.enrolledCount = countRow.count;
+    }
+    return courses;
+  } catch (err) {
+    console.error("Get mentor courses error:", err);
+    return [];
+  }
+}
+
+/**
+ * Assign one or more courses to a mentor (Admin only)
+ */
+export async function assignCoursesToMentor(mentorId, courseIds = []) {
+  try {
+    const conn = await getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.execute("DELETE FROM atelier_mentor_courses WHERE mentor_id = ?", [mentorId]);
+      for (const cId of courseIds) {
+        await conn.execute("INSERT INTO atelier_mentor_courses (mentor_id, course_id) VALUES (?, ?)", [mentorId, cId]);
+      }
+      await conn.commit();
+    } catch (txErr) {
+      await conn.rollback();
+      throw txErr;
+    } finally {
+      conn.release();
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("Assign courses to mentor error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Get enrolled students for a specific course with computed progress % (Ownership checked)
+ */
+export async function getCourseEnrolledStudents(mentorId, courseId, limit = 25, offset = 0) {
+  try {
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, courseId);
+    }
+
+    const students = await query(
+      `SELECT s.id, s.name, s.email, s.phone, s.college, s.degree, s.streak, s.xp, s.avatar, sc.completed_at as completedAt
+       FROM atelier_students s
+       JOIN atelier_student_courses sc ON s.id = sc.student_id
+       WHERE sc.course_id = ?
+       ORDER BY s.name ASC
+       LIMIT ? OFFSET ?`,
+      [courseId, Number(limit), Number(offset)]
+    );
+
+    // Compute real mathematical progress for each student
+    const [totalTopicsRow] = await query(
+      `SELECT COUNT(*) as total FROM atelier_syllabus_topics st
+       JOIN atelier_course_syllabus cs ON st.syllabus_id = cs.id
+       WHERE cs.course_id = ?`,
+      [courseId]
+    );
+    const totalTopics = totalTopicsRow.total;
+
+    for (const student of students) {
+      const [completedRow] = await query(
+        `SELECT COUNT(*) as count FROM atelier_student_progress WHERE student_id = ? AND course_id = ?`,
+        [student.id, courseId]
+      );
+      const completed = completedRow.count;
+      student.progressPercentage = totalTopics > 0 ? Math.round((completed / totalTopics) * 100) : 0;
+      student.completedTopics = completed;
+      student.totalTopics = totalTopics;
+    }
+
+    const [totalStudentsRow] = await query(
+      `SELECT COUNT(*) as count FROM atelier_student_courses WHERE course_id = ?`,
+      [courseId]
+    );
+
+    return {
+      students,
+      totalCount: totalStudentsRow.count
+    };
+  } catch (err) {
+    console.error("Get course enrolled students error:", err);
+    throw new Error(err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ─── NORMALIZED SYLLABUS & TOPICS ACTIONS ────────────────────
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Get structured course syllabus modules and normalized topics
+ */
+export async function getCourseSyllabus(courseId) {
+  try {
+    const modules = await query(
+      `SELECT id, course_id as courseId, week_number as weekNumber, module_title as moduleTitle, description, sort_order as sortOrder
+       FROM atelier_course_syllabus
+       WHERE course_id = ?
+       ORDER BY sort_order ASC, week_number ASC`,
+      [courseId]
+    );
+
+    for (const mod of modules) {
+      const topics = await query(
+        `SELECT id, syllabus_id as syllabusId, title, sort_order as sortOrder
+         FROM atelier_syllabus_topics
+         WHERE syllabus_id = ?
+         ORDER BY sort_order ASC, id ASC`,
+        [mod.id]
+      );
+      mod.topics = topics;
+    }
+
+    return modules;
+  } catch (err) {
+    console.error("Get course syllabus error:", err);
+    return [];
+  }
+}
+
+/**
+ * Create or update syllabus module (Ownership checked)
+ */
+export async function saveCourseSyllabusModule(mentorId, moduleData) {
+  try {
+    const { id, courseId, weekNumber, moduleTitle, description, sortOrder } = moduleData;
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, courseId);
+    }
+
+    if (id) {
+      await execute(
+        `UPDATE atelier_course_syllabus SET week_number = ?, module_title = ?, description = ?, sort_order = ? WHERE id = ? AND course_id = ?`,
+        [weekNumber || 1, moduleTitle, description || null, sortOrder || 0, id, courseId]
+      );
+      return { success: true, id };
+    } else {
+      const res = await execute(
+        `INSERT INTO atelier_course_syllabus (course_id, week_number, module_title, description, sort_order) VALUES (?, ?, ?, ?, ?)`,
+        [courseId, weekNumber || 1, moduleTitle, description || null, sortOrder || 0]
+      );
+      return { success: true, id: res.insertId };
+    }
+  } catch (err) {
+    console.error("Save course syllabus module error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Delete syllabus module (Ownership checked; cascades topics & progress)
+ */
+export async function deleteCourseSyllabusModule(mentorId, syllabusId) {
+  try {
+    const rows = await query("SELECT course_id FROM atelier_course_syllabus WHERE id = ?", [syllabusId]);
+    if (rows.length === 0) return { success: true };
+    const courseId = rows[0].course_id;
+
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, courseId);
+    }
+
+    await execute("DELETE FROM atelier_course_syllabus WHERE id = ?", [syllabusId]);
+    return { success: true };
+  } catch (err) {
+    console.error("Delete course syllabus module error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Create or update syllabus topic (Ownership checked)
+ */
+export async function saveSyllabusTopic(mentorId, topicData) {
+  try {
+    const { id, syllabusId, title, sortOrder } = topicData;
+    const modRows = await query("SELECT course_id FROM atelier_course_syllabus WHERE id = ?", [syllabusId]);
+    if (modRows.length === 0) throw new Error("Syllabus module not found.");
+    const courseId = modRows[0].course_id;
+
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, courseId);
+    }
+
+    if (id) {
+      await execute(
+        `UPDATE atelier_syllabus_topics SET title = ?, sort_order = ? WHERE id = ? AND syllabus_id = ?`,
+        [title, sortOrder || 0, id, syllabusId]
+      );
+      return { success: true, id };
+    } else {
+      const res = await execute(
+        `INSERT INTO atelier_syllabus_topics (syllabus_id, title, sort_order) VALUES (?, ?, ?)`,
+        [syllabusId, title, sortOrder || 0]
+      );
+      return { success: true, id: res.insertId };
+    }
+  } catch (err) {
+    console.error("Save syllabus topic error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Delete syllabus topic (Ownership checked; cascades progress records)
+ */
+export async function deleteSyllabusTopic(mentorId, topicId) {
+  try {
+    const rows = await query(
+      `SELECT cs.course_id FROM atelier_syllabus_topics st
+       JOIN atelier_course_syllabus cs ON st.syllabus_id = cs.id
+       WHERE st.id = ?`,
+      [topicId]
+    );
+    if (rows.length === 0) return { success: true };
+    const courseId = rows[0].course_id;
+
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, courseId);
+    }
+
+    await execute("DELETE FROM atelier_syllabus_topics WHERE id = ?", [topicId]);
+    return { success: true };
+  } catch (err) {
+    console.error("Delete syllabus topic error:", err);
+    throw new Error(err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ─── REAL MATHEMATICAL PROGRESS ACTIONS ──────────────────────
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Get student's mathematical course progress
+ */
+export async function getStudentCourseProgress(studentId, courseId) {
+  try {
+    const [totalRow] = await query(
+      `SELECT COUNT(*) as total FROM atelier_syllabus_topics st
+       JOIN atelier_course_syllabus cs ON st.syllabus_id = cs.id
+       WHERE cs.course_id = ?`,
+      [courseId]
+    );
+    const total = totalRow.total;
+
+    const completedRows = await query(
+      `SELECT topic_id FROM atelier_student_progress WHERE student_id = ? AND course_id = ?`,
+      [studentId, courseId]
+    );
+
+    const completed = completedRows.length;
+    const percentage = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+    const completedTopicIds = completedRows.map(r => r.topic_id);
+
+    return {
+      total,
+      completed,
+      percentage,
+      completedTopicIds
+    };
+  } catch (err) {
+    console.error("Get student course progress error:", err);
+    return { total: 0, completed: 0, percentage: 0, completedTopicIds: [] };
+  }
+}
+
+/**
+ * Toggle completion of a syllabus topic by student
+ */
+export async function toggleTopicProgress(studentId, courseId, topicId) {
+  try {
+    const existing = await query(
+      `SELECT id FROM atelier_student_progress WHERE student_id = ? AND course_id = ? AND topic_id = ?`,
+      [studentId, courseId, topicId]
+    );
+
+    if (existing.length > 0) {
+      await execute("DELETE FROM atelier_student_progress WHERE id = ?", [existing[0].id]);
+    } else {
+      await execute(
+        "INSERT INTO atelier_student_progress (student_id, course_id, topic_id) VALUES (?, ?, ?)",
+        [studentId, courseId, topicId]
+      );
+    }
+
+    // Recompute and check if 100% completed
+    const stats = await getStudentCourseProgress(studentId, courseId);
+    if (stats.percentage === 100 && stats.total > 0) {
+      await execute(
+        "UPDATE atelier_student_courses SET completed_at = NOW() WHERE student_id = ? AND course_id = ? AND completed_at IS NULL",
+        [studentId, courseId]
+      );
+    }
+
+    return stats;
+  } catch (err) {
+    console.error("Toggle topic progress error:", err);
+    throw new Error(err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ─── REAL LIVE SESSIONS ACTIONS ──────────────────────────────
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Get live sessions (upcoming, active, or completed)
+ */
+export async function getLiveSessions(courseId = null) {
+  try {
+    let sql = `
+      SELECT ls.*,
+             l.name as mentorName,
+             l.avatar as mentorAvatar,
+             l.expertise as mentorExpertise,
+             c.title as courseTitle
+      FROM atelier_live_sessions ls
+      LEFT JOIN atelier_lecturers l ON ls.mentor_id = l.id
+      JOIN atelier_courses c ON ls.course_id = c.id
+    `;
+    const params = [];
+
+    if (courseId) {
+      sql += ` WHERE ls.course_id = ?`;
+      params.push(courseId);
+    }
+
+    // Order: live sessions first, then upcoming by scheduled_at asc, completed by ended_at desc
+    sql += ` ORDER BY CASE WHEN ls.status = 'live' THEN 0 WHEN ls.status = 'scheduled' THEN 1 ELSE 2 END, ls.scheduled_at ASC`;
+
+    const rows = await query(sql, params);
+    return rows.map(r => ({
+      id: r.id,
+      courseId: r.course_id,
+      courseTitle: r.courseTitle,
+      mentorId: r.mentor_id,
+      mentorName: r.mentorName || 'Course Instructor',
+      mentorAvatar: r.mentorAvatar || null,
+      mentorExpertise: r.mentorExpertise || '',
+      title: r.title,
+      description: r.description,
+      scheduledAt: r.scheduled_at ? new Date(r.scheduled_at).toISOString() : null,
+      durationMinutes: r.duration_minutes || 60,
+      meetingLink: r.meeting_link,
+      status: r.status,
+      recordingUrl: r.recording_url,
+      startedAt: r.started_at,
+      endedAt: r.ended_at
+    }));
+  } catch (err) {
+    console.error("Get live sessions error:", err);
+    return [];
+  }
+}
+
+/**
+ * Schedule a new live session (Ownership checked; prevents multiple concurrent live classes)
+ */
+export async function createLiveSession(mentorId, sessionData) {
+  try {
+    const { courseId, title, description, scheduledAt, durationMinutes, meetingLink } = sessionData;
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, courseId);
+    }
+
+    if (!title || !scheduledAt || !meetingLink) {
+      throw new Error("Title, scheduled time, and meeting link are required.");
+    }
+
+    // Format DATETIME for MySQL
+    const dateObj = new Date(scheduledAt);
+    const formattedDate = dateObj.toISOString().slice(0, 19).replace('T', ' ');
+
+    const res = await execute(
+      `INSERT INTO atelier_live_sessions (course_id, mentor_id, title, description, scheduled_at, duration_minutes, meeting_link, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')`,
+      [courseId, mentorId || null, title, description || null, formattedDate, durationMinutes || 60, meetingLink]
+    );
+
+    return { success: true, id: res.insertId };
+  } catch (err) {
+    console.error("Create live session error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Update live session status (Start Class, End Class, Cancel)
+ * Guard: Only one live class at a time per mentor
+ */
+export async function updateLiveSessionStatus(mentorId, sessionId, status, recordingUrl = null) {
+  try {
+    const rows = await query("SELECT * FROM atelier_live_sessions WHERE id = ?", [sessionId]);
+    if (rows.length === 0) throw new Error("Live session not found.");
+    const session = rows[0];
+
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, session.course_id);
+    }
+
+    if (status === 'live') {
+      // Guard: Check if mentor already has an active live session
+      if (mentorId) {
+        const activeRows = await query(
+          "SELECT id FROM atelier_live_sessions WHERE mentor_id = ? AND status = 'live' AND id != ?",
+          [mentorId, sessionId]
+        );
+        if (activeRows.length > 0) {
+          throw new Error("You already have an active live session in progress. Please end it before starting another.");
+        }
+      }
+      await execute(
+        "UPDATE atelier_live_sessions SET status = 'live', started_at = NOW() WHERE id = ?",
+        [sessionId]
+      );
+    } else if (status === 'completed') {
+      await execute(
+        "UPDATE atelier_live_sessions SET status = 'completed', ended_at = NOW(), recording_url = ? WHERE id = ?",
+        [recordingUrl || null, sessionId]
+      );
+    } else if (status === 'cancelled') {
+      await execute(
+        "UPDATE atelier_live_sessions SET status = 'cancelled' WHERE id = ?",
+        [sessionId]
+      );
+    } else if (status === 'scheduled') {
+      await execute(
+        "UPDATE atelier_live_sessions SET status = 'scheduled', started_at = NULL, ended_at = NULL WHERE id = ?",
+        [sessionId]
+      );
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("Update live session status error:", err);
+    throw new Error(err.message);
+  }
+}
+
+/**
+ * Delete live session (Ownership checked)
+ */
+export async function deleteLiveSession(mentorId, sessionId) {
+  try {
+    const rows = await query("SELECT course_id FROM atelier_live_sessions WHERE id = ?", [sessionId]);
+    if (rows.length === 0) return { success: true };
+
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, rows[0].course_id);
+    }
+
+    await execute("DELETE FROM atelier_live_sessions WHERE id = ?", [sessionId]);
+    return { success: true };
+  } catch (err) {
+    console.error("Delete live session error:", err);
+    throw new Error(err.message);
   }
 }

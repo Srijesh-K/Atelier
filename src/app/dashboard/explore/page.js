@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStudents, getCourses, registerStudentToCourse } from '../../actions';
-import styles from '@/app/courses/courses-page.module.css';
+import styles from './explore.module.css';
 
 export default function DashboardExplorePage() {
   const router = useRouter();
@@ -75,12 +75,12 @@ export default function DashboardExplorePage() {
   };
 
   return (
-    <div style={{ padding: '2.25rem', maxWidth: '1440px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.65rem', fontWeight: '800', marginBottom: '0.5rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
+    <div className={styles.exploreWrapper}>
+      <h2 className={styles.headerTitle}>
         Explore New Cohort Paths
       </h2>
-      <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)', marginBottom: '2.5rem', lineHeight: '1.5' }}>
-        Enroll in specialized tracks to expand your learning tech-tree, unlock specialized compilers, and attend live sessions.
+      <p className={styles.headerSubtitle}>
+        Enroll in specialized tracks to broaden your skills, build production-ready projects, and attend live sessions.
       </p>
 
       {/* Catalog card grid */}
@@ -90,7 +90,7 @@ export default function DashboardExplorePage() {
           const badges = course.badges || [];
 
           return (
-            <div key={course.id} className={styles.card} style={{ position: 'relative' }}>
+            <div key={course.id} className={styles.card}>
               
               {/* Course Thumbnail Image with Status Indicators */}
               <div className={styles.imageWrapper}>
@@ -105,12 +105,12 @@ export default function DashboardExplorePage() {
                     position: 'absolute',
                     top: '12px',
                     left: '12px',
-                    background: 'rgba(10, 10, 12, 0.85)',
+                    background: 'rgba(10, 10, 12, 0.88)',
                     border: '1px solid rgba(48, 209, 88, 0.4)',
                     backdropFilter: 'blur(8px)',
                     color: '#30d158',
                     padding: '0.35rem 0.75rem',
-                    borderRadius: '4px',
+                    borderRadius: '6px',
                     fontSize: '0.72rem',
                     fontWeight: '800',
                     letterSpacing: '0.06em',
@@ -121,59 +121,76 @@ export default function DashboardExplorePage() {
                     zIndex: 10
                   }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#30d158', boxShadow: '0 0 6px #30d158' }} />
-                    ALREADY PURCHASED
+                    ALREADY ENROLLED
                   </span>
                 ) : (
-                  <span className={styles.liveBadge}>
-                    <span className={styles.liveDot} />
+                  <span style={{
+                    position: 'absolute',
+                    top: '12px',
+                    left: '12px',
+                    background: 'rgba(10, 10, 12, 0.88)',
+                    border: '1px solid rgba(242, 85, 34, 0.4)',
+                    backdropFilter: 'blur(8px)',
+                    color: '#f25522',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '6px',
+                    fontSize: '0.72rem',
+                    fontWeight: '800',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    zIndex: 10
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f25522', boxShadow: '0 0 6px #f25522' }} />
                     Live Cohort
                   </span>
                 )}
               </div>
 
-              {/* Pill badges */}
-              <div className={styles.badgeList}>
-                {isEnrolled && (
-                  <span className={styles.cardBadge} style={{ background: 'rgba(48, 209, 88, 0.1)', color: '#30d158', borderColor: 'rgba(48, 209, 88, 0.3)', fontWeight: '700' }}>
-                    ✓ Enrolled
-                  </span>
-                )}
-                {badges.map((badge, idx) => (
-                  <span key={idx} className={styles.cardBadge}>
-                    {badge}
-                  </span>
-                ))}
-              </div>
-
-              {/* Course Title */}
-              <h3 className={styles.courseTitle}>
-                {course.title}
-              </h3>
-
-              {/* Price or Enrolled Status Banner */}
-              {isEnrolled ? (
-                <div style={{
-                  padding: '0.65rem 0.85rem',
-                  background: 'rgba(48, 209, 88, 0.05)',
-                  border: '1px solid rgba(48, 209, 88, 0.18)',
-                  borderRadius: '6px',
-                  marginBottom: '1.25rem',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span style={{ fontSize: '0.78rem', color: '#30d158', fontWeight: '700' }}>
-                    ✓ Lifetime Cohort Unlocked
-                  </span>
-                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', fontWeight: '700' }}>
-                    Purchased
-                  </span>
+              {/* Card Body */}
+              <div className={styles.cardBody}>
+                {/* Pill badges */}
+                <div className={styles.badgeList}>
+                  {isEnrolled && (
+                    <span className={`${styles.cardBadge} ${styles.badgeEnrolled}`}>
+                      ✓ Active
+                    </span>
+                  )}
+                  {badges.map((badge, idx) => (
+                    <span key={idx} className={styles.cardBadge}>
+                      {badge}
+                    </span>
+                  ))}
                 </div>
-              ) : (
-                course.price ? (
+
+                {/* Course Title */}
+                <h3 className={styles.courseTitle}>
+                  {course.title}
+                </h3>
+
+                {/* Course description if available */}
+                {course.description && (
+                  <p className={styles.courseDesc}>
+                    {course.description}
+                  </p>
+                )}
+
+                {/* Price or Enrolled Status Banner */}
+                {isEnrolled ? (
+                  <div className={styles.purchasedBanner}>
+                    <span className={styles.purchasedText}>
+                      ✓ Lifetime Access Unlocked
+                    </span>
+                    <span className={styles.purchasedBadge}>
+                      Enrolled
+                    </span>
+                  </div>
+                ) : (
                   <div className={styles.priceRow}>
-                    <span className={styles.priceLabel}>Price</span>
-                    <span className={styles.priceValue}>{course.price}</span>
+                    <span className={styles.priceLabel}>Fee</span>
+                    <span className={styles.priceValue}>{course.price || 'Free'}</span>
                     {course.originalPrice && (
                       <span className={styles.originalPrice}>{course.originalPrice}</span>
                     )}
@@ -181,42 +198,34 @@ export default function DashboardExplorePage() {
                       <span className={styles.discountBadge}>{course.discount}</span>
                     )}
                   </div>
-                ) : (
-                  <div className={styles.priceSpacer} />
-                )
-              )}
+                )}
 
-              {/* Action button */}
-              {isEnrolled ? (
-                <button 
-                  className={styles.button}
-                  style={{
-                    background: 'rgba(242, 85, 34, 0.08)',
-                    borderColor: 'var(--accent-orange)',
-                    color: '#ffffff',
-                    fontWeight: '800'
-                  }}
-                  onClick={() => {
-                    localStorage.setItem('activeCourseId', course.id.toString());
-                    window.dispatchEvent(new Event('courseChanged'));
-                    router.push('/dashboard');
-                  }}
-                >
-                  Open in Learning Workspace &rarr;
-                </button>
-              ) : (
-                <button 
-                  className={styles.button}
-                  disabled={registeringId === course.id}
-                  onClick={() => handleRegister(course.id, course.title)}
-                >
-                  {registeringId === course.id ? 'Provisioning...' : 'Enroll in Cohort'}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                    <polyline points="12 5 19 12 12 19"></polyline>
-                  </svg>
-                </button>
-              )}
+                {/* Action button */}
+                {isEnrolled ? (
+                  <button 
+                    className={`${styles.actionBtn} ${styles.actionBtnEnrolled}`}
+                    onClick={() => {
+                      localStorage.setItem('activeCourseId', course.id.toString());
+                      window.dispatchEvent(new Event('courseChanged'));
+                      router.push('/dashboard');
+                    }}
+                  >
+                    Open Workspace &rarr;
+                  </button>
+                ) : (
+                  <button 
+                    className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+                    disabled={registeringId === course.id}
+                    onClick={() => handleRegister(course.id, course.title)}
+                  >
+                    {registeringId === course.id ? 'Provisioning...' : 'Enroll in Cohort'}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </button>
+                )}
+              </div>
 
             </div>
           );

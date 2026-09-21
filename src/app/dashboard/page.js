@@ -90,37 +90,35 @@ function getShardForUser(userId) {
   return shardConnections[shardIndex];
 }`;
         default:
-          return `// Secure System Architecture Node is Locked.
-// Complete preceding exercises to unlock configurations.`;
+          return `// Lesson Locked
+// Complete previous topics to view this code.`;
       }
     } else {
       switch (activeNode) {
         case 1:
-          return `// HTML/CSS Workbench Target
+          return `// HTML & CSS Component
 <div class="card">
-  <h3>Initialize Project</h3>
-  <button id="cta-btn">Start</button>
+  <h3>Project Overview</h3>
+  <button id="cta-btn">Get Started</button>
 </div>
 
-/* Styling Workbench */
+/* Component Styling */
 .card {
   padding: 2rem;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.02);
 }`;
         case 2:
-          return `// JavaScript DOM Target - Daily Streaks Task
+          return `// JavaScript DOM Manipulation
 const button = document.querySelector('#cta-btn');
 
 button.addEventListener('click', (event) => {
-  // Trigger system workspace container allocations
-  console.log('Deploying Atelier node binaries...');
+  console.log('Action triggered successfully!');
   event.target.classList.add('active');
-  initializeCommandCenter();
 });`;
         default:
-          return `// Secure workspace node is currently locked
-// Complete predecessor curriculum nodes to reveal code targets.
+          return `// Module Locked
+// Complete earlier lessons to unlock this exercise.
 function lockedNode() {
   return null;
 }`;
@@ -192,7 +190,7 @@ function lockedNode() {
       {/* LEFT DASHBOARD PANEL */}
       <div className={styles.dashboardLeft}>
         
-        {/* Tech Tree curriculum Map */}
+        {/* Learning Roadmap curriculum map */}
         <div className={styles.cardPanel}>
           <div className={styles.cardPanelHeader}>
             <h2 className={styles.cardTitle}>
@@ -204,7 +202,7 @@ function lockedNode() {
                 <path d="M12 12l-6 4" />
                 <path d="M12 12l6 4" />
               </svg>
-              Curriculum Tech-Tree
+              Learning Roadmap
             </h2>
             <span className={styles.cardHeaderAction} onClick={() => setActiveNode(2)}>
               Reset View
@@ -257,7 +255,7 @@ function lockedNode() {
                 <polyline points="16 18 22 12 16 6" />
                 <polyline points="8 6 2 12 8 18" />
               </svg>
-              Active Target Workbench
+              Interactive Code Preview
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
               <span className={styles.cardHeaderAction} onClick={handleCopyCode}>
@@ -359,33 +357,33 @@ function lockedNode() {
           </div>
         </div>
 
-        {/* Mentor Callback hotline card */}
+        {/* Mentor Callback card */}
         <div className={styles.cardPanel} style={{ background: 'radial-gradient(circle at top right, rgba(242, 85, 34, 0.08) 0%, transparent 75%), #08080a' }}>
           <h2 className={styles.cardTitle} style={{ marginBottom: '0.5rem' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)" strokeWidth="2.5">
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
             </svg>
-            1-on-1 Mentorship Hotline
+            1-on-1 Mentor Support
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5', marginBottom: '1.5rem' }}>
-            Stuck on an active node? Schedule an immediate 15-minute callback with an expert workspace instructor.
+            Have questions or stuck on an exercise? Request a quick 1-on-1 callback from one of our cohort mentors.
           </p>
 
           <button 
             className={styles.onboardBtn} 
             style={{ width: '100%' }}
             onClick={() => {
-              setHotlineTopic(activeCourseId === 2 ? (activeNode === 1 ? 'Nginx config upstream failure' : 'Sharding ring calculation bug') : (activeNode === 1 ? 'HTML/CSS Layout issue' : 'JavaScript DOM event issue'));
+              setHotlineTopic(activeCourseId === 2 ? (activeNode === 1 ? 'Nginx load balancing questions' : 'Database sharding implementation') : (activeNode === 1 ? 'HTML/CSS Layout issue' : 'JavaScript DOM event handling'));
               setShowDrawer(true);
             }}
           >
-            Book Callback Session
+            Request Mentor Call
           </button>
         </div>
 
       </div>
 
-      {/* Mentor Hotline slide-out Drawer overlay */}
+      {/* Mentor Support slide-out Drawer overlay */}
       {showDrawer && (
         <div 
           style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.2s ease' }}
@@ -398,7 +396,7 @@ function lockedNode() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-orange)', boxShadow: '0 0 8px var(--accent-orange)' }} />
-                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: '800', color: '#ffffff' }}>Hotline Schedule</h3>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: '800', color: '#ffffff' }}>Schedule Mentor Call</h3>
               </div>
               <button 
                 onClick={() => setShowDrawer(false)}
@@ -409,7 +407,7 @@ function lockedNode() {
             </div>
 
             <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5', marginBottom: '2rem' }}>
-              Confirm your workspace callback request. Mentors typically initiate voice session in under 15 minutes.
+              Confirm your details below. A course mentor will reach out to help you work through your questions.
             </p>
 
             <form 
