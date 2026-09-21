@@ -31,32 +31,45 @@ export default function MyCoursesPage() {
   }, []);
 
   if (loading) {
-    return <div style={{ color: 'rgba(255,255,255,0.4)', padding: '2rem' }}>Loading workspace nodes...</div>;
+    return (
+      <div className={styles.simplePageWrapper}>
+        <div style={{ color: 'rgba(255,255,255,0.4)', padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className={styles.dropdownActiveDot} />
+          <span>Synchronizing workspace cohorts...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className={styles.simplePageWrapper}>
-      <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '0.5rem', color: '#ffffff' }}>
+      <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.65rem', fontWeight: '800', marginBottom: '0.5rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
         Your Active Workspace Cohorts
       </h2>
-      <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', marginBottom: '2rem' }}>
-        Select a purchased program below to access curriculum sandbox environments and assignments.
+      <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)', marginBottom: '2.25rem', lineHeight: '1.5' }}>
+        Select an enrolled cohort program below to access curriculum sandbox environments, assignments, and live classes.
       </p>
 
       {coursesList.length === 0 ? (
-        <div style={{ padding: '3rem', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '8px', textAlign: 'center', background: 'rgba(255,255,255,0.01)' }}>
-          <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-            No active cohorts found in your workspace container.
+        <div style={{ padding: '3.5rem 2rem', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '12px', textAlign: 'center', background: 'rgba(255,255,255,0.01)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(242, 85, 34, 0.08)', border: '1px solid rgba(242, 85, 34, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', color: 'var(--accent-orange)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+          </div>
+          <h3 style={{ fontFamily: 'var(--font-heading)', color: '#ffffff', fontSize: '1.15rem', marginBottom: '0.5rem' }}>No Active Cohorts Found</h3>
+          <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '1.75rem', fontSize: '0.88rem', maxWidth: '400px', margin: '0 auto 1.75rem' }}>
+            You have not enrolled in any programs yet. Explore the curriculum catalog to get started.
           </p>
-          <Link href="/dashboard/explore" className={styles.onboardBtn} style={{ textDecoration: 'none', display: 'inline-block' }}>
+          <Link href="/dashboard/explore" className={styles.onboardBtn} style={{ textDecoration: 'none', display: 'inline-flex', width: 'auto', padding: '0.85rem 2rem' }}>
             Explore Catalog
           </Link>
         </div>
       ) : (
         <div className={styles.myCoursesGrid}>
-          {coursesList.map((course) => {
-            const status = "In Progress";
-            const workspaceActiveText = "Workspace Sandbox Environment: Active";
+          {coursesList.map((course, idx) => {
+            const progress = idx === 0 ? 35 : 15;
 
             return (
               <div key={course.id} className={styles.courseDeckCard}>
@@ -69,17 +82,28 @@ export default function MyCoursesPage() {
                   {course.description}
                 </p>
 
-                {/* Workspace Status */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0.6rem 0.8rem', background: 'rgba(242, 85, 34, 0.03)', border: '1px solid rgba(242, 85, 34, 0.1)', borderRadius: '6px' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--accent-orange)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</span>
-                  <span style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: '700', textTransform: 'uppercase', background: 'rgba(255,255,255,0.06)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{status}</span>
+                {/* Progress bar */}
+                <div className={styles.progressContainer}>
+                  <div className={styles.progressBarLabelRow}>
+                    <span>Curriculum Progress</span>
+                    <span className={styles.progressPercent}>{progress}%</span>
+                  </div>
+                  <div className={styles.progressBarWrapper}>
+                    <div className={styles.progressBarFill} style={{ width: `${progress}%` }} />
+                  </div>
                 </div>
 
-                {/* Active Workspace Node */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                  <span style={{ width: '6px', height: '6px', backgroundColor: '#34c759', borderRadius: '50%' }} />
-                  <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', fontWeight: '500' }}>
-                    {workspaceActiveText}
+                {/* Workspace Status */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0.65rem 0.85rem', background: 'rgba(242, 85, 34, 0.04)', border: '1px solid rgba(242, 85, 34, 0.15)', borderRadius: '8px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-orange)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</span>
+                  <span style={{ fontSize: '0.72rem', color: '#ffffff', fontWeight: '800', textTransform: 'uppercase', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.6rem', borderRadius: '4px' }}>In Progress</span>
+                </div>
+
+                {/* Active Sandbox Environment */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.75rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px' }}>
+                  <span style={{ width: '7px', height: '7px', backgroundColor: '#30d158', borderRadius: '50%', boxShadow: '0 0 8px #30d158' }} />
+                  <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>
+                    Workspace Sandbox: Active
                   </span>
                 </div>
 

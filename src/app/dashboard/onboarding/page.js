@@ -2,61 +2,83 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import styles from '../dashboard.module.css';
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [selectedPath, setSelectedPath] = useState(null);
+  const [selectedTrack, setSelectedTrack] = useState('fsd');
+  const [studentName, setStudentName] = useState('BUILDER');
 
-  // Step 2 Skill levels (range 0 to 100)
+  // Step 2 Skill levels (range 10 to 100)
   const [skills, setSkills] = useState({
-    frontend: 30,
-    backend: 20,
-    databases: 10,
-    algorithms: 25,
-    systemDesign: 15
+    frontend: 45,
+    backend: 40,
+    databases: 35,
+    algorithms: 30,
+    systemDesign: 25
   });
 
-  // Step 3 terminal log lines simulation
+  // Step 3 terminal simulation
   const [logs, setLogs] = useState([]);
   const [logIndex, setLogIndex] = useState(0);
   const [isProvisioned, setIsProvisioned] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
 
-  const pathOptions = [
+  const tracks = [
     {
       id: 'fsd',
-      name: 'Full Stack Web Development',
-      meta: 'Average Package: Rs. 9.5 LPA',
-      desc: 'Build highly scalable production SaaS products, master React/NextJS, SQL/NoSQL databases, cloud computing, and deployment strategies.'
+      name: 'Full Stack & Distributed Systems',
+      badge: 'Core Program',
+      specs: 'Next.js 15 · Node.js · PostgreSQL · Redis · Docker',
+      desc: 'Architect end-to-end cloud platforms with horizontal sharding, sub-millisecond cache layers, and real-time streaming architectures.'
     },
     {
-      id: 'ds',
-      name: 'Data Science & Analytics',
-      meta: 'Average Package: Rs. 10.8 LPA',
-      desc: 'Master analytical statistics, deep learning networks, data models, Python libraries (Pandas, Numpy), and visual reporting tools (PowerBI).'
+      id: 'sys',
+      name: 'Cloud Infrastructure & DevOps',
+      badge: 'Systems Track',
+      specs: 'Kubernetes · Terraform · AWS · CI/CD · Microservices',
+      desc: 'Master multi-region resilience, zero-downtime rolling deploys, observability meshes, and scalable infrastructure-as-code.'
     },
     {
       id: 'ai',
-      name: 'AI Engineering & LLMs',
-      meta: 'Average Package: Rs. 12.5 LPA',
-      desc: 'Build AI agents, manage vector database structures, fine-tune model parameters, orchestrate pipelines with LangChain, and design APIs.'
+      name: 'Applied AI Systems & LLM Engineering',
+      badge: 'Frontier Track',
+      specs: 'Python · Vector DBs · LangChain · Fine-Tuning · Agentic Mesh',
+      desc: 'Build production-grade retrieval-augmented generation (RAG) pipelines, autonomous tool-calling agents, and fine-tuned model services.'
     }
   ];
 
-  // Radar chart calculations
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('studentProfile');
+      if (stored) {
+        try {
+          const profile = JSON.parse(stored);
+          if (profile.name) {
+            setStudentName(profile.name.toUpperCase().replace(/\s+/g, '_'));
+          }
+        } catch (e) {
+          // ignore parsing error
+        }
+      }
+    }
+  }, []);
+
+  // Radar chart mathematics
   const radarPoints = useMemo(() => {
     const cx = 130;
     const cy = 130;
     const maxVal = 100;
-    const maxRadius = 100;
+    const maxRadius = 95;
 
     const angles = [
-      -Math.PI / 2,                  // Frontend (Top)
-      -Math.PI / 2 + (2 * Math.PI) / 5, // Backend
-      -Math.PI / 2 + (4 * Math.PI) / 5, // Databases
-      -Math.PI / 2 + (6 * Math.PI) / 5, // Algorithms
-      -Math.PI / 2 + (8 * Math.PI) / 5  // System Design
+      -Math.PI / 2,                     // Frontend (Top)
+      -Math.PI / 2 + (2 * Math.PI) / 5,    // Backend
+      -Math.PI / 2 + (4 * Math.PI) / 5,    // Databases
+      -Math.PI / 2 + (6 * Math.PI) / 5,    // Algorithms
+      -Math.PI / 2 + (8 * Math.PI) / 5     // Systems
     ];
 
     const values = [
@@ -79,45 +101,43 @@ export default function OnboardingPage() {
     return { points, pathString };
   }, [skills]);
 
-  // Terminal log simulation effect
-  const [studentName, setStudentName] = useState('STUDENT');
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const profile = JSON.parse(localStorage.getItem('studentProfile') || '{}');
-      if (profile.name) {
-        setStudentName(profile.name.toUpperCase().replace(/\s+/g, '_'));
-      }
-    }
-  }, []);
+  // Terminal log sequence for Step 3
+  const activeTrackObj = tracks.find((t) => t.id === selectedTrack) || tracks[0];
 
   useEffect(() => {
     if (step !== 3) return;
 
-    const logMessages = [
-      'Establishing connection to Sphere Hive gateways...',
-      'SECURE HANDSHAKE: Completed.',
-      `Allocating server instance for: ${studentName}`,
-      'Configuring cloud directory nodes...',
-      `CLONING TEMPLATE: ${selectedPath === 'fsd' ? 'MERN_STACK_V4' : selectedPath === 'ds' ? 'DATA_SCIENCE_ROOT' : 'AI_AGENTS_CORE'}`,
-      'Installing dependency structures...',
-      'Setting up Skill Radar coordinates...',
-      `SKILL ENVELOPE INITIALIZED: FE:${skills.frontend}% BE:${skills.backend}% DB:${skills.databases}% DSA:${skills.algorithms}% SD:${skills.systemDesign}%`,
-      'Compiling local workbench binaries...',
-      'Provisions compiled. System initialized successfully.',
-      'READY FOR COMMAND WORKSPACE ACCESS.'
+    const bootSequence = [
+      `[01/06] Initializing Atelier Runtime Environment v2.4.0-prod`,
+      `[02/06] Verifying workspace student token for ${studentName}... OK`,
+      `[03/06] Mounting curriculum tree: "${activeTrackObj.name}"... OK`,
+      `[04/06] Allocating isolated sandbox container (Node 20.x LTS / Linux x86_64)... OK`,
+      `[05/06] Calibrating challenge envelope: [FE:${skills.frontend}% BE:${skills.backend}% DB:${skills.databases}% DSA:${skills.algorithms}% SYS:${skills.systemDesign}%]`,
+      `[06/06] Telemetry connected to Atelier Core Grid. Port 3000 active. Zero errors.`,
+      `✔ ATELIER LEARNING WORKSPACE IS ACTIVE AND READY.`
     ];
 
-    if (logIndex < logMessages.length) {
+    if (logIndex < bootSequence.length) {
+      const delay = logIndex === 0 ? 300 : 700 + Math.random() * 500;
       const timer = setTimeout(() => {
-        setLogs((prev) => [...prev, logMessages[logIndex]]);
-        setLogIndex((idx) => idx + 1);
-      }, 700 + Math.random() * 600);
+        setLogs((prev) => [...prev, bootSequence[logIndex]]);
+        setLogIndex((i) => i + 1);
+        setProgressPercent(Math.round(((logIndex + 1) / bootSequence.length) * 100));
+      }, delay);
       return () => clearTimeout(timer);
     } else {
       setIsProvisioned(true);
+      // Persist onboarding state
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('studentProfile');
+        let profile = stored ? JSON.parse(stored) : {};
+        profile.onboardingCompleted = true;
+        profile.track = selectedTrack;
+        profile.skillsRadar = skills;
+        localStorage.setItem('studentProfile', JSON.stringify(profile));
+      }
     }
-  }, [step, logIndex, selectedPath, skills, studentName]);
+  }, [step, logIndex, selectedTrack, skills, studentName, activeTrackObj]);
 
   const handleNextStep = () => {
     if (step < 3) {
@@ -134,69 +154,118 @@ export default function OnboardingPage() {
     }));
   };
 
+  const getTierLabel = (val) => {
+    if (val < 35) return 'Foundational';
+    if (val < 70) return 'Intermediate';
+    return 'Advanced';
+  };
+
   return (
     <div className={styles.onboardWrapper}>
       <div className={styles.onboardGrid} />
       <div className={styles.onboardGlow} />
 
-      <div className={styles.onboardCard}>
+      <div className={styles.onboardCard} style={{ maxWidth: '680px' }}>
         
-        {/* STEP 1: Path Selection */}
-        {step === 1 && (
-          <>
-            <h2 className={styles.onboardStepTitle}>Select your path</h2>
-            <p className={styles.onboardStepDesc}>
-              Choose a cohort track. This will initialize your curriculum tech-tree.
-            </p>
+        {/* Top Header / Progress Indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '1.25rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-orange)', boxShadow: '0 0 10px var(--accent-orange)' }} />
+            <span style={{ fontSize: '0.78rem', fontWeight: '800', letterSpacing: '0.12em', color: '#ffffff', textTransform: 'uppercase', fontFamily: 'monospace' }}>
+              ATELIER // WORKSPACE SETUP
+            </span>
+          </div>
 
-            <div className={styles.onboardGridSelect}>
-              {pathOptions.map((opt) => {
-                const isActive = selectedPath === opt.id;
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {[1, 2, 3].map((s) => (
+              <div 
+                key={s} 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.7rem',
+                  fontWeight: '700',
+                  color: s === step ? 'var(--accent-orange)' : s < step ? '#30d158' : 'rgba(255,255,255,0.25)',
+                  fontFamily: 'monospace'
+                }}
+              >
+                <span>{s < step ? '✓' : `0${s}`}</span>
+                {s < 3 && <span style={{ color: 'rgba(255,255,255,0.15)' }}>—</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* STEP 1: Track Selection */}
+        {step === 1 && (
+          <div>
+            <div style={{ marginBottom: '1.75rem' }}>
+              <h2 className={styles.onboardStepTitle} style={{ fontSize: '1.5rem', marginBottom: '0.35rem' }}>
+                Select Your Focus Track
+              </h2>
+              <p className={styles.onboardStepDesc} style={{ marginBottom: 0 }}>
+                Choose your primary specialization to calibrate your curriculum tech-tree and dev workbench.
+              </p>
+            </div>
+
+            <div className={styles.onboardGridSelect} style={{ gap: '0.85rem' }}>
+              {tracks.map((track) => {
+                const isActive = selectedTrack === track.id;
                 return (
                   <div
-                    key={opt.id}
+                    key={track.id}
                     className={`${styles.onboardOption} ${isActive ? styles.onboardOptionActive : ''}`}
-                    onClick={() => setSelectedPath(opt.id)}
+                    onClick={() => setSelectedTrack(track.id)}
+                    style={{ padding: '1.25rem' }}
                   >
                     <div className={styles.optionHeader}>
-                      <span className={styles.optionName}>{opt.name}</span>
-                      <span className={styles.optionMeta}>{opt.meta}</span>
+                      <span className={styles.optionName} style={{ fontSize: '1rem' }}>{track.name}</span>
+                      <span className={styles.optionMeta}>{track.badge}</span>
                     </div>
-                    <p className={styles.optionDesc}>{opt.desc}</p>
+                    <p className={styles.optionDesc} style={{ marginBottom: '0.65rem' }}>{track.desc}</p>
+                    <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+                      <span style={{ color: 'var(--accent-orange)' }}>Stack: </span>
+                      {track.specs}
+                    </div>
                   </div>
                 );
               })}
             </div>
 
-            <div style={{ marginTop: '2.5rem' }}>
+            <div style={{ marginTop: '2.25rem', display: 'flex', justifyContent: 'flex-end' }}>
               <button
-                className={`${styles.onboardBtn} ${!selectedPath ? styles.onboardBtnDisabled : ''}`}
-                disabled={!selectedPath}
+                className={styles.onboardBtn}
+                style={{ width: 'auto', padding: '0.85rem 2rem' }}
                 onClick={handleNextStep}
               >
-                Continue
+                Configure Skills Radar
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
                 </svg>
               </button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* STEP 2: Skill Assessment */}
+        {/* STEP 2: Baseline Skill Radar */}
         {step === 2 && (
-          <>
-            <h2 className={styles.onboardStepTitle}>Assess your skills</h2>
-            <p className={styles.onboardStepDesc}>
-              Define your comfort levels to customize daily code challenges.
-            </p>
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h2 className={styles.onboardStepTitle} style={{ fontSize: '1.5rem', marginBottom: '0.35rem' }}>
+                Baseline Skills Radar
+              </h2>
+              <p className={styles.onboardStepDesc} style={{ marginBottom: 0 }}>
+                Calibrate your current comfort level across 5 engineering domains to tailor active targets.
+              </p>
+            </div>
 
             {/* Interactive SVG Radar Chart */}
-            <div className={styles.radarContainer}>
+            <div className={styles.radarContainer} style={{ marginBottom: '1.5rem' }}>
               <svg className={styles.radarChart} viewBox="0 0 260 260">
                 {/* Webs */}
-                {[25, 50, 75, 100].map((radius) => {
+                {[25, 50, 75, 95].map((radius) => {
                   const points = [0, 1, 2, 3, 4].map((i) => {
                     const angle = -Math.PI / 2 + (2 * Math.PI * i) / 5;
                     const x = 130 + radius * Math.cos(angle);
@@ -215,8 +284,8 @@ export default function OnboardingPage() {
                 {/* Axes lines */}
                 {[0, 1, 2, 3, 4].map((i) => {
                   const angle = -Math.PI / 2 + (2 * Math.PI * i) / 5;
-                  const x = 130 + 100 * Math.cos(angle);
-                  const y = 130 + 100 * Math.sin(angle);
+                  const x = 130 + 95 * Math.cos(angle);
+                  const y = 130 + 95 * Math.sin(angle);
                   return (
                     <line
                       key={i}
@@ -230,16 +299,16 @@ export default function OnboardingPage() {
                 })}
 
                 {/* Labels */}
-                <text x="130" y="15" className={styles.radarLabel}>FRONTEND</text>
+                <text x="130" y="16" className={styles.radarLabel}>FRONTEND</text>
                 <text x="235" y="105" className={styles.radarLabel} style={{ textAnchor: 'start' }}>BACKEND</text>
-                <text x="200" y="235" className={styles.radarLabel}>DATABASES</text>
-                <text x="60" y="235" className={styles.radarLabel}>ALGORITHMS</text>
+                <text x="200" y="240" className={styles.radarLabel}>DATABASES</text>
+                <text x="60" y="240" className={styles.radarLabel}>ALGORITHMS</text>
                 <text x="25" y="105" className={styles.radarLabel} style={{ textAnchor: 'end' }}>SYSTEMS</text>
 
-                {/* skill data shape */}
+                {/* skill data polygon */}
                 <path d={radarPoints.pathString} className={styles.radarArea} />
 
-                {/* data vertex points */}
+                {/* data vertex dots */}
                 {radarPoints.points.map((p, idx) => (
                   <circle
                     key={idx}
@@ -252,114 +321,120 @@ export default function OnboardingPage() {
               </svg>
             </div>
 
-            {/* Range sliders */}
-            <div className={styles.skillSliders}>
-              <div className={styles.sliderGroup}>
-                <div className={styles.sliderLabelRow}>
-                  <span>Frontend Basics</span>
-                  <span>{skills.frontend}%</span>
+            {/* 5 Range Sliders */}
+            <div className={styles.skillSliders} style={{ gap: '0.85rem' }}>
+              {[
+                { key: 'frontend', label: 'Frontend Systems & UI State' },
+                { key: 'backend', label: 'Backend APIs & Async Logic' },
+                { key: 'databases', label: 'Databases & Query Optimization' },
+                { key: 'algorithms', label: 'Data Structures & Algorithms' },
+                { key: 'systemDesign', label: 'Distributed Systems & Architecture' }
+              ].map(({ key, label }) => (
+                <div key={key} className={styles.sliderGroup}>
+                  <div className={styles.sliderLabelRow}>
+                    <span>{label}</span>
+                    <span style={{ fontFamily: 'monospace' }}>
+                      <span style={{ color: 'var(--accent-orange)' }}>{skills[key]}%</span>
+                      <span style={{ color: 'rgba(255,255,255,0.3)', marginLeft: '0.5rem', fontSize: '0.7rem' }}>
+                        ({getTierLabel(skills[key])})
+                      </span>
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    className={styles.sliderInput}
+                    value={skills[key]}
+                    onChange={(e) => handleSkillChange(key, e.target.value)}
+                  />
                 </div>
-                <input
-                  type="range"
-                  className={styles.sliderInput}
-                  value={skills.frontend}
-                  onChange={(e) => handleSkillChange('frontend', e.target.value)}
-                />
-              </div>
-
-              <div className={styles.sliderGroup}>
-                <div className={styles.sliderLabelRow}>
-                  <span>Backend & API Logic</span>
-                  <span>{skills.backend}%</span>
-                </div>
-                <input
-                  type="range"
-                  className={styles.sliderInput}
-                  value={skills.backend}
-                  onChange={(e) => handleSkillChange('backend', e.target.value)}
-                />
-              </div>
-
-              <div className={styles.sliderGroup}>
-                <div className={styles.sliderLabelRow}>
-                  <span>Databases & Queries</span>
-                  <span>{skills.databases}%</span>
-                </div>
-                <input
-                  type="range"
-                  className={styles.sliderInput}
-                  value={skills.databases}
-                  onChange={(e) => handleSkillChange('databases', e.target.value)}
-                />
-              </div>
-
-              <div className={styles.sliderGroup}>
-                <div className={styles.sliderLabelRow}>
-                  <span>Data Structures & Algorithms</span>
-                  <span>{skills.algorithms}%</span>
-                </div>
-                <input
-                  type="range"
-                  className={styles.sliderInput}
-                  value={skills.algorithms}
-                  onChange={(e) => handleSkillChange('algorithms', e.target.value)}
-                />
-              </div>
+              ))}
             </div>
 
-            <div style={{ marginTop: '2.5rem' }}>
-              <button className={styles.onboardBtn} onClick={handleNextStep}>
-                Initialize Setup
+            <div style={{ marginTop: '2.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700' }}
+              >
+                ← Back
+              </button>
+              <button
+                className={styles.onboardBtn}
+                style={{ width: 'auto', padding: '0.85rem 2rem' }}
+                onClick={handleNextStep}
+              >
+                Initialize Workspace
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
                 </svg>
               </button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* STEP 3: Setup Deploying */}
+        {/* STEP 3: Setup Terminal */}
         {step === 3 && (
-          <>
-            <h2 className={styles.onboardStepTitle}>Provisioning Workspace</h2>
-            <p className={styles.onboardStepDesc}>
-              Setting up your personalized development environment. Please hold.
-            </p>
-
-            <div className={styles.terminalWrapper}>
-              {logs.map((log, idx) => {
-                const isFinalReady = log.includes('READY FOR COMMAND');
-                const isStepHeader = log.startsWith('establishing') || log.startsWith('provisions');
-                let cls = styles.terminalLine;
-                if (isFinalReady) cls += ` ${styles.terminalAccent}`;
-                else if (isStepHeader) cls += ` ${styles.terminalMuted}`;
-                
-                return (
-                  <p key={idx} className={cls}>
-                    {isFinalReady ? '🚀 ' : '> '}
-                    {log}
-                  </p>
-                );
-              })}
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h2 className={styles.onboardStepTitle} style={{ fontSize: '1.5rem', marginBottom: '0.35rem' }}>
+                Provisioning Learning Environment
+              </h2>
+              <p className={styles.onboardStepDesc} style={{ marginBottom: 0 }}>
+                Allocating runtime container, binding curriculum nodes, and registering student telemetry.
+              </p>
             </div>
 
+            {/* Terminal Window */}
+            <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', overflow: 'hidden', marginBottom: '1.5rem', background: '#050506' }}>
+              {/* Terminal Window Bar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff5f56', display: 'inline-block' }} />
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ffbd2e', display: 'inline-block' }} />
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#27c93f', display: 'inline-block' }} />
+                </div>
+                <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+                  atelier-bootstrap --runtime
+                </span>
+                <span style={{ fontSize: '0.7rem', color: isProvisioned ? '#30d158' : 'var(--accent-orange)', fontFamily: 'monospace', fontWeight: '700' }}>
+                  {isProvisioned ? 'READY' : `${progressPercent}%`}
+                </span>
+              </div>
+
+              {/* Terminal Body */}
+              <div className={styles.terminalWrapper} style={{ height: '220px', border: 'none', borderRadius: 0, margin: 0, padding: '1rem 1.25rem' }}>
+                {logs.map((log, idx) => {
+                  const isSuccess = log.includes('READY') || log.includes('✔');
+                  const isOk = log.includes('OK');
+                  return (
+                    <p key={idx} className={styles.terminalLine} style={{ color: isSuccess ? '#30d158' : isOk ? '#ffffff' : 'rgba(255,255,255,0.7)', fontWeight: isSuccess ? '700' : '400', marginBottom: '0.35rem' }}>
+                      {log}
+                    </p>
+                  );
+                })}
+                {!isProvisioned && (
+                  <p className={styles.terminalLine} style={{ color: 'var(--accent-orange)' }}>
+                    <span style={{ animation: 'blink 1s infinite' }}>▋</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Launch Action */}
             <div>
               <button
                 className={`${styles.onboardBtn} ${!isProvisioned ? styles.onboardBtnDisabled : ''}`}
                 disabled={!isProvisioned}
                 onClick={handleNextStep}
+                style={{ width: '100%', padding: '1rem', fontSize: '0.95rem' }}
               >
-                {isProvisioned ? 'Access Command Center' : 'Initializing Workbench...'}
-                {isProvisioned && (
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                  </svg>
-                )}
+                {isProvisioned ? 'Launch Learning Workspace →' : 'Bootstrapping Atelier Container...'}
               </button>
             </div>
-          </>
+          </div>
         )}
 
       </div>
