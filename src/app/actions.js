@@ -542,10 +542,25 @@ export async function saveLecturer(l) {
 
       if (exists) {
         // Update existing mentor
-        await conn.execute(
-          "UPDATE atelier_lecturers SET name = ?, email = ?, expertise = ?, bio = ?, phone = ?, avatar = ? WHERE id = ?",
-          [l.name, l.email, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null, l.id]
-        );
+        let updateSql = "UPDATE atelier_lecturers SET name = ?, email = ?, expertise = ?, bio = ?, phone = ?, avatar = ?";
+        let updateParams = [l.name, l.email, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null];
+
+        if (l.password && l.password.trim() !== '') {
+          const rawPass = l.password.trim();
+          const passHash = hashPassword(rawPass);
+          const mustChange = l.mustChangePassword !== undefined ? (l.mustChangePassword ? 1 : 0) : 1;
+          updateSql += ", password_hash = ?, must_change_password = ?, failed_login_count = 0, locked_until = NULL";
+          updateParams.push(passHash, mustChange);
+          tempPassword = rawPass;
+        } else if (l.mustChangePassword !== undefined) {
+          updateSql += ", must_change_password = ?";
+          updateParams.push(l.mustChangePassword ? 1 : 0);
+        }
+
+        updateSql += " WHERE id = ?";
+        updateParams.push(l.id);
+
+        await conn.execute(updateSql, updateParams);
 
         // Sync assigned courses
         if (Array.isArray(l.assignedCourses)) {
@@ -555,13 +570,15 @@ export async function saveLecturer(l) {
           }
         }
       } else {
-        // Create new mentor with a secure temporary password
-        tempPassword = generateTempPassword(10);
-        const passHash = hashPassword(tempPassword);
+        // Create new mentor - use admin-provided password or auto-generate secure temp password
+        const chosenPassword = (l.password && l.password.trim() !== '') ? l.password.trim() : generateTempPassword(10);
+        tempPassword = chosenPassword;
+        const passHash = hashPassword(chosenPassword);
+        const mustChange = l.mustChangePassword !== undefined ? (l.mustChangePassword ? 1 : 0) : 1;
 
         const [result] = await conn.execute(
-          "INSERT INTO atelier_lecturers (name, email, password_hash, must_change_password, expertise, bio, phone, avatar, role) VALUES (?, ?, ?, 1, ?, ?, ?, ?, 'mentor')",
-          [l.name, l.email, passHash, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null]
+          "INSERT INTO atelier_lecturers (name, email, password_hash, must_change_password, expertise, bio, phone, avatar, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'mentor')",
+          [l.name, l.email, passHash, mustChange, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null]
         );
 
         const newMentorId = result.insertId;
