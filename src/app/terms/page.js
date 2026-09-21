@@ -3,9 +3,21 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import styles from '../legal.module.css';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier.spherehive.com";
+
 export const metadata = {
-  title: 'Terms and Conditions | Atelier Coding School',
-  description: 'Terms of service and enrollment conditions for Atelier by Sphere Hive.',
+  title: 'Terms of Service & Code of Conduct | Atelier - Sphere Hive Academy',
+  description: 'Official terms and conditions, student honor code, intellectual property guidelines, and cohort enrollment agreements for Atelier by Sphere Hive.',
+  keywords: ['Atelier terms of service', 'student honor code', 'cohort terms', 'Sphere Hive conditions'],
+  alternates: {
+    canonical: `${SITE_URL}/terms`,
+  },
+  openGraph: {
+    title: 'Terms of Service & Code of Conduct | Atelier - Sphere Hive Academy',
+    description: 'Terms of service and enrollment conditions for Atelier by Sphere Hive.',
+    url: `${SITE_URL}/terms`,
+    images: [`${SITE_URL}/og-banner.png`],
+  },
 };
 
 export default function TermsPage() {

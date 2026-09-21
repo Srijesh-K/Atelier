@@ -3,9 +3,21 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import styles from '../legal.module.css';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier.spherehive.com";
+
 export const metadata = {
-  title: 'Pricing & Refund Policy | Atelier Coding School',
-  description: 'Pricing, Cancellation and Refund Policy for Atelier by Sphere Hive cohorts.',
+  title: 'Pricing, Cancellation & Refund Policy | Atelier - Sphere Hive Academy',
+  description: 'Learn about Atelier course enrollment fees, money-back guarantees, cohort cancellation deadlines, and Razorpay transaction processing policies.',
+  keywords: ['Atelier refund policy', 'course cancellation', 'cohort fees', 'Sphere Hive refund terms'],
+  alternates: {
+    canonical: `${SITE_URL}/refund-policy`,
+  },
+  openGraph: {
+    title: 'Pricing & Refund Policy | Atelier - Sphere Hive Academy',
+    description: 'Pricing, Cancellation and Refund Policy for Atelier by Sphere Hive cohorts.',
+    url: `${SITE_URL}/refund-policy`,
+    images: [`${SITE_URL}/og-banner.png`],
+  },
 };
 
 export default function RefundPolicyPage() {

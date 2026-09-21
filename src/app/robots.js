@@ -5,13 +5,45 @@ export default function robots() {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
-        disallow: ["/admin", "/api/", "/dashboard"],
+        allow: [
+          "/",
+          "/courses",
+          "/courses/*",
+          "/contact",
+          "/privacy-policy",
+          "/refund-policy",
+          "/terms"
+        ],
+        disallow: [
+          "/admin",
+          "/admin/*",
+          "/mentor",
+          "/mentor/*",
+          "/dashboard",
+          "/dashboard/*",
+          "/api/*"
+        ],
       },
       {
         userAgent: "Googlebot",
-        allow: "/",
-        disallow: ["/admin", "/api/"],
+        allow: [
+          "/",
+          "/courses",
+          "/courses/*",
+          "/contact",
+          "/privacy-policy",
+          "/refund-policy",
+          "/terms"
+        ],
+        disallow: [
+          "/admin",
+          "/admin/*",
+          "/mentor",
+          "/mentor/*",
+          "/dashboard",
+          "/dashboard/*",
+          "/api/*"
+        ],
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,

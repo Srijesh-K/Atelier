@@ -4,46 +4,58 @@ export default async function sitemap() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier.spherehive.com";
   const now = new Date().toISOString();
 
-  // Static pages
+  // Primary static public pages
   const staticPages = [
     {
       url: siteUrl,
       lastModified: now,
-      changeFrequency: "weekly",
+      changeFrequency: "daily",
       priority: 1.0,
     },
     {
       url: `${siteUrl}/courses`,
       lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.95,
+    },
+    {
+      url: `${siteUrl}/contact`,
+      lastModified: now,
       changeFrequency: "weekly",
-      priority: 0.9,
+      priority: 0.8,
     },
     {
-      url: `${siteUrl}/auth/signin`,
+      url: `${siteUrl}/terms`,
       lastModified: now,
       changeFrequency: "monthly",
-      priority: 0.6,
+      priority: 0.5,
     },
     {
-      url: `${siteUrl}/auth/signup`,
+      url: `${siteUrl}/privacy-policy`,
       lastModified: now,
       changeFrequency: "monthly",
-      priority: 0.7,
+      priority: 0.5,
+    },
+    {
+      url: `${siteUrl}/refund-policy`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
     },
   ];
 
   // Dynamic course pages from the database
   let coursePages = [];
   try {
-    const courses = await query("SELECT id FROM atelier_courses");
+    const courses = await query("SELECT id, updated_at FROM atelier_courses");
     coursePages = courses.map((course) => ({
       url: `${siteUrl}/courses/${course.id}`,
-      lastModified: now,
+      lastModified: course.updated_at ? new Date(course.updated_at).toISOString() : now,
       changeFrequency: "weekly",
-      priority: 0.85,
+      priority: 0.9,
     }));
   } catch (e) {
-    console.error("Sitemap: Failed to fetch courses:", e);
+    console.error("Sitemap: Failed to fetch dynamic courses:", e.message);
   }
 
   return [...staticPages, ...coursePages];
