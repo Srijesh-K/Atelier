@@ -15,10 +15,10 @@ export default function Testimonials() {
     },
     {
       id: 'r1-2',
-      name: 'Mohd Siraj',
+      name: 'Rahul N',
       role: 'Full Stack Developer',
       rating: 4.6,
-      content: 'The hands-on SaaS execution model is what sets Atelier apart. We do not just watch videos—we deploy real APIs, wire up databases, and review PRs just like an agile engineering team.',
+      content: 'The hands-on SaaS execution model is what sets Atelier apart. We do not just watch videos-we deploy real APIs, wire up databases, and review PRs just like an agile engineering team.',
       avatarType: 'image',
       avatarVal: '/images/avatar1.jpg'
     },
@@ -34,7 +34,7 @@ export default function Testimonials() {
     },
     {
       id: 'r1-4',
-      name: 'Alok Kumar',
+      name: 'Abdul Shaheed',
       role: 'Backend Developer',
       rating: 4.9,
       content: 'The practical coding sessions and internal hackathons prepared me to handle real technical interviews with ease. A truly transformative learning and incubation journey.',
@@ -46,7 +46,7 @@ export default function Testimonials() {
   const row2Testimonials = [
     {
       id: 'r2-1',
-      name: 'Akash Warade',
+      name: 'Ziyana',
       role: 'Full Stack Builder',
       rating: 4.7,
       content: 'Being part of the Atelier Cohort while hacking at Sphere Hive gave me real-world engineering exposure. From relational databases to real-time WebSockets, the mentor guidance has been outstanding.',
@@ -58,14 +58,14 @@ export default function Testimonials() {
       name: 'Pragati Nayak',
       role: 'Junior Software Engineer',
       rating: 4.8,
-      content: 'Sphere Hive is more than just courses—it is a supportive culture of ambitious student builders. Working in the lab on campus and shipping products together pushed my development skills to the next level.',
+      content: 'Sphere Hive is more than just courses-it is a supportive culture of ambitious student builders. Working in the lab on campus and shipping products together pushed my development skills to the next level.',
       avatarType: 'letter',
       avatarVal: 'P',
       avatarBg: '#6200ea'
     },
     {
       id: 'r2-3',
-      name: 'Samarth Jain',
+      name: 'Srijesh K',
       role: 'AI & Cloud Enthusiast',
       rating: 4.9,
       content: 'The 24-hour Hackwise hackathon and Atelier sprints made me fall in love with engineering. Hands-down the most practical community hub for aspiring software engineers.',

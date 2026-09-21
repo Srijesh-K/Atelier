@@ -72,8 +72,8 @@ export default function CoursesPage() {
       <Navbar />
 
       <main className={styles.pageWrapper}>
-        {/* Hero & Catalog Section */}
-        <section className={styles.pageSection}>
+        {/* Hero Section (Black Canvas) */}
+        <section className={styles.heroSection}>
           <div className={styles.backgroundGrid} />
           <div className={styles.glowEffect} />
 
@@ -93,7 +93,16 @@ export default function CoursesPage() {
                 Explore our live cohorts in full-stack engineering, system design, and applied AI.
               </p>
             </div>
+          </div>
+        </section>
 
+        {/* Catalog Section (Signature White / Light Sheet Island) */}
+        <section 
+          id="courses" 
+          data-theme="light" 
+          className={styles.catalogSection}
+        >
+          <div className={`${styles.container} container`}>
             {/* Filter Chips & Search Bar */}
             <div className={styles.filterControls}>
               <div className={styles.categoryChips}>
