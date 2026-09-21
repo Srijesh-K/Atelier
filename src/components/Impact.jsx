@@ -53,12 +53,12 @@ export default function Impact() {
         start: 'top top',
         end: () => {
           const distance = Math.abs(getScrollAmount());
-          const extra = window.innerWidth < 768 ? window.innerHeight * 1.0 : window.innerHeight * 1.4;
+          const extra = window.innerWidth < 768 ? window.innerHeight * 1.0 : window.innerHeight * 1.5;
           return `+=${distance + extra}`;
         },
         pin: true,
         animation: tl,
-        scrub: 0.8,
+        scrub: 1,
         invalidateOnRefresh: true,
         anticipatePin: 1
       });
@@ -82,9 +82,9 @@ export default function Impact() {
       const diffX = touchStartX - currentX;
       const diffY = touchStartY - currentY;
 
-      // If predominantly a horizontal gesture, translate swipe into vertical scroll distance
-      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 6) {
-        window.scrollBy(0, diffX * 1.1);
+      // If predominantly a horizontal gesture, translate swipe into vertical scroll distance with balanced damping
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+        window.scrollBy(0, diffX * 0.65);
         touchStartX = currentX;
         touchStartY = currentY;
       }
@@ -141,6 +141,13 @@ export default function Impact() {
       featured: false,
       title: 'Campus Life & Community',
       description: 'Build a strong network with like-minded coders and grow together.'
+    },
+    {
+      id: 5,
+      image: '/images/impact5.png',
+      featured: false,
+      title: 'Start Earlier (PU Students)',
+      description: 'Training Pre-University students to company engineering standards early, ensuring they build real software and stand out leaps ahead the moment they enter their Bachelor’s degree.'
     }
   ];
 

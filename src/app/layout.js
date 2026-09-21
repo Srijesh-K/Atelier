@@ -1,5 +1,6 @@
 import { Inter, Outfit, Manrope } from "next/font/google";
 import "./globals.css";
+import SmoothScroll from "../components/SmoothScroll";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -164,7 +165,9 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <SmoothScroll>{children}</SmoothScroll>
+      </body>
     </html>
   );
 }

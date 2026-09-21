@@ -218,6 +218,14 @@
   line-height: 1.1;
 }
 
+.startLearningSub {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 0.45rem;
+  line-height: 1.4;
+}
+
 /* Group Image in Start Learning */
 .imageContainer {
   margin: 1.5rem 0;

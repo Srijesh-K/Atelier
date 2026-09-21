@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import styles from './StatsGrid.module.css';
 
 export default function StatsGrid() {
@@ -72,19 +73,22 @@ export default function StatsGrid() {
           <div className={`${styles.card} ${styles.startLearningCard}`}>
             <div className={styles.startLearningHeader}>
               <span className={styles.startLearningLabel}>Start Learning</span>
+              <p className={styles.startLearningSub}>Sphere Hive Incubator • KVGCE Campus, Sullia</p>
             </div>
             
             <div className={styles.imageContainer}>
-              <img src="/images/group_students.png" alt="Students Group" className={styles.groupImage} />
+              <img src="/images/kvgce-campus.jpeg" alt="KVGCE Campus, Sullia" className={styles.groupImage} />
             </div>
 
-            <button onClick={handleScrollToCourses} className={styles.getInTouchBtn}>
-              Get in touch
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-                <polyline points="12 5 19 12 12 19"></polyline>
-              </svg>
-            </button>
+            <Link href="/contact" style={{ textDecoration: 'none', display: 'inline-block' }}>
+              <button className={styles.getInTouchBtn}>
+                Get in touch
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </Link>
           </div>
         </div>
       </div>

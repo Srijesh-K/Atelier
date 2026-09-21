@@ -92,7 +92,7 @@ export default function Footer() {
               <h4 className={styles.columnHeader}>ABOUT</h4>
               <ul className={styles.linksList}>
                 <li><Link href="/#bootcamp" className={styles.footerLink}>About Us</Link></li>
-                <li><Link href="/#callback" className={styles.footerLink}>Support</Link></li>
+                <li><Link href="/contact" className={styles.footerLink}>Support &amp; Inquiries</Link></li>
                 <li><Link href="/privacy-policy" className={styles.footerLink}>Privacy Policy</Link></li>
                 <li><Link href="/refund-policy" className={styles.footerLink}>Pricing &amp; Refund</Link></li>
                 <li><Link href="/terms" className={styles.footerLink}>Terms &amp; Conditions</Link></li>
@@ -106,7 +106,7 @@ export default function Footer() {
                 <li><Link href="/courses" className={styles.footerLink}>All Cohorts</Link></li>
                 <li><Link href="/#bootcamp" className={styles.footerLink}>Why Atelier</Link></li>
                 <li><Link href="/#community" className={styles.footerLink}>Student Community</Link></li>
-                <li><Link href="/#callback" className={styles.footerLink}>Request Callback</Link></li>
+                <li><Link href="/contact" className={styles.footerLink}>Request Callback</Link></li>
                 <li><a href="mailto:spherehive@kvgce.ac.in" className={styles.footerLink}>Submit Project / Feedback</a></li>
               </ul>
             </div>

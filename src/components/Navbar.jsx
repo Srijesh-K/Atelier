@@ -122,13 +122,15 @@ export default function Navbar() {
         setIsScrolled(false);
       }
 
-      if (currentScrollY > lastScrollY.current && currentScrollY > 120) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
+      const delta = currentScrollY - lastScrollY.current;
+      if (Math.abs(delta) > 8) {
+        if (delta > 0 && currentScrollY > 120) {
+          setIsVisible(false);
+        } else if (delta < 0) {
+          setIsVisible(true);
+        }
+        lastScrollY.current = currentScrollY;
       }
-
-      lastScrollY.current = currentScrollY;
 
       // Dark vs Light sections theme switch
       let lightActive = false;

@@ -1,126 +1,116 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
+import Link from 'next/link';
 import styles from './SphereHive.module.css';
 
 export default function SphereHive() {
-  const [isVisible, setIsVisible] = useState(false);
-  const sectionRef = useRef(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { threshold: 0.15 }
-    );
-    
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
+  const pillars = [
+    {
+      id: 1,
+      tag: 'Flagship Events',
+      title: 'Hackwise National Hackathons',
+      description:
+        'Our 24-hour national hackathon series brings together hundreds of student developers across colleges to build production AI systems, APIs, and SaaS applications under high-intensity sprint conditions.',
+      badgeText: '24-Hour National Sprints',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+      )
+    },
+    {
+      id: 2,
+      tag: 'Incubator Lab',
+      title: 'Campus Startup Incubation',
+      description:
+        'Operating from our dedicated lab at KVGCE, we mentor student engineers from writing their first lines of code to building, deploying, and launching live SaaS products with real users.',
+      badgeText: 'KVGCE Campus, Sullia',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+          <path d="M12 9V4s3.03.55 4 2c1.08 1.62 0 5 0 5"></path>
+        </svg>
+      )
+    },
+    {
+      id: 3,
+      tag: 'Developer Guild',
+      title: 'Peer-to-Peer Tech Culture',
+      description:
+        'Zero passive lectures. We cultivate active peer collaboration across modern full-stack development, AI/ML engineering, DevOps pipelines, and real-world system architecture design.',
+      badgeText: 'Production-First Learning',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="18" cy="18" r="3"></circle>
+          <circle cx="6" cy="6" r="3"></circle>
+          <path d="M13 6h3a2 2 0 0 1 2 2v7"></path>
+          <line x1="6" y1="9" x2="6" y2="21"></line>
+        </svg>
+      )
     }
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
+  ];
 
   return (
-    <section ref={sectionRef} className={`${styles.sectionContainer} ${isVisible ? styles.sectionVisible : ''}`}>
+    <section id="spherehive" className={styles.sectionContainer}>
       <div className={`${styles.container} container`}>
-        <div className={styles.grid}>
+        {/* Centered Header matching other landing page sections */}
+        <div className={styles.headerArea}>
+          <div className={styles.badgeWrapper}>
+            <span className={styles.badge}>SPHERE HIVE</span>
+          </div>
           
-          {/* Left Column: Narrative Details */}
-          <div className={styles.leftCol}>
-            <div className={styles.badgeWrapper}>
-              <span className={styles.badge}>SPHERE HIVE</span>
-            </div>
-            
-            <h2 className={styles.mainTitle}>
-              Bridging Classroom Theory & Real-World SaaS Execution.
-            </h2>
-            
-            <p className={styles.description}>
-              Sphere Hive is a premier, student-led tech community and startup incubator lab located at KVG College of Engineering (KVGCE) in Sullia, Karnataka. Officially launched on November 21, 2024, our mission is to build a high-performance culture of peer-to-peer technical learning, product engineering, and business incubation.
-            </p>
+          <h2 className={styles.mainTitle}>
+            Bridging Classroom Theory &amp; <br />
+            Real-World SaaS Execution.
+          </h2>
+          
+          <p className={styles.subtitle}>
+            Sphere Hive is a student-led tech community and startup incubator lab located at KVG College of Engineering (KVGCE) in Sullia, Karnataka. Building a high-performance culture of peer learning, software engineering, and product incubation.
+          </p>
+        </div>
 
-            <div className={styles.featuresList}>
-              <div className={styles.featureItem}>
-                <h4 className={styles.featureTitle}>Hackwise National Hackathons</h4>
-                <p className={styles.featureText}>
-                  Our flagship 24-hour national hackathon series brings together hundreds of developers across the region to build AI models and SaaS integrations under intense pressure.
-                </p>
+        {/* 3 Pillars Grid */}
+        <div className={styles.grid}>
+          {pillars.map((item) => (
+            <div key={item.id} className={styles.card}>
+              <div className={styles.cardTop}>
+                <div className={styles.iconBox}>{item.icon}</div>
+                <span className={styles.cardTag}>{item.tag}</span>
               </div>
-
-              <div className={styles.featureItem}>
-                <h4 className={styles.featureTitle}>Startup Incubation & Lab</h4>
-                <p className={styles.featureText}>
-                  Operating from our dedicated lab, we mentor student developers from writing their first lines of code to building, launching, and deploying real SaaS products.
-                </p>
-              </div>
-
-              <div className={styles.featureItem}>
-                <h4 className={styles.featureTitle}>Peer-to-Peer Tech Ecosystem</h4>
-                <p className={styles.featureText}>
-                  No boring lectures. We foster active collaboration in emerging domains: AI/ML engineering, Full-Stack development, DevOps, and cloud systems architecture.
-                </p>
+              <h3 className={styles.cardTitle}>{item.title}</h3>
+              <p className={styles.cardDescription}>{item.description}</p>
+              <div className={styles.cardFooter}>
+                <span className={styles.highlightBadge}>{item.badgeText}</span>
               </div>
             </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Right Column: Blueprint Coordinate Card */}
-          <div className={styles.rightCol}>
-            <div className={styles.blueprintCard}>
-              
-              {/* SVG Blueprint Grid Draft */}
-              <div className={styles.blueprintSvgWrapper}>
-                <svg className={styles.blueprintSvg} viewBox="0 0 300 150" fill="none">
-                  {/* Grid Lines */}
-                  <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(242, 85, 34, 0.15)" strokeWidth="1" strokeDasharray="4 4" />
-                  <line x1="0" y1="75" x2="300" y2="75" stroke="rgba(242, 85, 34, 0.15)" strokeWidth="1" strokeDasharray="4 4" />
-                  <line x1="0" y1="120" x2="300" y2="120" stroke="rgba(242, 85, 34, 0.15)" strokeWidth="1" strokeDasharray="4 4" />
-                  
-                  <line x1="75" y1="0" x2="75" y2="150" stroke="rgba(242, 85, 34, 0.15)" strokeWidth="1" strokeDasharray="4 4" />
-                  <line x1="150" y1="0" x2="150" y2="150" stroke="rgba(242, 85, 34, 0.15)" strokeWidth="1" strokeDasharray="4 4" />
-                  <line x1="225" y1="0" x2="225" y2="150" stroke="rgba(242, 85, 34, 0.15)" strokeWidth="1" strokeDasharray="4 4" />
-                  
-                  {/* Centered Sphere Hive Logo */}
-                  <image href="/images/spherehive_logo.png" x="100" y="25" width="100" height="100" />
-                </svg>
-              </div>
-
-              {/* Technical Information Rows */}
-              <div className={styles.infoBlock}>
-                <div className={styles.infoRow}>
-                  <span className={styles.infoLabel}>LOCATION:</span>
-                  <span className={styles.infoValue}>TOP FLOOR, MBA BLOCK, KVGCE, Sullia</span>
-                </div>
-                
-                <div className={styles.infoRow}>
-                  <span className={styles.infoLabel}>CAMPUS:</span>
-                  <span className={styles.infoValue}>KVGCE, SULLIA, KA, IN</span>
-                </div>
-                
-                <div className={styles.infoRow}>
-                  <span className={styles.infoLabel}>ESTABLISHED:</span>
-                  <span className={styles.infoValue}>NOV 21, 2024</span>
-                </div>
-
-                <div className={styles.infoRow}>
-                  <span className={styles.infoLabel}>FLAGSHIPS:</span>
-                  <span className={styles.infoValue}>HACKWISE / HACK[AI]THON</span>
-                </div>
-              </div>
-
-              {/* Blueprint Footer text */}
-              <div className={styles.blueprintFooter}>
-                <span className={styles.footerNote}>SPHERE HIVE LAB // PEER LED INNOVATION HUB</span>
-                <span className={styles.badgePill}>HQ</span>
-              </div>
+        {/* Incubator Affiliation & Connect Banner */}
+        <div className={styles.incubatorBanner}>
+          <div className={styles.bannerLeft}>
+            <img
+              src="/images/spherehive_logo.png"
+              alt="Sphere Hive Emblem"
+              className={styles.bannerLogo}
+            />
+            <div className={styles.bannerInfo}>
+              <h4 className={styles.bannerTitle}>Sphere Hive Tech Incubator</h4>
+              <p className={styles.bannerSubtitle}>
+                Top Floor, MBA Block • KVG College of Engineering, Sullia, Karnataka
+              </p>
             </div>
           </div>
-
+          <Link href="/contact" className={styles.bannerBtn}>
+            Connect with Incubator
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </Link>
         </div>
       </div>
     </section>

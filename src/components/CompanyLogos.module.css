@@ -57,9 +57,10 @@
 
 .marqueeContent {
   display: flex;
+  align-items: center;
   gap: 6rem;
   padding: 0.5rem 0;
-  animation: marqueeScroll 25s linear infinite;
+  animation: marqueeScroll 28s linear infinite;
   white-space: nowrap;
 }
 
@@ -75,15 +76,61 @@
 }
 
 .logoWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: rgba(255, 255, 255, 0.4);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  cursor: default;
 }
 
 .logoWrapper:hover {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   transform: scale(1.05);
 }
 
+/* Brand lockup for Sphere Hive & KVGCE */
+.brandLockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  height: 40px;
+}
+
+.brandText {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: inherit;
+  transition: color 0.3s ease;
+}
+
+.spherehiveIcon {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  filter: grayscale(100%) brightness(1.2);
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.kvgceIcon {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  filter: grayscale(100%) brightness(1.2);
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.logoWrapper:hover .spherehiveIcon,
+.logoWrapper:hover .kvgceIcon {
+  filter: grayscale(0%) brightness(1);
+  opacity: 1;
+}
+
+/* SVG sizes for tech companies */
 .openaiSvg {
   width: 110px;
   height: 40px;
@@ -123,6 +170,7 @@
   }
   .marqueeContent {
     gap: 3.5rem;
+    animation-duration: 20s;
   }
   .openaiSvg {
     width: 90px;
@@ -139,5 +187,16 @@
   .tcsSvg {
     width: 110px;
     height: 32px;
+  }
+  .brandLockup {
+    height: 32px;
+    gap: 0.5rem;
+  }
+  .brandText {
+    font-size: 14px;
+  }
+  .spherehiveIcon,
+  .kvgceIcon {
+    height: 22px;
   }
 }
