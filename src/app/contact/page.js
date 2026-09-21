@@ -152,7 +152,7 @@ export default function ContactPage() {
                     Top Floor, MBA Block, KVGCE Campus
                   </h3>
                   <p className={styles.addressSub}>
-                    Kurunjibhag, Sullia, Dakshina Kannada, Karnataka — 574327
+                    Kurunjibhag, Sullia, Dakshina Kannada, Karnataka - 574327
                   </p>
 
                   <p className={styles.campusNote}>

@@ -369,7 +369,7 @@ export default function CourseDetailPage() {
                   </button>
                 ) : (
                   <button className={styles.ctaBtn} onClick={handleEnrollClick}>
-                    <span>{student ? `Enroll Now — ${course.price || 'Free'}` : 'Sign In to Enroll'}</span>
+                    <span>{student ? `Enroll Now - ${course.price || 'Free'}` : 'Sign In to Enroll'}</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   </button>
                 )}
@@ -387,7 +387,7 @@ export default function CourseDetailPage() {
               </div>
             </div>
 
-            {/* Right column — stats card */}
+            {/* Right column - stats card */}
             <div className={styles.heroRight}>
               <div className={styles.heroStatsCard}>
                 <div className={styles.heroStatsCardInner}>
@@ -439,7 +439,7 @@ export default function CourseDetailPage() {
                   {liveSchedule.length > 0 && (
                     <div className={styles.heroLiveStrip}>
                       <span className={styles.heroLiveDot} />
-                      <span>Next Live: {liveSchedule[0].time} — {liveSchedule[0].title}</span>
+                      <span>Next Live: {liveSchedule[0].time} - {liveSchedule[0].title}</span>
                     </div>
                   )}
                 </div>
@@ -480,67 +480,66 @@ export default function CourseDetailPage() {
         </section>
       )}
 
-      {/* ═══════════ CURRICULUM ═══════════ */}
-      {curriculumLines.length > 0 && (
-        <section id="curriculum-section" className={styles.curriculumSection}>
-          <div className={`${styles.sectionContainer} container`}>
-            <Reveal>
-              <div className={styles.sectionLabel}>CURRICULUM ROADMAP</div>
-              <h2 className={styles.sectionTitle}>Week-by-Week<br /><span className={styles.textAccent}>Learning Path</span></h2>
-            </Reveal>
+      {/* ═══════════ LEARNING ROADMAP (LIGHT SECTION) ═══════════ */}
+      {(curriculumLines.length > 0 || materials.length > 0) && (
+        <section id="curriculum-section" data-theme="light" className={styles.learningRoadmapSection}>
+          {curriculumLines.length > 0 && (
+            <div className={`${styles.sectionContainer} container`}>
+              <Reveal>
+                <div className={styles.sectionLabel}>CURRICULUM ROADMAP</div>
+                <h2 className={styles.sectionTitle}>Week-by-Week<br /><span className={styles.textAccent}>Learning Path</span></h2>
+              </Reveal>
 
-            <div className={styles.curriculumList}>
-              {curriculumLines.map((line, i) => (
-                <Reveal key={i} delay={i * 40}>
-                  <AccordionItem
-                    item={{ q: line.trim(), a: '' }}
-                    index={i}
-                    isOpen={openCurriculum === i}
-                    onToggle={(idx) => setOpenCurriculum(openCurriculum === idx ? null : idx)}
-                  />
-                </Reveal>
-              ))}
+              <div className={styles.curriculumList}>
+                {curriculumLines.map((line, i) => (
+                  <Reveal key={i} delay={i * 40}>
+                    <AccordionItem
+                      item={{ q: line.trim(), a: '' }}
+                      index={i}
+                      isOpen={openCurriculum === i}
+                      onToggle={(idx) => setOpenCurriculum(openCurriculum === idx ? null : idx)}
+                    />
+                  </Reveal>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          )}
 
-      {/* ═══════════ SYLLABUS MODULES ═══════════ */}
-      {materials.length > 0 && (
-        <section className={styles.syllabusSection}>
-          <div className={`${styles.sectionContainer} container`}>
-            <Reveal>
-              <div className={styles.sectionLabel}>COURSE MODULES</div>
-              <h2 className={styles.sectionTitle}>Syllabus<br /><span className={styles.textAccent}>Directory Nodes</span></h2>
-            </Reveal>
+          {materials.length > 0 && (
+            <div className={`${styles.sectionContainer} container ${curriculumLines.length > 0 ? styles.syllabusContainerMerged : ''}`}>
+              <Reveal>
+                <div className={styles.sectionLabel}>COURSE MODULES</div>
+                <h2 className={styles.sectionTitle}>Syllabus<br /><span className={styles.textAccent}>Directory Nodes</span></h2>
+              </Reveal>
 
-            <div className={styles.syllabusGrid}>
-              {materials.map((module, i) => (
-                <Reveal key={module.id} delay={i * 60}>
-                  <div className={styles.syllabusCard}>
-                    <div className={styles.syllabusCardHeader}>
-                      <div className={styles.syllabusCardIcon}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <div className={styles.syllabusGrid}>
+                {materials.map((module, i) => (
+                  <Reveal key={module.id} delay={i * 60}>
+                    <div className={styles.syllabusCard}>
+                      <div className={styles.syllabusCardHeader}>
+                        <div className={styles.syllabusCardIcon}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <h4 className={styles.syllabusCardTitle}>{module.title}</h4>
+                        <span className={styles.syllabusCardCount}>{module.assets?.length || 0} assets</span>
                       </div>
-                      <h4 className={styles.syllabusCardTitle}>{module.title}</h4>
-                      <span className={styles.syllabusCardCount}>{module.assets?.length || 0} assets</span>
+                      {module.assets && module.assets.length > 0 && (
+                        <div className={styles.syllabusAssets}>
+                          {module.assets.map((asset, j) => (
+                            <div key={j} className={styles.syllabusAsset}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:13,height:13,flexShrink:0}}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                              <span>{asset.name}</span>
+                              {asset.size && <span className={styles.syllabusAssetSize}>{asset.size}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {module.assets && module.assets.length > 0 && (
-                      <div className={styles.syllabusAssets}>
-                        {module.assets.map((asset, j) => (
-                          <div key={j} className={styles.syllabusAsset}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:13,height:13,flexShrink:0}}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            <span>{asset.name}</span>
-                            {asset.size && <span className={styles.syllabusAssetSize}>{asset.size}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </Reveal>
-              ))}
+                  </Reveal>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </section>
       )}
 
@@ -612,8 +611,8 @@ export default function CourseDetailPage() {
         </section>
       )}
 
-      {/* ═══════════ CERTIFICATE ═══════════ */}
-      <section className={styles.certSection}>
+      {/* ═══════════ CERTIFICATE (LIGHT SECTION) ═══════════ */}
+      <section data-theme="light" className={styles.certSection}>
         <div className={`${styles.sectionContainer} container`}>
           <Reveal>
             <div className={styles.sectionLabel}>RECOGNITION</div>
@@ -626,7 +625,7 @@ export default function CourseDetailPage() {
                 <div className={styles.certMockup}>
                   <div className={styles.certMockupHeader}>
                     <img src="/logo.png" alt="Atelier" style={{width:32,height:32,objectFit:'contain'}} />
-                    <span>Atelier — Sphere Hive Academy</span>
+                    <span>Atelier - Sphere Hive Academy</span>
                   </div>
                   <div className={styles.certMockupTitle}>Certificate of Completion</div>
                   <div className={styles.certMockupName}>Your Name Here</div>
@@ -699,7 +698,7 @@ export default function CourseDetailPage() {
               </p>
               <div className={styles.heroActions}>
                 <button className={styles.ctaBtn} onClick={handleEnrollClick}>
-                  <span>{isEnrolled ? 'Access Workspace' : student ? `Enroll — ${course.price || 'Free'}` : 'Get Started Now'}</span>
+                  <span>{isEnrolled ? 'Access Workspace' : student ? `Enroll - ${course.price || 'Free'}` : 'Get Started Now'}</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                 </button>
                 <button className={styles.ctaBtnOutline} onClick={() => router.push('/courses')}>

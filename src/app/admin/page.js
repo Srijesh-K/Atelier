@@ -789,7 +789,7 @@ export default function AdminConsole() {
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Curriculum Overview</label>
                     <textarea name="curriculumOverview" className={styles.modalTextarea} placeholder="Week 1: Foundations & Setup&#10;Week 2: Core Architecture&#10;Week 3: Advanced Patterns..." value={formData.curriculumOverview || ''} onChange={handleFormChange} />
-                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>One item per line — shown as expandable curriculum roadmap</span>
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>One item per line - shown as expandable curriculum roadmap</span>
                   </div>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Certificate Title</label>
@@ -806,7 +806,7 @@ export default function AdminConsole() {
                       value={formData.faqs || '[]'}
                       onChange={handleFormChange}
                     />
-                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>{'{"q":"question","a":"answer"} — shown as accordion FAQ section'}</span>
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.2rem' }}>{'{"q":"question","a":"answer"} - shown as accordion FAQ section'}</span>
                   </div>
                   <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Assigned Course Instructor (Lecturer)</label>

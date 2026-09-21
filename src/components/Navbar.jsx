@@ -109,8 +109,6 @@ export default function Navbar() {
 
   // Scroll handler for navbar hide/show on scroll
   useEffect(() => {
-    const coursesEl = document.getElementById('courses');
-    const communityEl = document.getElementById('community');
     const navbarHeight = 80;
 
     const handleScroll = () => {
@@ -134,7 +132,8 @@ export default function Navbar() {
 
       // Dark vs Light sections theme switch
       let lightActive = false;
-      [coursesEl, communityEl].forEach((el) => {
+      const lightElements = document.querySelectorAll('[data-theme="light"], #courses, #community');
+      lightElements.forEach((el) => {
         if (!el) return;
         const rect = el.getBoundingClientRect();
         if (rect.top <= navbarHeight && rect.bottom >= navbarHeight) {
@@ -144,13 +143,13 @@ export default function Navbar() {
       setIsLightNavbar(lightActive);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [pathname]);
 
   const handleMouseEnter = (e) => {
     const el = e.currentTarget;
