@@ -130,6 +130,8 @@ export default function AdminConsole() {
       }
       if (activeTab === 'lecturers') {
         initialData.assignedCourses = Array.isArray(entity.assignedCourses) ? [...entity.assignedCourses] : [];
+        initialData.password = '';
+        initialData.mustChangePassword = entity.mustChangePassword !== undefined ? Boolean(entity.mustChangePassword) : false;
       }
       setFormData(initialData);
     } else {
@@ -144,7 +146,7 @@ export default function AdminConsole() {
       } else if (activeTab === 'materials') {
         setFormData({ courseId: '1', title: '', assetsJson: '[]' });
       } else if (activeTab === 'lecturers') {
-        setFormData({ name: '', email: '', phone: '', expertise: '', bio: '', assignedCourses: [] });
+        setFormData({ name: '', email: '', phone: '', expertise: '', bio: '', assignedCourses: [], password: '', mustChangePassword: true });
       }
     }
     setShowModal(true);
@@ -225,7 +227,9 @@ export default function AdminConsole() {
         }
         const result = await saveLecturer(formattedLecturer);
         if (result?.tempPassword) {
-          alert(`Mentor account created successfully!\n\nEmail: ${formData.email}\nTemporary Password: ${result.tempPassword}\n\nPlease share this securely with the mentor. They will be prompted to change their password upon their first login at /mentor/login.`);
+          alert(`Mentor credentials saved successfully!\n\nEmail: ${formData.email}\nPassword: ${result.tempPassword}\n\nPlease share this securely with the mentor. They can log in at /mentor/login.`);
+        } else {
+          alert('Mentor profile updated successfully!');
         }
       }
 
@@ -657,7 +661,19 @@ export default function AdminConsole() {
                     <tr key={l.id}>
                       <td>{l.id}</td>
                       <td>
-                        <div style={{ fontWeight: '700', color: '#ffffff' }}>{l.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: '700', color: '#ffffff' }}>{l.name}</span>
+                          {l.lockedUntil && new Date(l.lockedUntil) > new Date() && (
+                            <span className={styles.adminBadge} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', fontSize: '0.65rem' }}>
+                              Locked
+                            </span>
+                          )}
+                          {l.mustChangePassword ? (
+                            <span className={styles.adminBadge} style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', fontSize: '0.65rem' }}>
+                              Must Reset Pass
+                            </span>
+                          ) : null}
+                        </div>
                         {l.role && <span style={{ fontSize: '0.7rem', color: 'var(--accent-orange)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{l.role}</span>}
                       </td>
                       <td>
@@ -1012,6 +1028,41 @@ export default function AdminConsole() {
                     <textarea name="bio" required className={styles.modalTextarea} value={formData.bio || ''} onChange={handleFormChange} />
                   </div>
                   <div className={styles.profileFormGroup}>
+                    <label className={styles.modalLabel}>
+                      {modalMode === 'add' ? 'Login Password (Optional)' : 'Reset Login Password (Optional)'}
+                    </label>
+                    <input 
+                      type="text" 
+                      name="password" 
+                      className={styles.modalInput} 
+                      placeholder={modalMode === 'add' ? 'Leave empty to auto-generate temporary password' : 'Leave blank to keep current password'} 
+                      value={formData.password || ''} 
+                      onChange={handleFormChange} 
+                      autoComplete="new-password"
+                    />
+                    <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.25rem', lineHeight: '1.4' }}>
+                      {modalMode === 'add' 
+                        ? 'Specify an initial login password for this mentor, or leave blank to automatically generate a secure 10-character password.' 
+                        : 'Enter a new password here to reset this mentor\'s credentials and clear any active login lockout. Leave blank to keep existing password.'}
+                    </span>
+                  </div>
+
+                  <div className={styles.profileFormGroup} style={{ marginTop: '0.25rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#ffffff' }}>
+                      <input
+                        type="checkbox"
+                        name="mustChangePassword"
+                        checked={formData.mustChangePassword !== false}
+                        onChange={(e) => setFormData(prev => ({ ...prev, mustChangePassword: e.target.checked }))}
+                      />
+                      <span>Require mentor to change password on login</span>
+                    </label>
+                    <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', marginLeft: '22px', marginTop: '2px', display: 'block' }}>
+                      When checked, the mentor will be forced to create a new password upon logging in at /mentor/login.
+                    </span>
+                  </div>
+
+                  <div className={styles.profileFormGroup}>
                     <label className={styles.modalLabel}>Assigned Cohorts (Mentorship Access)</label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0.5rem 0', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', paddingLeft: '10px' }}>
                       {courses.map(course => {
@@ -1037,9 +1088,16 @@ export default function AdminConsole() {
                       {courses.length === 0 && <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>No courses available.</span>}
                     </div>
                   </div>
+
                   {modalMode === 'add' && (
                     <div style={{ padding: '0.75rem', background: 'rgba(242, 85, 34, 0.08)', border: '1px solid rgba(242, 85, 34, 0.25)', borderRadius: '6px', fontSize: '0.78rem', color: '#ff8a65', lineHeight: '1.4' }}>
-                      <strong>Security Note:</strong> A secure temporary password will be automatically generated upon creation. You will be provided with the credentials to share with the mentor, and they will be prompted to reset their password upon initial login.
+                      <strong>Security Note:</strong> {formData.password?.trim() ? 'The custom password specified above will be securely hashed and set for this mentor.' : 'A secure temporary password will be automatically generated upon creation.'} Credentials will be displayed once you submit.
+                    </div>
+                  )}
+
+                  {modalMode === 'edit' && formData.password?.trim() && (
+                    <div style={{ padding: '0.75rem', background: 'rgba(242, 85, 34, 0.08)', border: '1px solid rgba(242, 85, 34, 0.25)', borderRadius: '6px', fontSize: '0.78rem', color: '#ff8a65', lineHeight: '1.4' }}>
+                      <strong>Security Note:</strong> Submitting will reset this mentor&apos;s password to the value provided above and clear any login lockouts.
                     </div>
                   )}
                 </>

@@ -421,236 +421,326 @@ async function initDb() {
     await p.execute("ALTER TABLE atelier_student_courses ADD COLUMN completed_at TIMESTAMP NULL");
   }
 
-  // Seed sample syllabus modules & topics if table is empty
-  const [syllabusCountRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_course_syllabus");
-  if (syllabusCountRows[0].count === 0) {
-    const defaultSyllabusData = [
-      {
-        courseId: 1,
-        modules: [
-          {
-            week: 1,
-            title: 'Modern Full-Stack Architecture & Next.js Core',
-            desc: 'Foundational mental models of React 19, Turbopack, and Next.js App Router.',
-            topics: ['React Server Components vs Client Boundaries', 'Streaming SSR & Suspense Architecture', 'Server Actions & Form Handling', 'Routing & Layout Shell Engineering']
-          },
-          {
-            week: 2,
-            title: 'Database Engineering & Relational Modeling',
-            desc: 'Designing production schemas, normalization, and ACID transactions.',
-            topics: ['Relational Schema Design & Constraints', 'Connection Pooling & Query Optimization', 'Database Migrations & Idempotency', 'Indexing Strategies & B-Trees']
-          },
-          {
-            week: 3,
-            title: 'API Infrastructure & External Integrations',
-            desc: 'Building resilient API layers, payment processing, and messaging gateways.',
-            topics: ['REST & RPC API Design Principles', 'Webhook Handling & Cryptographic Verification', 'Telegram Bot API Storage Integration', 'Payment Processing with Razorpay']
-          },
-          {
-            week: 4,
-            title: 'Production Deployment & Observability',
-            desc: 'Containerization, performance monitoring, and CI/CD pipelines.',
-            topics: ['Docker Multi-stage Builds', 'Caching Strategies & CDN Delivery', 'Structured Error Logging & Health Probes', 'Zero-Downtime Deployment']
-          }
-        ]
-      },
-      {
-        courseId: 2,
-        modules: [
-          {
-            week: 1,
-            title: 'High-Availability Load Balancing & Proxies',
-            desc: 'Configuring reverse proxies, SSL termination, and health checks.',
-            topics: ['Reverse Proxies & Nginx Configuration', 'Least-Connection & Round-Robin Algorithms', 'Layer 4 vs Layer 7 Routing', 'Rate Limiting & DDoS Mitigation']
-          },
-          {
-            week: 2,
-            title: 'Horizontal Database Partitioning & Sharding',
-            desc: 'Partition keys, consistent hashing rings, and cross-shard queries.',
-            topics: ['Consistent Hashing Implementation', 'Range & Hash-Based Partitioning', 'Primary-Replica Replication Lag', 'Distributed Locks & Two-Phase Commit']
-          },
-          {
-            week: 3,
-            title: 'Distributed In-Memory Caching (Redis)',
-            desc: 'Cache invalidation, read-through, and cache stampede protection.',
-            topics: ['Cache Patterns (Cache-Aside, Write-Through)', 'Redis Data Structures & Memory Policies', 'Thundering Herd & Cache Stampede Solutions', 'Cache Eviction Algorithms (LRU/LFU)']
-          },
-          {
-            week: 4,
-            title: 'Asynchronous Event-Driven Messaging (Kafka/RabbitMQ)',
-            desc: 'Message brokers, consumer groups, and idempotency in queues.',
-            topics: ['Publish-Subscribe vs Message Queue Patterns', 'Consumer Groups & Partition Rebalancing', 'Dead Letter Queues & Retry Strategies', 'Event Sourcing & CQRS Architecture']
-          }
-        ]
-      },
-      {
-        courseId: 3,
-        modules: [
-          {
-            week: 1,
-            title: 'LLM Foundations, Embeddings & Vector Stores',
-            desc: 'Understanding tokenization, embedding spaces, and approximate nearest neighbors.',
-            topics: ['Transformer Architecture & Attention Mechanisms', 'Generating High-Dimensional Embeddings', 'Vector Indices (HNSW, IVFFlat)', 'Similarity Metrics (Cosine, Euclidean)']
-          },
-          {
-            week: 2,
-            title: 'Retrieval Augmented Generation (RAG) Systems',
-            desc: 'Chunking strategies, hybrid search, and context window optimization.',
-            topics: ['Document Chunking & Metadata Filtering', 'Hybrid Dense-Sparse Keyword Search', 'Re-ranking & Context Relevance Optimization', 'RAG Evaluation & Hallucination Detection']
-          },
-          {
-            week: 3,
-            title: 'Autonomous Tool-Augmented Agents',
-            desc: 'Tool execution loops, ReAct prompting, and agent state machines.',
-            topics: ['ReAct Prompting & Decision Loops', 'Function Calling & Schema Validation', 'Multi-Agent Collaboration Networks', 'Memory & Conversation State Persistence']
-          }
-        ]
-      }
-    ];
+  // ─── SAFE ORDERED SEEDING (Idempotent & Constraint-Aware) ───
 
-    for (const syllabusGroup of defaultSyllabusData) {
-      for (let mIdx = 0; mIdx < syllabusGroup.modules.length; mIdx++) {
-        const mod = syllabusGroup.modules[mIdx];
-        const [modRes] = await p.execute(
-          `INSERT INTO atelier_course_syllabus (course_id, week_number, module_title, description, sort_order) VALUES (?, ?, ?, ?, ?)`,
-          [syllabusGroup.courseId, mod.week, mod.title, mod.desc, mIdx + 1]
+  // 1. Seed Lecturers if table is empty
+  try {
+    const [lecturerCountRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_lecturers");
+    if (lecturerCountRows[0].count === 0) {
+      for (const l of defaultLecturers) {
+        const hash = hashPassword('mentor123');
+        await p.execute(
+          'INSERT INTO atelier_lecturers (id, name, email, expertise, bio, password_hash, must_change_password) VALUES (?, ?, ?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE name=VALUES(name)',
+          [l.id, l.name, l.email, l.expertise, l.bio, hash]
         );
-        const syllabusId = modRes.insertId;
-
-        for (let tIdx = 0; tIdx < mod.topics.length; tIdx++) {
-          await p.execute(
-            `INSERT INTO atelier_syllabus_topics (syllabus_id, title, sort_order) VALUES (?, ?, ?)`,
-            [syllabusId, mod.topics[tIdx], tIdx + 1]
-          );
-        }
       }
     }
+  } catch (err) {
+    console.warn("Seeding default lecturers note:", err.message);
   }
 
-  // Seed sample live sessions if empty
-  const [liveCountRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_live_sessions");
-  if (liveCountRows[0].count === 0) {
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 19).replace('T', ' ');
-
-    await p.execute(
-      `INSERT INTO atelier_live_sessions (course_id, mentor_id, title, description, scheduled_at, duration_minutes, meeting_link, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        1,
-        1,
-        'Live Cohort Code Review: Server Actions & Next.js Patterns',
-        'Interactive architectural walkthrough reviewing student project submissions and best practices.',
-        tomorrowStr,
-        75,
-        'https://meet.google.com/qwe-rtyu-iop',
-        'scheduled'
-      ]
-    );
-
-    await p.execute(
-      `INSERT INTO atelier_live_sessions (course_id, mentor_id, title, description, scheduled_at, duration_minutes, meeting_link, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        2,
-        1,
-        'System Architecture Masterclass: Database Partitioning & Sharding',
-        'Hands-on live laboratory designing consistent hashing rings and sharding routers under high concurrency.',
-        tomorrowStr,
-        90,
-        'https://meet.google.com/asd-fghj-klz',
-        'scheduled'
-      ]
-    );
+  // 2. Seed Courses if table is empty
+  try {
+    const [courseCountRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_courses");
+    if (courseCountRows[0].count === 0) {
+      for (const c of defaultCourses) {
+        const badgesStr = c.badges ? c.badges.join(',') : '';
+        await p.execute(
+          'INSERT INTO atelier_courses (id, title, description, image, badges, price, original_price, discount, instructor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title)',
+          [c.id, c.title, c.description, c.image, badgesStr, c.price, c.originalPrice, c.discount, c.instructorId]
+        );
+      }
+    }
+  } catch (err) {
+    console.warn("Seeding default courses note:", err.message);
   }
 
-  // Check if seeding is needed
-  const [rows] = await p.execute("SELECT COUNT(*) as count FROM atelier_students");
-  const isSeeded = rows[0].count > 0;
+  // Backfill mentor courses from existing instructor_id on courses
+  try {
+    await p.execute(`
+      INSERT IGNORE INTO atelier_mentor_courses (mentor_id, course_id)
+      SELECT instructor_id, id FROM atelier_courses WHERE instructor_id IS NOT NULL
+    `);
+  } catch (err) {}
 
-  if (!isSeeded) {
-    console.log("Seeding MySQL database with default mock templates...");
+  // Retrieve all existing course IDs to strictly avoid foreign key constraint violations
+  let existingCourseIds = new Set();
+  try {
+    const [courseRows] = await p.execute("SELECT id FROM atelier_courses");
+    existingCourseIds = new Set(courseRows.map(c => c.id));
+  } catch (err) {
+    console.warn("Could not query existing course IDs:", err.message);
+  }
 
-    // Seed Lecturers
-    for (const l of defaultLecturers) {
-      await p.execute(
-        'INSERT INTO atelier_lecturers (id, name, email, expertise, bio) VALUES (?, ?, ?, ?, ?)',
-        [l.id, l.name, l.email, l.expertise, l.bio]
-      );
+  // 3. Seed sample syllabus modules & topics if table is empty AND courses exist
+  try {
+    const [syllabusCountRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_course_syllabus");
+    if (syllabusCountRows[0].count === 0 && existingCourseIds.size > 0) {
+      const defaultSyllabusData = [
+        {
+          courseId: 1,
+          modules: [
+            {
+              week: 1,
+              title: 'Modern Full-Stack Architecture & Next.js Core',
+              desc: 'Foundational mental models of React 19, Turbopack, and Next.js App Router.',
+              topics: ['React Server Components vs Client Boundaries', 'Streaming SSR & Suspense Architecture', 'Server Actions & Form Handling', 'Routing & Layout Shell Engineering']
+            },
+            {
+              week: 2,
+              title: 'Database Engineering & Relational Modeling',
+              desc: 'Designing production schemas, normalization, and ACID transactions.',
+              topics: ['Relational Schema Design & Constraints', 'Connection Pooling & Query Optimization', 'Database Migrations & Idempotency', 'Indexing Strategies & B-Trees']
+            },
+            {
+              week: 3,
+              title: 'API Infrastructure & External Integrations',
+              desc: 'Building resilient API layers, payment processing, and messaging gateways.',
+              topics: ['REST & RPC API Design Principles', 'Webhook Handling & Cryptographic Verification', 'Telegram Bot API Storage Integration', 'Payment Processing with Razorpay']
+            },
+            {
+              week: 4,
+              title: 'Production Deployment & Observability',
+              desc: 'Containerization, performance monitoring, and CI/CD pipelines.',
+              topics: ['Docker Multi-stage Builds', 'Caching Strategies & CDN Delivery', 'Structured Error Logging & Health Probes', 'Zero-Downtime Deployment']
+            }
+          ]
+        },
+        {
+          courseId: 2,
+          modules: [
+            {
+              week: 1,
+              title: 'High-Availability Load Balancing & Proxies',
+              desc: 'Configuring reverse proxies, SSL termination, and health checks.',
+              topics: ['Reverse Proxies & Nginx Configuration', 'Least-Connection & Round-Robin Algorithms', 'Layer 4 vs Layer 7 Routing', 'Rate Limiting & DDoS Mitigation']
+            },
+            {
+              week: 2,
+              title: 'Horizontal Database Partitioning & Sharding',
+              desc: 'Partition keys, consistent hashing rings, and cross-shard queries.',
+              topics: ['Consistent Hashing Implementation', 'Range & Hash-Based Partitioning', 'Primary-Replica Replication Lag', 'Distributed Locks & Two-Phase Commit']
+            },
+            {
+              week: 3,
+              title: 'Distributed In-Memory Caching (Redis)',
+              desc: 'Cache invalidation, read-through, and cache stampede protection.',
+              topics: ['Cache Patterns (Cache-Aside, Write-Through)', 'Redis Data Structures & Memory Policies', 'Thundering Herd & Cache Stampede Solutions', 'Cache Eviction Algorithms (LRU/LFU)']
+            },
+            {
+              week: 4,
+              title: 'Asynchronous Event-Driven Messaging (Kafka/RabbitMQ)',
+              desc: 'Message brokers, consumer groups, and idempotency in queues.',
+              topics: ['Publish-Subscribe vs Message Queue Patterns', 'Consumer Groups & Partition Rebalancing', 'Dead Letter Queues & Retry Strategies', 'Event Sourcing & CQRS Architecture']
+            }
+          ]
+        },
+        {
+          courseId: 3,
+          modules: [
+            {
+              week: 1,
+              title: 'LLM Foundations, Embeddings & Vector Stores',
+              desc: 'Understanding tokenization, embedding spaces, and approximate nearest neighbors.',
+              topics: ['Transformer Architecture & Attention Mechanisms', 'Generating High-Dimensional Embeddings', 'Vector Indices (HNSW, IVFFlat)', 'Similarity Metrics (Cosine, Euclidean)']
+            },
+            {
+              week: 2,
+              title: 'Retrieval Augmented Generation (RAG) Systems',
+              desc: 'Chunking strategies, hybrid search, and context window optimization.',
+              topics: ['Document Chunking & Metadata Filtering', 'Hybrid Dense-Sparse Keyword Search', 'Re-ranking & Context Relevance Optimization', 'RAG Evaluation & Hallucination Detection']
+            },
+            {
+              week: 3,
+              title: 'Autonomous Tool-Augmented Agents',
+              desc: 'Tool execution loops, ReAct prompting, and agent state machines.',
+              topics: ['ReAct Prompting & Decision Loops', 'Function Calling & Schema Validation', 'Multi-Agent Collaboration Networks', 'Memory & Conversation State Persistence']
+            }
+          ]
+        }
+      ];
+
+      for (const syllabusGroup of defaultSyllabusData) {
+        if (!existingCourseIds.has(syllabusGroup.courseId)) continue;
+
+        for (let mIdx = 0; mIdx < syllabusGroup.modules.length; mIdx++) {
+          const mod = syllabusGroup.modules[mIdx];
+          const [modRes] = await p.execute(
+            `INSERT INTO atelier_course_syllabus (course_id, week_number, module_title, description, sort_order) VALUES (?, ?, ?, ?, ?)`,
+            [syllabusGroup.courseId, mod.week, mod.title, mod.desc, mIdx + 1]
+          );
+          const syllabusId = modRes.insertId;
+
+          for (let tIdx = 0; tIdx < mod.topics.length; tIdx++) {
+            await p.execute(
+              `INSERT INTO atelier_syllabus_topics (syllabus_id, title, sort_order) VALUES (?, ?, ?)`,
+              [syllabusId, mod.topics[tIdx], tIdx + 1]
+            );
+          }
+        }
+      }
     }
+  } catch (err) {
+    console.warn("Seeding default syllabus note:", err.message);
+  }
 
-    // Seed Courses
-    for (const c of defaultCourses) {
-      const badgesStr = c.badges ? c.badges.join(',') : '';
-      await p.execute(
-        'INSERT INTO atelier_courses (id, title, description, image, badges, price, original_price, discount, instructor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [c.id, c.title, c.description, c.image, badgesStr, c.price, c.originalPrice, c.discount, c.instructorId]
-      );
+  // 4. Seed sample live sessions if empty AND courses exist
+  try {
+    const [liveCountRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_live_sessions");
+    if (liveCountRows[0].count === 0 && existingCourseIds.size > 0) {
+      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const tomorrowStr = tomorrow.toISOString().slice(0, 19).replace('T', ' ');
+
+      if (existingCourseIds.has(1)) {
+        await p.execute(
+          `INSERT INTO atelier_live_sessions (course_id, mentor_id, title, description, scheduled_at, duration_minutes, meeting_link, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            1,
+            1,
+            'Live Cohort Code Review: Server Actions & Next.js Patterns',
+            'Interactive architectural walkthrough reviewing student project submissions and best practices.',
+            tomorrowStr,
+            75,
+            'https://meet.google.com/qwe-rtyu-iop',
+            'scheduled'
+          ]
+        );
+      }
+
+      if (existingCourseIds.has(2)) {
+        await p.execute(
+          `INSERT INTO atelier_live_sessions (course_id, mentor_id, title, description, scheduled_at, duration_minutes, meeting_link, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            2,
+            1,
+            'System Architecture Masterclass: Database Partitioning & Sharding',
+            'Hands-on live laboratory designing consistent hashing rings and sharding routers under high concurrency.',
+            tomorrowStr,
+            90,
+            'https://meet.google.com/asd-fghj-klz',
+            'scheduled'
+          ]
+        );
+      }
     }
+  } catch (err) {
+    console.warn("Seeding default live sessions note:", err.message);
+  }
 
-    // Seed Students
-    for (const s of defaultStudents) {
-      await p.execute(
-        'INSERT INTO atelier_students (id, name, email, phone, college, grad_year, xp, streak, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [s.id, s.name, s.email, s.phone, s.college, s.gradYear, s.xp, s.streak, 'password']
-      );
-      if (s.enrolledCourses) {
-        for (const courseId of s.enrolledCourses) {
+  // 5. Seed Students if table is empty
+  try {
+    const [studentRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_students");
+    if (studentRows[0].count === 0) {
+      for (const s of defaultStudents) {
+        await p.execute(
+          'INSERT INTO atelier_students (id, name, email, phone, college, grad_year, xp, streak, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [s.id, s.name, s.email, s.phone, s.college, s.gradYear, s.xp, s.streak, 'password']
+        );
+        if (s.enrolledCourses) {
+          for (const courseId of s.enrolledCourses) {
+            if (existingCourseIds.has(courseId)) {
+              await p.execute(
+                'INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)',
+                [s.id, courseId]
+              );
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Seeding default students note:", err.message);
+  }
+
+  // 6. Seed Schedule if empty
+  try {
+    const [scRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_schedule");
+    if (scRows[0].count === 0 && existingCourseIds.size > 0) {
+      for (const sc of defaultSchedule) {
+        if (existingCourseIds.has(sc.courseId)) {
           await p.execute(
-            'INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)',
-            [s.id, courseId]
+            'INSERT INTO atelier_schedule (id, course_id, time, title, type) VALUES (?, ?, ?, ?, ?)',
+            [sc.id, sc.courseId, sc.time, sc.title, sc.type]
           );
         }
       }
     }
+  } catch (err) {
+    console.warn("Seeding default schedule note:", err.message);
+  }
 
-    // Seed Schedule
-    for (const sc of defaultSchedule) {
-      await p.execute(
-        'INSERT INTO atelier_schedule (id, course_id, time, title, type) VALUES (?, ?, ?, ?, ?)',
-        [sc.id, sc.courseId, sc.time, sc.title, sc.type]
-      );
-    }
-
-    // Seed Recordings
-    for (const rec of defaultRecordings) {
-      await p.execute(
-        'INSERT INTO atelier_recordings (id, course_id, title, date, image) VALUES (?, ?, ?, ?, ?)',
-        [rec.id, rec.courseId, rec.title, rec.date, rec.image]
-      );
-    }
-
-    // Seed Materials & Assets
-    for (const mat of defaultMaterials) {
-      await p.execute(
-        'INSERT INTO atelier_materials (id, course_id, title) VALUES (?, ?, ?)',
-        [mat.id, mat.courseId, mat.title]
-      );
-      if (mat.assets) {
-        for (const asset of mat.assets) {
+  // 7. Seed Recordings if empty
+  try {
+    const [recRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_recordings");
+    if (recRows[0].count === 0 && existingCourseIds.size > 0) {
+      for (const rec of defaultRecordings) {
+        if (existingCourseIds.has(rec.courseId)) {
           await p.execute(
-            'INSERT INTO atelier_material_assets (material_id, name, size, type) VALUES (?, ?, ?, ?)',
-            [mat.id, asset.name, asset.size, asset.type]
+            'INSERT INTO atelier_recordings (id, course_id, title, date, image) VALUES (?, ?, ?, ?, ?)',
+            [rec.id, rec.courseId, rec.title, rec.date, rec.image]
           );
         }
       }
     }
+  } catch (err) {
+    console.warn("Seeding default recordings note:", err.message);
+  }
 
-    // Seed Callbacks
-    for (const cb of defaultCallbacks) {
-      await p.execute(
-        'INSERT INTO atelier_callbacks (id, student_name, phone, topic, time, status) VALUES (?, ?, ?, ?, ?, ?)',
-        [cb.id, cb.studentName, cb.phone, cb.topic, cb.time, cb.status]
-      );
+  // 8. Seed Materials & Assets if empty
+  try {
+    const [matRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_materials");
+    if (matRows[0].count === 0 && existingCourseIds.size > 0) {
+      for (const mat of defaultMaterials) {
+        if (existingCourseIds.has(mat.courseId)) {
+          await p.execute(
+            'INSERT INTO atelier_materials (id, course_id, title) VALUES (?, ?, ?)',
+            [mat.id, mat.courseId, mat.title]
+          );
+          if (mat.assets) {
+            for (const asset of mat.assets) {
+              await p.execute(
+                'INSERT INTO atelier_material_assets (material_id, name, size, type) VALUES (?, ?, ?, ?)',
+                [mat.id, asset.name, asset.size, asset.type]
+              );
+            }
+          }
+        }
+      }
     }
+  } catch (err) {
+    console.warn("Seeding default materials note:", err.message);
+  }
 
-    // Seed Transactions
-    for (const tx of defaultTransactions) {
-      await p.execute(
-        'INSERT INTO atelier_transactions (id, student_id, student_name, course_id, course_title, amount, timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [tx.id, tx.studentId, tx.studentName, tx.courseId, tx.courseTitle, tx.amount, tx.timestamp, tx.status]
-      );
+  // 9. Seed Callbacks if empty
+  try {
+    const [cbRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_callbacks");
+    if (cbRows[0].count === 0) {
+      for (const cb of defaultCallbacks) {
+        await p.execute(
+          'INSERT INTO atelier_callbacks (id, student_name, phone, topic, time, status) VALUES (?, ?, ?, ?, ?, ?)',
+          [cb.id, cb.studentName, cb.phone, cb.topic, cb.time, cb.status]
+        );
+      }
     }
+  } catch (err) {
+    console.warn("Seeding default callbacks note:", err.message);
+  }
 
-    console.log("MySQL database seeded successfully!");
+  // 10. Seed Transactions if empty
+  try {
+    const [txRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_transactions");
+    if (txRows[0].count === 0 && existingCourseIds.size > 0) {
+      for (const tx of defaultTransactions) {
+        if (existingCourseIds.has(tx.courseId)) {
+          await p.execute(
+            'INSERT INTO atelier_transactions (id, student_id, student_name, course_id, course_title, amount, timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [tx.id, tx.studentId, tx.studentName, tx.courseId, tx.courseTitle, tx.amount, tx.timestamp, tx.status]
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Seeding default transactions note:", err.message);
   }
 
   initialized = true;

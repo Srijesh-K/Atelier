@@ -158,6 +158,7 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/logo.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/logo.png" />
         <meta name="theme-color" content="#0a0a0a" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script

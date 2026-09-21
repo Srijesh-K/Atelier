@@ -542,10 +542,25 @@ export async function saveLecturer(l) {
 
       if (exists) {
         // Update existing mentor
-        await conn.execute(
-          "UPDATE atelier_lecturers SET name = ?, email = ?, expertise = ?, bio = ?, phone = ?, avatar = ? WHERE id = ?",
-          [l.name, l.email, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null, l.id]
-        );
+        let updateSql = "UPDATE atelier_lecturers SET name = ?, email = ?, expertise = ?, bio = ?, phone = ?, avatar = ?";
+        let updateParams = [l.name, l.email, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null];
+
+        if (l.password && l.password.trim() !== '') {
+          const rawPass = l.password.trim();
+          const passHash = hashPassword(rawPass);
+          const mustChange = l.mustChangePassword !== undefined ? (l.mustChangePassword ? 1 : 0) : 1;
+          updateSql += ", password_hash = ?, must_change_password = ?, failed_login_count = 0, locked_until = NULL";
+          updateParams.push(passHash, mustChange);
+          tempPassword = rawPass;
+        } else if (l.mustChangePassword !== undefined) {
+          updateSql += ", must_change_password = ?";
+          updateParams.push(l.mustChangePassword ? 1 : 0);
+        }
+
+        updateSql += " WHERE id = ?";
+        updateParams.push(l.id);
+
+        await conn.execute(updateSql, updateParams);
 
         // Sync assigned courses
         if (Array.isArray(l.assignedCourses)) {
@@ -555,13 +570,15 @@ export async function saveLecturer(l) {
           }
         }
       } else {
-        // Create new mentor with a secure temporary password
-        tempPassword = generateTempPassword(10);
-        const passHash = hashPassword(tempPassword);
+        // Create new mentor - use admin-provided password or auto-generate secure temp password
+        const chosenPassword = (l.password && l.password.trim() !== '') ? l.password.trim() : generateTempPassword(10);
+        tempPassword = chosenPassword;
+        const passHash = hashPassword(chosenPassword);
+        const mustChange = l.mustChangePassword !== undefined ? (l.mustChangePassword ? 1 : 0) : 1;
 
         const [result] = await conn.execute(
-          "INSERT INTO atelier_lecturers (name, email, password_hash, must_change_password, expertise, bio, phone, avatar, role) VALUES (?, ?, ?, 1, ?, ?, ?, ?, 'mentor')",
-          [l.name, l.email, passHash, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null]
+          "INSERT INTO atelier_lecturers (name, email, password_hash, must_change_password, expertise, bio, phone, avatar, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'mentor')",
+          [l.name, l.email, passHash, mustChange, l.expertise || null, l.bio || null, l.phone || null, l.avatar || null]
         );
 
         const newMentorId = result.insertId;
@@ -745,11 +762,16 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
         );
 
         const newStudentId = result.insertId;
-        // Enroll by default in Course ID 1 (3.0 Job Ready Cohort)
-        await conn.execute(
-          "INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
-          [newStudentId, 1]
+        // Enroll by default in Course ID 1 (3.0 Job Ready Cohort) or first available course
+        const [availCourses] = await conn.execute(
+          "SELECT id FROM atelier_courses WHERE id = 1 UNION SELECT id FROM atelier_courses ORDER BY id ASC LIMIT 1"
         );
+        if (availCourses && availCourses.length > 0) {
+          await conn.execute(
+            "INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
+            [newStudentId, availCourses[0].id]
+          );
+        }
 
         await conn.commit();
       } catch (txErr) {
@@ -812,10 +834,16 @@ export async function registerStudentAccount(name, email, password, phone, colle
       );
 
       newStudentId = result.insertId;
-
-      // Enroll by default in Course ID 1 (3.0 Job Ready Cohort)
-      await conn.execute("INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
-        [newStudentId, 1]);
+ 
+      // Enroll by default in Course ID 1 (3.0 Job Ready Cohort) or first available course
+      const [availCourses] = await conn.execute(
+        "SELECT id FROM atelier_courses WHERE id = 1 UNION SELECT id FROM atelier_courses ORDER BY id ASC LIMIT 1"
+      );
+      const defaultCourseId = (availCourses && availCourses.length > 0) ? availCourses[0].id : null;
+      if (defaultCourseId) {
+        await conn.execute("INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
+          [newStudentId, defaultCourseId]);
+      }
 
       await conn.commit();
     } catch (txErr) {
@@ -828,7 +856,7 @@ export async function registerStudentAccount(name, email, password, phone, colle
     // Retrieve full profile
     const studentRows = await query("SELECT * FROM atelier_students WHERE id = ?", [newStudentId]);
     const student = studentRows[0];
-    student.enrolledCourses = [1];
+    student.enrolledCourses = defaultCourseId ? [defaultCourseId] : [];
     student.gradYear = student.grad_year;
     delete student.grad_year;
     student.skills = student.skills ? student.skills.split(',') : ['HTML', 'CSS', 'JavaScript'];
