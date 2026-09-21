@@ -19,6 +19,7 @@ import {
   saveMaterial,
   deleteMaterial
 } from '@/app/actions';
+import LiveClassroom from '@/components/LiveClassroom';
 import styles from '../../mentor.module.css';
 
 export default function MentorCourseWorkspacePage() {
@@ -37,6 +38,8 @@ export default function MentorCourseWorkspacePage() {
 
   // Tab 2: Live Classes
   const [sessions, setSessions] = useState([]);
+  const [activeBroadcastSession, setActiveBroadcastSession] = useState(null);
+  const [roomType, setRoomType] = useState('embedded'); // 'embedded' | 'external'
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
     title: '',
@@ -130,28 +133,34 @@ export default function MentorCourseWorkspacePage() {
     if (!mentor) return;
 
     try {
+      const meetingLinkToUse = roomType === 'embedded'
+        ? `https://meet.jit.si/atelier-live-cohort-${courseId}-${Date.now().toString(36)}`
+        : scheduleForm.meetingLink;
+
       await createLiveSession({
         mentorId: mentor.id,
         courseId,
         title: scheduleForm.title,
         description: scheduleForm.description,
-        meetingLink: scheduleForm.meetingLink,
+        meetingLink: meetingLinkToUse,
         scheduledAt: scheduleForm.scheduledAt
       });
 
       setShowScheduleModal(false);
       setScheduleForm({ title: '', description: '', meetingLink: '', scheduledAt: '' });
+      setRoomType('embedded');
       await reloadTabData(mentor.id, 'live');
     } catch (err) {
       alert('Error scheduling class: ' + err.message);
     }
   };
 
-  const handleStartClass = async (sessionId) => {
+  const handleStartClass = async (session) => {
     if (!mentor) return;
     try {
-      await updateLiveSessionStatus(mentor.id, sessionId, 'live');
+      await updateLiveSessionStatus(mentor.id, session.id, 'live');
       await reloadTabData(mentor.id, 'live');
+      setActiveBroadcastSession({ ...session, status: 'live' });
     } catch (err) {
       alert(err.message);
     }
@@ -169,6 +178,9 @@ export default function MentorCourseWorkspacePage() {
 
     try {
       await updateLiveSessionStatus(mentor.id, activeEndingSession.id, 'completed', recordingUrl);
+      if (activeBroadcastSession?.id === activeEndingSession.id) {
+        setActiveBroadcastSession(null);
+      }
       setShowEndModal(false);
       setActiveEndingSession(null);
       setRecordingUrl('');
@@ -382,6 +394,20 @@ export default function MentorCourseWorkspacePage() {
         </p>
       </div>
 
+      {/* Embedded Live Classroom Broadcast Studio for Mentor */}
+      {activeBroadcastSession && (
+        <div style={{ marginBottom: '2.5rem' }}>
+          <LiveClassroom
+            roomName={activeBroadcastSession.meeting_link}
+            user={{ name: mentor?.name || 'Mentor', email: mentor?.email }}
+            isMentor={true}
+            title={activeBroadcastSession.title}
+            cohortName={course?.title}
+            onClose={() => setActiveBroadcastSession(null)}
+          />
+        </div>
+      )}
+
       {/* 4 Tabs */}
       <div className={styles.tabBar}>
         <button
@@ -515,24 +541,30 @@ export default function MentorCourseWorkspacePage() {
                   </p>
                 )}
                 {liveSessionInProgress.meeting_link && (
-                  <a
-                    href={liveSessionInProgress.meeting_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: '0.82rem', color: 'var(--accent-orange)', fontWeight: '700', textDecoration: 'none', display: 'inline-block', marginTop: '0.5rem' }}
-                  >
-                    Open Meeting Room &rarr;
-                  </a>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.5rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#30d158', fontWeight: '700' }}>
+                      ✓ Host Controls: Mute All, Screen Share & Live Chat Active
+                    </span>
+                  </div>
                 )}
               </div>
 
-              <button
-                className={styles.primaryBtn}
-                style={{ width: 'auto', background: '#ff3b30', borderColor: '#ff3b30', whiteSpace: 'nowrap' }}
-                onClick={() => handleOpenEndModal(liveSessionInProgress)}
-              >
-                End Live Session
-              </button>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <button
+                  className={styles.primaryBtn}
+                  style={{ width: 'auto', background: 'var(--accent-orange)', whiteSpace: 'nowrap' }}
+                  onClick={() => setActiveBroadcastSession(liveSessionInProgress)}
+                >
+                  Enter Studio (Host)
+                </button>
+                <button
+                  className={styles.secondaryBtn}
+                  style={{ color: '#ff3b30', borderColor: 'rgba(255, 59, 48, 0.4)', whiteSpace: 'nowrap' }}
+                  onClick={() => handleOpenEndModal(liveSessionInProgress)}
+                >
+                  End Live Session
+                </button>
+              </div>
             </div>
           )}
 
@@ -574,14 +606,9 @@ export default function MentorCourseWorkspacePage() {
                     </td>
                     <td>
                       {session.meeting_link ? (
-                        <a
-                          href={session.meeting_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: 'var(--accent-orange)', fontSize: '0.82rem', fontWeight: '700', textDecoration: 'none' }}
-                        >
-                          Join Link &rarr;
-                        </a>
+                        <span style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)', fontFamily: 'monospace' }}>
+                          {session.meeting_link.includes('meet.jit.si') ? 'Atelier Classroom' : 'External URL'}
+                        </span>
                       ) : (
                         <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.78rem' }}>None</span>
                       )}
@@ -610,19 +637,28 @@ export default function MentorCourseWorkspacePage() {
                             style={{ color: '#30d158', borderColor: 'rgba(48, 209, 88, 0.3)' }}
                             disabled={!!liveSessionInProgress}
                             title={liveSessionInProgress ? 'Another class is already live' : 'Start broadcasting'}
-                            onClick={() => handleStartClass(session.id)}
+                            onClick={() => handleStartClass(session)}
                           >
                             Start Class
                           </button>
                         )}
                         {session.status === 'live' && (
-                          <button
-                            className={styles.secondaryBtn}
-                            style={{ color: '#ff3b30', borderColor: 'rgba(255, 59, 48, 0.3)' }}
-                            onClick={() => handleOpenEndModal(session)}
-                          >
-                            End Class
-                          </button>
+                          <>
+                            <button
+                              className={styles.secondaryBtn}
+                              style={{ color: 'var(--accent-orange)', borderColor: 'rgba(242, 85, 34, 0.4)', fontWeight: '700' }}
+                              onClick={() => setActiveBroadcastSession(session)}
+                            >
+                              Studio (Host)
+                            </button>
+                            <button
+                              className={styles.secondaryBtn}
+                              style={{ color: '#ff3b30', borderColor: 'rgba(255, 59, 48, 0.3)' }}
+                              onClick={() => handleOpenEndModal(session)}
+                            >
+                              End
+                            </button>
+                          </>
                         )}
                         {session.recording_url && (
                           <a
@@ -913,16 +949,46 @@ export default function MentorCourseWorkspacePage() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.label}>Meeting Link (Google Meet, Zoom)</label>
-                <input
-                  type="url"
-                  required
-                  className={styles.input}
-                  placeholder="https://meet.google.com/xyz-abc-def"
-                  value={scheduleForm.meetingLink}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, meetingLink: e.target.value })}
-                />
+                <label className={styles.label}>Classroom Delivery Platform</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0.5rem 0' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: roomType === 'embedded' ? '#ffffff' : 'rgba(255,255,255,0.6)' }}>
+                    <input
+                      type="radio"
+                      name="roomType"
+                      checked={roomType === 'embedded'}
+                      onChange={() => setRoomType('embedded')}
+                    />
+                    <span>Built-in Atelier Classroom (Jitsi Meet with Host Controls & Chat)</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: roomType === 'external' ? '#ffffff' : 'rgba(255,255,255,0.6)' }}>
+                    <input
+                      type="radio"
+                      name="roomType"
+                      checked={roomType === 'external'}
+                      onChange={() => setRoomType('external')}
+                    />
+                    <span>External Meeting Link (Zoom, Google Meet, Teams)</span>
+                  </label>
+                </div>
               </div>
+
+              {roomType === 'embedded' ? (
+                <div style={{ padding: '0.75rem', background: 'rgba(242, 85, 34, 0.08)', border: '1px solid rgba(242, 85, 34, 0.25)', borderRadius: '6px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginBottom: '1.25rem' }}>
+                  ✓ <strong>Native Classroom Enabled:</strong> Room will be automatically generated with Host privileges for you (Screen Share, Mute All, Kick Participant, Chat). Students can unmute to talk and ask doubts.
+                </div>
+              ) : (
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>External Meeting Link (Google Meet, Zoom)</label>
+                  <input
+                    type="url"
+                    required={roomType === 'external'}
+                    className={styles.input}
+                    placeholder="https://meet.google.com/xyz-abc-def"
+                    value={scheduleForm.meetingLink}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, meetingLink: e.target.value })}
+                  />
+                </div>
+              )}
 
               <div className={styles.formGroup}>
                 <label className={styles.label}>Scheduled Date & Time</label>

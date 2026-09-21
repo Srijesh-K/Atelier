@@ -1498,9 +1498,14 @@ export async function createLiveSession(mentorIdOrData, sessionData = null) {
       await assertMentorOwnsCourse(mentorId, courseId);
     }
 
-    if (!title || !scheduledAt || !meetingLink) {
-      throw new Error("Title, scheduled time, and meeting link are required.");
+    if (!title || !scheduledAt) {
+      throw new Error("Title and scheduled time are required.");
     }
+
+    // Auto-generate embedded room link if mentor chooses built-in classroom
+    const finalMeetingLink = (!meetingLink || meetingLink === 'embedded' || meetingLink === 'jitsi' || meetingLink.trim() === '')
+      ? `https://meet.jit.si/atelier-live-cohort-${courseId}-${Date.now().toString(36)}`
+      : meetingLink.trim();
 
     // Format DATETIME for MySQL
     const dateObj = new Date(scheduledAt);
@@ -1508,7 +1513,7 @@ export async function createLiveSession(mentorIdOrData, sessionData = null) {
 
     const res = await execute(
       `INSERT INTO atelier_live_sessions (course_id, mentor_id, title, description, scheduled_at, duration_minutes, meeting_link, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')`,
-      [courseId, mentorId || null, title, description || null, formattedDate, durationMinutes || 60, meetingLink]
+      [courseId, mentorId || null, title, description || null, formattedDate, durationMinutes || 60, finalMeetingLink]
     );
 
     return { success: true, id: res.insertId };
