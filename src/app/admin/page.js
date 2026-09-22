@@ -85,6 +85,12 @@ export default function AdminConsole() {
   useEffect(() => {
     async function checkAdminAuth() {
       if (typeof window !== 'undefined') {
+        // High security: student accounts are strictly prohibited from admin access
+        if (localStorage.getItem('loggedInStudentEmail')) {
+          setAuthorized(false);
+          return;
+        }
+
         const token = sessionStorage.getItem('adminSessionToken');
         if (token) {
           try {
@@ -132,6 +138,12 @@ export default function AdminConsole() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
+
+    if (typeof window !== 'undefined' && localStorage.getItem('loggedInStudentEmail')) {
+      setLoginError('Security Protocol: Student accounts are restricted from accessing administrative console nodes. Please log out first.');
+      return;
+    }
+
     setIsLoggingIn(true);
     try {
       const res = await verifyAdminClearance(securityKey.trim());
