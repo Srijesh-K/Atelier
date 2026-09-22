@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { getStudentProfileByEmail, updateStudentProfile, updateStudentAvatar } from '../../actions';
 import InitialsAvatar from '@/components/InitialsAvatar';
 import styles from '../dashboard.module.css';
 
 export default function ProfilePage() {
+  const router = useRouter();
+
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -28,6 +31,20 @@ export default function ProfilePage() {
   const [streak, setStreak] = useState(1);
   const [enrolledCount, setEnrolledCount] = useState(0);
   const [newSkillInput, setNewSkillInput] = useState('');
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to log out of your Atelier account?')) {
+      try {
+        localStorage.removeItem('loggedInStudentEmail');
+        localStorage.removeItem('studentProfile');
+        localStorage.removeItem('activeCourseId');
+        localStorage.removeItem('currentCourseId');
+        window.dispatchEvent(new Event('profileChanged'));
+        window.dispatchEvent(new Event('authChanged'));
+      } catch (e) {}
+      router.push('/auth/signin');
+    }
+  };
 
   // Hydrate instantly from cache & load from database on mount
   useEffect(() => {
@@ -391,6 +408,22 @@ export default function ProfilePage() {
                 <p style={{ fontSize: '1.35rem', fontWeight: '800', color: '#ffffff', marginTop: '0.25rem' }}>{enrolledCount} Active</p>
               </div>
             </div>
+
+            <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className={styles.profileLogoutBtn}
+                title="Log out of student account"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                <span>Log Out</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -403,15 +436,46 @@ export default function ProfilePage() {
                 Manage your credentials, educational background, portfolio, and active tech stack.
               </p>
             </div>
-            {!isEditing && (
-              <button 
-                className={styles.onboardBtn}
-                style={{ width: 'auto', padding: '0.75rem 1.5rem' }}
-                onClick={() => setIsEditing(true)}
-              >
-                Edit Profile
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              {!isEditing && (
+                <>
+                  <button 
+                    type="button"
+                    className={styles.onboardBtn}
+                    style={{ width: 'auto', padding: '0.75rem 1.5rem' }}
+                    onClick={() => setIsEditing(true)}
+                  >
+                    Edit Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      color: '#f87171',
+                      padding: '0.75rem 1.25rem',
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    title="Log out of student account"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                      <polyline points="16 17 21 12 16 7"/>
+                      <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span>Log Out</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           <form onSubmit={handleSave}>

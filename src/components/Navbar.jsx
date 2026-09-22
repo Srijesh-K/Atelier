@@ -15,6 +15,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLightNavbar, setIsLightNavbar] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0, opacity: 0 });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navPillsRef = useRef(null);
 
   const navItems = [
@@ -24,6 +25,29 @@ export default function Navbar() {
     { label: 'Contact', href: '/contact' },
     { label: 'Faculty', href: '/join-faculty' }
   ];
+
+  // Auth state listener to switch between Sign In and Dashboard
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const email = localStorage.getItem('loggedInStudentEmail');
+        setIsLoggedIn(!!email);
+      } catch (e) {
+        setIsLoggedIn(false);
+      }
+    };
+
+    checkAuth();
+    window.addEventListener('storage', checkAuth);
+    window.addEventListener('profileChanged', checkAuth);
+    window.addEventListener('authChanged', checkAuth);
+
+    return () => {
+      window.removeEventListener('storage', checkAuth);
+      window.removeEventListener('profileChanged', checkAuth);
+      window.removeEventListener('authChanged', checkAuth);
+    };
+  }, []);
 
   // Dynamic active index based on route and scroll spy
   useEffect(() => {
@@ -224,7 +248,16 @@ export default function Navbar() {
       </nav>
       
       <div className={styles.actions}>
-        <Link href="/auth/signin" className={styles.signIn}>Sign In</Link>
+        {isLoggedIn ? (
+          <Link href="/dashboard" className={styles.dashboardBtn}>
+            <span>Dashboard</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </Link>
+        ) : (
+          <Link href="/auth/signin" className={styles.signIn}>Sign In</Link>
+        )}
       </div>
 
       {/* Mobile Menu Button */}
@@ -251,7 +284,15 @@ export default function Navbar() {
               {item.label}
             </Link>
           ))}
-          <Link href="/auth/signin" className={styles.mobileSignIn} onClick={() => setIsMobileMenuOpen(false)}>Sign In</Link>
+          {isLoggedIn ? (
+            <Link href="/dashboard" className={styles.mobileSignIn} onClick={() => setIsMobileMenuOpen(false)}>
+              Dashboard →
+            </Link>
+          ) : (
+            <Link href="/auth/signin" className={styles.mobileSignIn} onClick={() => setIsMobileMenuOpen(false)}>
+              Sign In
+            </Link>
+          )}
         </div>
       </div>
     </header>

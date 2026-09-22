@@ -128,6 +128,28 @@
   color: var(--accent-orange);
 }
 
+.dashboardBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(242, 85, 34, 0.12);
+  color: var(--accent-orange);
+  border: 1px solid rgba(242, 85, 34, 0.35);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.45rem 1.05rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.dashboardBtn:hover {
+  background: var(--accent-orange);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(242, 85, 34, 0.35);
+  transform: translateY(-1px);
+}
+
 .mobileMenuBtn {
   display: none;
   flex-direction: column;
