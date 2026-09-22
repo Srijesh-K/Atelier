@@ -74,7 +74,9 @@ export default function SignUpPage() {
         github: '',
         linkedin: '',
         portfolio: '',
-        skills: ['HTML', 'CSS', 'JavaScript']
+        skills: ['HTML', 'CSS', 'JavaScript'],
+        avatar: student.avatar || null,
+        enrolledCourses: student.enrolledCourses || []
       }));
 
       // Trigger updates

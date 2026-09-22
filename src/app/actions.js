@@ -823,6 +823,7 @@ export async function registerStudentAccount(name, email, password, phone, colle
     }
 
     let newStudentId = null;
+    let defaultCourseId = null;
     const conn = await getConnection();
     try {
       await conn.beginTransaction();
@@ -839,7 +840,7 @@ export async function registerStudentAccount(name, email, password, phone, colle
       const [availCourses] = await conn.execute(
         "SELECT id FROM atelier_courses WHERE id = 1 UNION SELECT id FROM atelier_courses ORDER BY id ASC LIMIT 1"
       );
-      const defaultCourseId = (availCourses && availCourses.length > 0) ? availCourses[0].id : null;
+      defaultCourseId = (availCourses && availCourses.length > 0) ? availCourses[0].id : null;
       if (defaultCourseId) {
         await conn.execute("INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
           [newStudentId, defaultCourseId]);
@@ -855,13 +856,21 @@ export async function registerStudentAccount(name, email, password, phone, colle
 
     // Retrieve full profile
     const studentRows = await query("SELECT * FROM atelier_students WHERE id = ?", [newStudentId]);
+    if (!studentRows || studentRows.length === 0) {
+      throw new Error("Unable to retrieve newly registered account. Please try signing in.");
+    }
     const student = studentRows[0];
-    student.enrolledCourses = defaultCourseId ? [defaultCourseId] : [];
+    const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [student.id]);
+    student.enrolledCourses = (enrollments && enrollments.length > 0)
+      ? enrollments.map(e => e.course_id)
+      : (defaultCourseId ? [defaultCourseId] : []);
     student.gradYear = student.grad_year;
     delete student.grad_year;
     student.skills = student.skills ? student.skills.split(',') : ['HTML', 'CSS', 'JavaScript'];
     student.authProvider = 'credentials';
     delete student.password;
+    delete student.reset_code;
+    delete student.reset_code_expires;
     return student;
   } catch (e) {
     console.error("Registration error:", e.message);

@@ -70,7 +70,9 @@ export default function SocialAuthModal({ isOpen, provider, onClose, redirectTo 
           github: student.github || '',
           linkedin: student.linkedin || '',
           portfolio: student.portfolio || '',
-          skills: student.skills || ['React', 'Next.js', 'System Design']
+          skills: student.skills || ['React', 'Next.js', 'System Design'],
+          avatar: student.avatar || null,
+          enrolledCourses: student.enrolledCourses || [1]
         }));
 
         window.dispatchEvent(new Event('profileChanged'));

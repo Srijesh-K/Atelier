@@ -61,7 +61,9 @@ export default function SignInPage() {
           github: student.github || '',
           linkedin: student.linkedin || '',
           portfolio: student.portfolio || '',
-          skills: student.skills || ['React', 'Next.js', 'Node.js', 'System Design']
+          skills: student.skills || ['React', 'Next.js', 'Node.js', 'System Design'],
+          avatar: student.avatar || null,
+          enrolledCourses: student.enrolledCourses || [1]
         }));
         
         // Dispatch notifications
