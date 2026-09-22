@@ -19,6 +19,20 @@ import {
   saveMaterial,
   deleteMaterial
 } from '@/app/actions';
+import {
+  getMentorCourseAssessments,
+  getMentorAssessmentDetails,
+  saveMentorCourseAssessment,
+  deleteMentorCourseAssessment,
+  getMentorQuestionBank,
+  saveMentorQuestion,
+  deleteMentorQuestion,
+  linkQuestionToAssessmentMentor,
+  unlinkQuestionFromAssessmentMentor,
+  getMentorAssessmentResults,
+  getMentorAttemptFullReview,
+  gradeManualResponseMentor
+} from '@/lib/assessments/actions';
 import LiveClassroom from '@/components/LiveClassroom';
 import styles from '../../mentor.module.css';
 
@@ -65,6 +79,47 @@ export default function MentorCourseWorkspacePage() {
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [materialForm, setMaterialForm] = useState({ id: null, title: '', assetsJson: '[]' });
   const [uploadingFile, setUploadingFile] = useState(false);
+
+  // Tab 5: Assessments & Grading
+  const [assessments, setAssessments] = useState([]);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [assessmentForm, setAssessmentForm] = useState({
+    id: null,
+    title: '',
+    description: '',
+    duration_minutes: 45,
+    passing_marks: 20,
+    max_attempts: 2,
+    status: 'published',
+    proctoring_enabled: 1
+  });
+
+  // Question Bank
+  const [showQuestionModal, setShowQuestionModal] = useState(false);
+  const [selectedAssessmentForQuestions, setSelectedAssessmentForQuestions] = useState(null);
+  const [questionBank, setQuestionBank] = useState([]);
+  const [questionForm, setQuestionForm] = useState({
+    id: null,
+    title: '',
+    question_text: '',
+    question_type: 'single_choice',
+    marks: 2,
+    negative_marks: 0,
+    partial_credit: 0,
+    options: [
+      { option_text: '', is_correct: 1, explanation: '' },
+      { option_text: '', is_correct: 0, explanation: '' }
+    ],
+    config_json: ''
+  });
+
+  // Results & Manual Grading
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [selectedAssessmentForResults, setSelectedAssessmentForResults] = useState(null);
+  const [assessmentAttempts, setAssessmentAttempts] = useState([]);
+  const [gradingAttemptReview, setGradingAttemptReview] = useState(null);
+  const [gradeInput, setGradeInput] = useState({ marks: 0, feedback: '' });
+  const [activeGradingQuestionId, setActiveGradingQuestionId] = useState(null);
 
   // Load Mentor and Authorize Course Access
   useEffect(() => {
@@ -129,6 +184,9 @@ export default function MentorCourseWorkspacePage() {
         const allMaterials = await getMaterials();
         const courseMats = (allMaterials || []).filter((m) => m.courseId === courseId);
         setMaterials(courseMats);
+      } else if (tab === 'assessments') {
+        const data = await getMentorCourseAssessments(mentorId, courseId);
+        setAssessments(Array.isArray(data) ? data : []);
       }
     } catch (tabErr) {
       console.error(`Error loading ${tab} data:`, tabErr);
@@ -383,6 +441,137 @@ export default function MentorCourseWorkspacePage() {
     }
   };
 
+  // ─── ASSESSMENTS & GRADING ACTIONS ───
+  const handleSaveAssessment = async (e) => {
+    e.preventDefault();
+    if (!mentor || !courseId) return;
+
+    try {
+      await saveMentorCourseAssessment(mentor.id, courseId, assessmentForm);
+      setShowAssessmentModal(false);
+      setAssessmentForm({
+        id: null,
+        title: '',
+        description: '',
+        duration_minutes: 45,
+        passing_marks: 20,
+        max_attempts: 2,
+        status: 'published',
+        proctoring_enabled: 1
+      });
+      await reloadTabData(mentor.id, 'assessments');
+    } catch (err) {
+      alert('Error saving assessment: ' + err.message);
+    }
+  };
+
+  const handleDeleteAssessment = async (asstId) => {
+    if (!confirm('Are you sure you want to delete this assessment? All associated attempts will also be removed.')) return;
+    try {
+      await deleteMentorCourseAssessment(mentor.id, courseId, asstId);
+      await reloadTabData(mentor.id, 'assessments');
+    } catch (err) {
+      alert('Error deleting assessment: ' + err.message);
+    }
+  };
+
+  const handleOpenQuestionManager = async (asst) => {
+    try {
+      const details = await getMentorAssessmentDetails(mentor.id, courseId, asst.id);
+      setSelectedAssessmentForQuestions(details);
+      const bank = await getMentorQuestionBank(mentor.id, courseId);
+      setQuestionBank(bank || []);
+    } catch (err) {
+      alert('Error loading question bank: ' + err.message);
+    }
+  };
+
+  const handleToggleLinkQuestion = async (qId, isCurrentlyLinked) => {
+    if (!selectedAssessmentForQuestions) return;
+    try {
+      if (isCurrentlyLinked) {
+        await unlinkQuestionFromAssessmentMentor(mentor.id, courseId, selectedAssessmentForQuestions.id, qId);
+      } else {
+        await linkQuestionToAssessmentMentor(mentor.id, courseId, {
+          assessment_id: selectedAssessmentForQuestions.id,
+          question_id: qId,
+          marks: 2
+        });
+      }
+      const updated = await getMentorAssessmentDetails(mentor.id, courseId, selectedAssessmentForQuestions.id);
+      setSelectedAssessmentForQuestions(updated);
+      await reloadTabData(mentor.id, 'assessments');
+    } catch (err) {
+      alert('Error updating question link: ' + err.message);
+    }
+  };
+
+  const handleSaveQuestion = async (e) => {
+    e.preventDefault();
+    if (!mentor || !courseId) return;
+
+    try {
+      const res = await saveMentorQuestion(mentor.id, courseId, questionForm);
+      if (selectedAssessmentForQuestions && res.id) {
+        await linkQuestionToAssessmentMentor(mentor.id, courseId, {
+          assessment_id: selectedAssessmentForQuestions.id,
+          question_id: res.id,
+          marks: questionForm.marks
+        });
+        const updated = await getMentorAssessmentDetails(mentor.id, courseId, selectedAssessmentForQuestions.id);
+        setSelectedAssessmentForQuestions(updated);
+      }
+      setShowQuestionModal(false);
+      const bank = await getMentorQuestionBank(mentor.id, courseId);
+      setQuestionBank(bank || []);
+      await reloadTabData(mentor.id, 'assessments');
+    } catch (err) {
+      alert('Error saving question: ' + err.message);
+    }
+  };
+
+  const handleOpenResults = async (asst) => {
+    try {
+      setSelectedAssessmentForResults(asst);
+      const results = await getMentorAssessmentResults(mentor.id, courseId, asst.id);
+      setAssessmentAttempts(results || []);
+      setShowResultsModal(true);
+    } catch (err) {
+      alert('Error loading results: ' + err.message);
+    }
+  };
+
+  const handleOpenReviewAttempt = async (attempt) => {
+    try {
+      const review = await getMentorAttemptFullReview(mentor.id, courseId, attempt.id);
+      setGradingAttemptReview(review);
+    } catch (err) {
+      alert('Error loading attempt review: ' + err.message);
+    }
+  };
+
+  const handleSaveGrade = async (questionId) => {
+    if (!gradingAttemptReview) return;
+    try {
+      await gradeManualResponseMentor(mentor.id, courseId, {
+        attemptId: gradingAttemptReview.attempt.id,
+        questionId,
+        marksAwarded: gradeInput.marks,
+        feedback: gradeInput.feedback
+      });
+      alert('Grade recorded successfully!');
+      // Reload review
+      const review = await getMentorAttemptFullReview(mentor.id, courseId, gradingAttemptReview.attempt.id);
+      setGradingAttemptReview(review);
+      // Reload results list
+      const results = await getMentorAssessmentResults(mentor.id, courseId, selectedAssessmentForResults.id);
+      setAssessmentAttempts(results || []);
+      setActiveGradingQuestionId(null);
+    } catch (err) {
+      alert('Error saving grade: ' + err.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className={styles.contentWrapper} style={{ color: 'rgba(255,255,255,0.4)' }}>
@@ -462,6 +651,12 @@ export default function MentorCourseWorkspacePage() {
           onClick={() => handleTabSwitch('materials')}
         >
           Materials & Assets ({materials.length})
+        </button>
+        <button
+          className={`${styles.tabItem} ${activeTab === 'assessments' ? styles.tabItemActive : ''}`}
+          onClick={() => handleTabSwitch('assessments')}
+        >
+          Assessments & Grading ({assessments.length})
         </button>
       </div>
 
@@ -945,6 +1140,156 @@ export default function MentorCourseWorkspacePage() {
         </div>
       )}
 
+      {/* ─── TAB 5: ASSESSMENTS & EVALUATIONS ─── */}
+      {activeTab === 'assessments' && (
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2 className={styles.panelTitle}>Cohort Assessments & Evaluations</h2>
+              <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)' }}>
+                Create multi-format diagnostics, manage questions, review code submissions, and grade answers.
+              </span>
+            </div>
+            <button
+              className={styles.primaryBtn}
+              style={{ width: 'auto', padding: '0.6rem 1.15rem' }}
+              onClick={() => {
+                setAssessmentForm({
+                  id: null,
+                  title: '',
+                  description: '',
+                  duration_minutes: 45,
+                  passing_marks: 20,
+                  max_attempts: 2,
+                  status: 'published',
+                  proctoring_enabled: 1
+                });
+                setShowAssessmentModal(true);
+              }}
+            >
+              + Create Assessment
+            </button>
+          </div>
+
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Assessment Title</th>
+                <th>Duration & Marks</th>
+                <th>Questions</th>
+                <th>Submissions</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assessments.map((asst) => (
+                <tr key={asst.id}>
+                  <td>
+                    <div style={{ fontWeight: '700', color: '#ffffff' }}>{asst.title}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {asst.description || 'Standard evaluation'}
+                    </div>
+                  </td>
+                  <td>
+                    <div>{asst.duration_minutes} Mins</div>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                      {asst.total_marks} Marks ({asst.passing_marks} to pass)
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => handleOpenQuestionManager(asst)}
+                      style={{
+                        background: 'rgba(99, 102, 241, 0.12)',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        color: '#818cf8',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {asst.question_count || 0} Questions ⚙
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => handleOpenResults(asst)}
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        color: '#34d399',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {asst.attempt_count || 0} Attempts 📊
+                    </button>
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: asst.status === 'published' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.1)',
+                        color: asst.status === 'published' ? '#34d399' : '#94a3b8'
+                      }}
+                    >
+                      {asst.status}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <button
+                        className={styles.secondaryBtn}
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                        onClick={() => {
+                          setAssessmentForm({
+                            id: asst.id,
+                            title: asst.title,
+                            description: asst.description || '',
+                            duration_minutes: asst.duration_minutes,
+                            passing_marks: asst.passing_marks,
+                            max_attempts: asst.max_attempts,
+                            status: asst.status,
+                            proctoring_enabled: asst.proctoring_enabled
+                          });
+                          setShowAssessmentModal(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className={styles.secondaryBtn}
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ff453a' }}
+                        onClick={() => handleDeleteAssessment(asst.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {assessments.length === 0 && (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: '2.5rem' }}>
+                    No assessments created for this cohort yet. Click "+ Create Assessment" above.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* ─── MODAL: SCHEDULE LIVE SESSION ─── */}
       {showScheduleModal && (
         <div className={styles.modalOverlay} onClick={() => setShowScheduleModal(false)}>
@@ -1251,6 +1596,609 @@ export default function MentorCourseWorkspacePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: CREATE / EDIT ASSESSMENT ─── */}
+      {showAssessmentModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowAssessmentModal(false)}>
+          <div className={styles.modalContent} style={{ maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>
+                {assessmentForm.id ? 'Edit Cohort Assessment' : 'Create Cohort Assessment'}
+              </h3>
+              <button className={styles.modalClose} onClick={() => setShowAssessmentModal(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveAssessment}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Cohort Course</label>
+                <input
+                  type="text"
+                  disabled
+                  className={styles.input}
+                  value={course?.title || 'Selected Course'}
+                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Assessment Title</label>
+                <input
+                  type="text"
+                  required
+                  className={styles.input}
+                  placeholder="e.g. Mid-Cohort Systems Architecture Diagnostic"
+                  value={assessmentForm.title}
+                  onChange={(e) => setAssessmentForm({ ...assessmentForm, title: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Description</label>
+                <textarea
+                  className={styles.textarea}
+                  placeholder="Outline syllabus coverage, rules, and expectations..."
+                  value={assessmentForm.description}
+                  onChange={(e) => setAssessmentForm({ ...assessmentForm, description: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Duration (Mins)</label>
+                  <input
+                    type="number"
+                    required
+                    className={styles.input}
+                    value={assessmentForm.duration_minutes}
+                    onChange={(e) => setAssessmentForm({ ...assessmentForm, duration_minutes: parseInt(e.target.value || 0, 10) })}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Passing Marks</label>
+                  <input
+                    type="number"
+                    required
+                    className={styles.input}
+                    value={assessmentForm.passing_marks}
+                    onChange={(e) => setAssessmentForm({ ...assessmentForm, passing_marks: parseInt(e.target.value || 0, 10) })}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Max Attempts</label>
+                  <input
+                    type="number"
+                    required
+                    className={styles.input}
+                    value={assessmentForm.max_attempts}
+                    onChange={(e) => setAssessmentForm({ ...assessmentForm, max_attempts: parseInt(e.target.value || 1, 10) })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Status</label>
+                  <select
+                    className={styles.select}
+                    value={assessmentForm.status}
+                    onChange={(e) => setAssessmentForm({ ...assessmentForm, status: e.target.value })}
+                  >
+                    <option value="published">Published (Visible to Enrolled Students)</option>
+                    <option value="draft">Draft (Hidden)</option>
+                  </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Proctoring Monitoring</label>
+                  <select
+                    className={styles.select}
+                    value={assessmentForm.proctoring_enabled ? 1 : 0}
+                    onChange={(e) => setAssessmentForm({ ...assessmentForm, proctoring_enabled: parseInt(e.target.value, 10) })}
+                  >
+                    <option value={1}>Enabled (Logs tab & window blurs)</option>
+                    <option value={0}>Disabled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.secondaryBtn} onClick={() => setShowAssessmentModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className={styles.primaryBtn} style={{ width: 'auto' }}>
+                  Save Assessment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: QUESTION MANAGER & QUESTION BANK ─── */}
+      {selectedAssessmentForQuestions && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedAssessmentForQuestions(null)}>
+          <div className={styles.modalContent} style={{ maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Questions Manager: {selectedAssessmentForQuestions.title}</h3>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)' }}>
+                  Total Marks: {selectedAssessmentForQuestions.total_marks} • Linked Questions: {(selectedAssessmentForQuestions.questions || []).length}
+                </span>
+              </div>
+              <button className={styles.modalClose} onClick={() => setSelectedAssessmentForQuestions(null)}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h4 style={{ color: '#ffffff', margin: 0, fontSize: '0.95rem' }}>Assessment Question Roster</h4>
+              <button
+                className={styles.primaryBtn}
+                style={{ width: 'auto', padding: '0.4rem 0.9rem', fontSize: '0.8rem' }}
+                onClick={() => {
+                  setQuestionForm({
+                    id: null,
+                    title: '',
+                    question_text: '',
+                    question_type: 'single_choice',
+                    marks: 2,
+                    negative_marks: 0,
+                    partial_credit: 0,
+                    options: [
+                      { option_text: '', is_correct: 1, explanation: '' },
+                      { option_text: '', is_correct: 0, explanation: '' }
+                    ],
+                    config_json: ''
+                  });
+                  setShowQuestionModal(true);
+                }}
+              >
+                + Create New Question
+              </button>
+            </div>
+
+            {/* Currently Linked Questions Table */}
+            <table className={styles.table} style={{ marginBottom: '1.5rem' }}>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Question Title & Text</th>
+                  <th>Type</th>
+                  <th>Marks</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(selectedAssessmentForQuestions.questions || []).map((q, idx) => (
+                  <tr key={q.id}>
+                    <td style={{ color: '#6366f1', fontWeight: '700' }}>{idx + 1}</td>
+                    <td>
+                      <div style={{ fontWeight: '700', color: '#ffffff' }}>{q.title}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {q.question_text}
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.74rem', background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
+                        {q.question_type}
+                      </span>
+                    </td>
+                    <td>{q.marks} Marks</td>
+                    <td>
+                      <button
+                        className={styles.secondaryBtn}
+                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem', color: '#ff453a' }}
+                        onClick={() => handleToggleLinkQuestion(q.id, true)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {(selectedAssessmentForQuestions.questions || []).length === 0 && (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: '1.5rem' }}>
+                      No questions linked to this assessment yet. Choose from the bank below or create a new question.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* Reusable Course Question Bank */}
+            <h4 style={{ color: '#ffffff', margin: '1.5rem 0 0.8rem', fontSize: '0.95rem' }}>
+              Available in Course Question Bank ({questionBank.length})
+            </h4>
+            <div style={{ maxHeight: '250px', overflowY: 'auto', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '0.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+              {questionBank.map((bankQ) => {
+                const isAlreadyLinked = (selectedAssessmentForQuestions.questions || []).some(item => item.id === bankQ.id);
+
+                return (
+                  <div key={bankQ.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#ffffff', fontSize: '0.85rem' }}>{bankQ.title}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                        {bankQ.question_type} • {bankQ.marks} marks
+                      </div>
+                    </div>
+
+                    <div>
+                      {isAlreadyLinked ? (
+                        <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '600' }}>✓ Linked</span>
+                      ) : (
+                        <button
+                          className={styles.primaryBtn}
+                          style={{ padding: '0.3rem 0.75rem', fontSize: '0.75rem', width: 'auto' }}
+                          onClick={() => handleToggleLinkQuestion(bankQ.id, false)}
+                        >
+                          + Link to Assessment
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: CREATE QUESTION ─── */}
+      {showQuestionModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowQuestionModal(false)}>
+          <div className={styles.modalContent} style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Add Question to Course Bank</h3>
+              <button className={styles.modalClose} onClick={() => setShowQuestionModal(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveQuestion}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Question Type</label>
+                <select
+                  className={styles.select}
+                  value={questionForm.question_type}
+                  onChange={(e) => setQuestionForm({ ...questionForm, question_type: e.target.value })}
+                >
+                  <option value="single_choice">Single-Choice MCQ</option>
+                  <option value="multiple_choice">Multiple-Choice (Multi-Select)</option>
+                  <option value="true_false">True / False</option>
+                  <option value="fill_blank">Fill in the Blank</option>
+                  <option value="numerical">Numerical Value</option>
+                  <option value="matching">Matching Pairs</option>
+                  <option value="ordering">Ordering / Sequence</option>
+                  <option value="short_answer">Short Answer (Subjective)</option>
+                  <option value="essay">Essay / Analysis (Subjective with Rubrics)</option>
+                  <option value="coding">Interactive Coding (Monaco)</option>
+                  <option value="debugging">Code Debugging</option>
+                  <option value="sql">SQL Query (Isolated SQLite)</option>
+                  <option value="code_output">Predict Code Output</option>
+                  <option value="file_upload">Technical Artifact / File Upload</option>
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Title / Headline</label>
+                <input
+                  type="text"
+                  required
+                  className={styles.input}
+                  placeholder="e.g. React Server Components Rendering Model"
+                  value={questionForm.title}
+                  onChange={(e) => setQuestionForm({ ...questionForm, title: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Question Prompt / Problem Description</label>
+                <textarea
+                  required
+                  className={styles.textarea}
+                  placeholder="Enter full technical prompt or scenario..."
+                  value={questionForm.question_text}
+                  onChange={(e) => setQuestionForm({ ...questionForm, question_text: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Marks Awarded</label>
+                  <input
+                    type="number"
+                    required
+                    className={styles.input}
+                    value={questionForm.marks}
+                    onChange={(e) => setQuestionForm({ ...questionForm, marks: parseInt(e.target.value || 1, 10) })}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Negative Penalty (for incorrect)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className={styles.input}
+                    value={questionForm.negative_marks}
+                    onChange={(e) => setQuestionForm({ ...questionForm, negative_marks: parseFloat(e.target.value || 0) })}
+                  />
+                </div>
+              </div>
+
+              {/* Options for MCQ / Multiple Choice */}
+              {['single_choice', 'multiple_choice'].includes(questionForm.question_type) && (
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Options (Check the correct answer)</label>
+                  {questionForm.options.map((opt, optIdx) => (
+                    <div key={optIdx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(opt.is_correct)}
+                        onChange={(e) => {
+                          const updated = [...questionForm.options];
+                          if (questionForm.question_type === 'single_choice') {
+                            updated.forEach((o, i) => o.is_correct = i === optIdx ? 1 : 0);
+                          } else {
+                            updated[optIdx].is_correct = e.target.checked ? 1 : 0;
+                          }
+                          setQuestionForm({ ...questionForm, options: updated });
+                        }}
+                      />
+                      <input
+                        type="text"
+                        required
+                        className={styles.input}
+                        placeholder={`Option ${optIdx + 1} text`}
+                        value={opt.option_text}
+                        onChange={(e) => {
+                          const updated = [...questionForm.options];
+                          updated[optIdx].option_text = e.target.value;
+                          setQuestionForm({ ...questionForm, options: updated });
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                    onClick={() => {
+                      setQuestionForm({
+                        ...questionForm,
+                        options: [...questionForm.options, { option_text: '', is_correct: 0, explanation: '' }]
+                      });
+                    }}
+                  >
+                    + Add Option
+                  </button>
+                </div>
+              )}
+
+              {/* Config JSON for advanced types */}
+              {['coding', 'debugging', 'sql', 'matching', 'ordering', 'numerical'].includes(questionForm.question_type) && (
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Specialized Config JSON (Starter code / schema / keys)</label>
+                  <textarea
+                    className={styles.textarea}
+                    style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
+                    placeholder='{"starterCode": "function solve() {}", "language": "javascript"}'
+                    value={questionForm.config_json}
+                    onChange={(e) => setQuestionForm({ ...questionForm, config_json: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.secondaryBtn} onClick={() => setShowQuestionModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className={styles.primaryBtn} style={{ width: 'auto' }}>
+                  Save Question
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: RESULTS & STUDENT SUBMISSIONS ─── */}
+      {showResultsModal && selectedAssessmentForResults && (
+        <div className={styles.modalOverlay} onClick={() => setShowResultsModal(false)}>
+          <div className={styles.modalContent} style={{ maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Submissions: {selectedAssessmentForResults.title}</h3>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)' }}>
+                  Total Student Attempts: {assessmentAttempts.length}
+                </span>
+              </div>
+              <button className={styles.modalClose} onClick={() => setShowResultsModal(false)}>✕</button>
+            </div>
+
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Attempt</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Proctoring</th>
+                  <th>Submitted At</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assessmentAttempts.map((att) => (
+                  <tr key={att.id}>
+                    <td>
+                      <div style={{ fontWeight: '600', color: '#ffffff' }}>{att.student_name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{att.student_email}</div>
+                    </td>
+                    <td>#{att.attempt_number}</td>
+                    <td>
+                      <strong style={{ color: att.passed ? '#34d399' : '#f87171' }}>
+                        {att.total_score} ({att.percentage}%)
+                      </strong>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: '700',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: att.status === 'evaluated' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                          color: att.status === 'evaluated' ? '#34d399' : '#fbbf24'
+                        }}
+                      >
+                        {att.status === 'evaluated' ? (att.passed ? 'PASSED' : 'FAILED') : 'NEEDS GRADING'}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: att.proctoring_flags > 0 ? '#fbbf24' : '#34d399' }}>
+                        {att.proctoring_flags} Flags
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>
+                      {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : 'In Progress'}
+                    </td>
+                    <td>
+                      <button
+                        className={styles.primaryBtn}
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', width: 'auto' }}
+                        onClick={() => handleOpenReviewAttempt(att)}
+                      >
+                        Review & Grade
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {assessmentAttempts.length === 0 && (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: '2rem' }}>
+                      No student submissions recorded yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: MANUAL GRADING ATTEMPT REVIEW ─── */}
+      {gradingAttemptReview && (
+        <div className={styles.modalOverlay} onClick={() => setGradingAttemptReview(null)}>
+          <div className={styles.modalContent} style={{ maxWidth: '850px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>
+                  Reviewing Attempt: {gradingAttemptReview.attempt.student_name}
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)' }}>
+                  Current Score: {gradingAttemptReview.attempt.total_score} / {gradingAttemptReview.attempt.total_marks} ({gradingAttemptReview.attempt.percentage}%)
+                </span>
+              </div>
+              <button className={styles.modalClose} onClick={() => setGradingAttemptReview(null)}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {(gradingAttemptReview.responses || []).map((resp, idx) => {
+                const isManual = ['short_answer', 'essay', 'file_upload'].includes(resp.question_type);
+
+                return (
+                  <div key={resp.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: '700', color: '#6366f1' }}>Q{idx + 1}.</span>
+                        <span style={{ fontWeight: '600', color: '#ffffff' }}>{resp.question_title}</span>
+                        <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
+                          {resp.question_type}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '0.85rem', fontWeight: '700', color: resp.status === 'correct' ? '#34d399' : '#ffffff' }}>
+                        {resp.marks_awarded} / {resp.max_marks} Marks
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '12px' }}>
+                      {resp.question_text}
+                    </div>
+
+                    {/* Student Response Display */}
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '6px', fontSize: '0.82rem', marginBottom: '12px' }}>
+                      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem', marginBottom: '4px' }}>STUDENT RESPONSE:</div>
+                      {resp.response_data ? (
+                        typeof resp.response_data === 'object' && resp.response_data.url ? (
+                          <a href={resp.response_data.url} target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', textDecoration: 'underline' }}>
+                            View Attached File: {resp.response_data.filename}
+                          </a>
+                        ) : (
+                          <div style={{ whiteSpace: 'pre-wrap', color: '#ffffff' }}>
+                            {typeof resp.response_data === 'object' ? JSON.stringify(resp.response_data, null, 2) : String(resp.response_data)}
+                          </div>
+                        )
+                      ) : (
+                        <em style={{ color: 'rgba(255,255,255,0.3)' }}>No response submitted</em>
+                      )}
+                    </div>
+
+                    {/* Manual Grading Controls */}
+                    {isManual && (
+                      <div style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', padding: '12px', borderRadius: '6px' }}>
+                        <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#818cf8', marginBottom: '8px' }}>
+                          Instructor Evaluation & Rubrics
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr auto', gap: '10px', alignItems: 'center' }}>
+                          <div>
+                            <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', display: 'block' }}>Marks Awarded</label>
+                            <input
+                              type="number"
+                              step="any"
+                              max={resp.max_marks}
+                              className={styles.input}
+                              style={{ padding: '0.4rem 0.6rem' }}
+                              value={activeGradingQuestionId === resp.question_id ? gradeInput.marks : resp.marks_awarded}
+                              onChange={(e) => {
+                                setActiveGradingQuestionId(resp.question_id);
+                                setGradeInput({ ...gradeInput, marks: parseFloat(e.target.value || 0) });
+                              }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', display: 'block' }}>Feedback</label>
+                            <input
+                              type="text"
+                              className={styles.input}
+                              style={{ padding: '0.4rem 0.6rem' }}
+                              placeholder="Constructive feedback for the student..."
+                              value={activeGradingQuestionId === resp.question_id ? gradeInput.feedback : (resp.evaluator_feedback || '')}
+                              onChange={(e) => {
+                                setActiveGradingQuestionId(resp.question_id);
+                                setGradeInput({ ...gradeInput, feedback: e.target.value });
+                              }}
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            className={styles.primaryBtn}
+                            style={{ width: 'auto', padding: '0.45rem 0.9rem', fontSize: '0.78rem', marginTop: '16px' }}
+                            onClick={() => handleSaveGrade(resp.question_id)}
+                          >
+                            Save Score
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

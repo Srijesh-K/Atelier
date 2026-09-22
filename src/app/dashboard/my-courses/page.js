@@ -11,8 +11,17 @@ export default function MyCoursesPage() {
   const [coursesList, setCoursesList] = useState([]);
   const [progressMap, setProgressMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [activeCourseId, setActiveCourseId] = useState(null);
 
   useEffect(() => {
+    const syncActiveCourse = () => {
+      const saved = localStorage.getItem('activeCourseId');
+      if (saved) {
+        setActiveCourseId(parseInt(saved, 10));
+      }
+    };
+    syncActiveCourse();
+
     const loadCourses = async () => {
       const email = localStorage.getItem('loggedInStudentEmail');
       if (!email) {
@@ -29,6 +38,17 @@ export default function MyCoursesPage() {
         const enrolledIds = student ? student.enrolledCourses || [] : [];
         const filtered = allCourses.filter((c) => enrolledIds.includes(c.id));
         setCoursesList(filtered);
+
+        // If activeCourseId is not set or not in enrolledIds, default to first enrolled
+        const savedId = localStorage.getItem('activeCourseId');
+        let currentId = savedId ? parseInt(savedId, 10) : null;
+        if (enrolledIds.length > 0 && (!currentId || !enrolledIds.includes(currentId))) {
+          currentId = enrolledIds[0];
+          localStorage.setItem('activeCourseId', currentId.toString());
+        }
+        if (currentId) {
+          setActiveCourseId(currentId);
+        }
 
         // Compute mathematical progress in parallel for each enrolled course
         if (student && student.id && filtered.length > 0) {
@@ -52,8 +72,12 @@ export default function MyCoursesPage() {
     };
 
     loadCourses();
+    window.addEventListener('courseChanged', syncActiveCourse);
     window.addEventListener('courseChanged', loadCourses);
-    return () => window.removeEventListener('courseChanged', loadCourses);
+    return () => {
+      window.removeEventListener('courseChanged', syncActiveCourse);
+      window.removeEventListener('courseChanged', loadCourses);
+    };
   }, []);
 
   if (loading) {
@@ -61,7 +85,7 @@ export default function MyCoursesPage() {
       <div className={styles.simplePageWrapper}>
         <div style={{ color: 'rgba(255,255,255,0.4)', padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div className={styles.dropdownActiveDot} />
-          <span>Loading your courses...</span>
+          <span>Loading your enrolled courses...</span>
         </div>
       </div>
     );
@@ -97,10 +121,21 @@ export default function MyCoursesPage() {
           {coursesList.map((course) => {
             const progressData = progressMap[course.id] || { percentage: 0, completed: 0, total: 0 };
             const isCompleted = progressData.percentage === 100 && progressData.total > 0;
+            const isActiveWorkspace = course.id === activeCourseId;
 
             return (
-              <div key={course.id} className={styles.courseDeckCard}>
-                
+              <div 
+                key={course.id} 
+                className={`${styles.courseDeckCard} ${isActiveWorkspace ? styles.deckCardActive : ''}`}
+              >
+                {/* Active Workspace Tag Badge */}
+                {isActiveWorkspace && (
+                  <div className={styles.activeWorkspaceBadge}>
+                    <span className={styles.activeWorkspaceDot} />
+                    Active Workspace
+                  </div>
+                )}
+
                 {/* Card Info Header */}
                 <h3 className={styles.deckTitle}>
                   {course.title}
@@ -138,27 +173,66 @@ export default function MyCoursesPage() {
 
                 {/* Active Sandbox Environment */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.75rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px' }}>
-                  <span style={{ width: '7px', height: '7px', backgroundColor: '#30d158', borderRadius: '50%', boxShadow: '0 0 8px #30d158' }} />
+                  <span style={{ width: '7px', height: '7px', backgroundColor: isActiveWorkspace ? 'var(--accent-orange)' : '#30d158', borderRadius: '50%', boxShadow: isActiveWorkspace ? '0 0 8px var(--accent-orange)' : '0 0 8px #30d158' }} />
                   <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>
-                    Workspace Sandbox: Active
+                    {isActiveWorkspace ? 'Selected Workspace' : 'Workspace Ready'}
                   </span>
                 </div>
 
-                {/* Action button */}
-                <button 
-                  className={styles.deckResumeBtn}
-                  onClick={() => {
-                    localStorage.setItem('activeCourseId', course.id.toString());
-                    window.dispatchEvent(new Event('courseChanged'));
-                    router.push('/dashboard');
-                  }}
-                >
-                  Resume Learning Workspace
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                  </svg>
-                </button>
+                {/* Action buttons */}
+                {isActiveWorkspace ? (
+                  <button 
+                    className={styles.deckResumeBtn}
+                    onClick={() => router.push('/dashboard')}
+                  >
+                    Open Active Workspace
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                      <polyline points="12 5 19 12 12 19" />
+                    </svg>
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+                    <button 
+                      className={styles.deckResumeBtn}
+                      style={{ flex: 1 }}
+                      onClick={() => {
+                        localStorage.setItem('activeCourseId', course.id.toString());
+                        setActiveCourseId(course.id);
+                        window.dispatchEvent(new Event('courseChanged'));
+                        router.push('/dashboard');
+                      }}
+                    >
+                      Switch & Open
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        color: '#ffffff',
+                        borderRadius: '8px',
+                        padding: '0 0.85rem',
+                        fontSize: '0.78rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={() => {
+                        localStorage.setItem('activeCourseId', course.id.toString());
+                        setActiveCourseId(course.id);
+                        window.dispatchEvent(new Event('courseChanged'));
+                      }}
+                      title="Set as active workspace without leaving this page"
+                    >
+                      Set Active
+                    </button>
+                  </div>
+                )}
 
               </div>
             );

@@ -1527,7 +1527,14 @@ export async function getLiveSessions(courseId = null) {
     `;
     const params = [];
 
-    if (courseId) {
+    if (Array.isArray(courseId)) {
+      if (courseId.length > 0) {
+        sql += ` WHERE ls.course_id IN (${courseId.map(() => '?').join(',')})`;
+        params.push(...courseId);
+      } else {
+        return [];
+      }
+    } else if (courseId) {
       sql += ` WHERE ls.course_id = ?`;
       params.push(courseId);
     }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getStudentProfileByEmail, saveCallback } from '../actions';
+import { getStudentProfileByEmail, getCourses, saveCallback } from '../actions';
 import styles from './dashboard.module.css';
 
 export default function StudentDashboard({ activeCourseId = 1, enrolledCourses = [] }) {
@@ -13,6 +13,8 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
   const [toastMessage, setToastMessage] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
   const [enrolledList, setEnrolledList] = useState(enrolledCourses);
+  const [currentCourseId, setCurrentCourseId] = useState(activeCourseId);
+  const [allCourses, setAllCourses] = useState([]);
   
   // Form input states
   const [hotlineTopic, setHotlineTopic] = useState('');
@@ -22,10 +24,25 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
   // Reset active node index on course switch
   useEffect(() => {
     setActiveNode(2);
-  }, [activeCourseId]);
+  }, [currentCourseId]);
 
-  // Sync profile details with instant local cache + background check
+  // Sync profile details and active course with instant local cache + background check
   useEffect(() => {
+    const syncCurrentCourse = (enrolled = null) => {
+      const list = enrolled || enrolledList;
+      const saved = localStorage.getItem('activeCourseId');
+      let targetId = saved ? parseInt(saved, 10) : activeCourseId;
+      if (list && list.length > 0) {
+        if (!targetId || !list.includes(targetId)) {
+          targetId = list[0];
+          localStorage.setItem('activeCourseId', targetId.toString());
+        }
+      }
+      if (targetId && !isNaN(targetId)) {
+        setCurrentCourseId(targetId);
+      }
+    };
+
     const cached = localStorage.getItem('studentProfile');
     if (cached) {
       try {
@@ -33,9 +50,22 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
         if (p.name) setStudentName(p.name);
         if (p.streak !== undefined) setStreak(p.streak);
         if (p.phone) setHotlinePhone(p.phone);
-        if (Array.isArray(p.enrolledCourses)) setEnrolledList(p.enrolledCourses);
+        if (Array.isArray(p.enrolledCourses)) {
+          setEnrolledList(p.enrolledCourses);
+          syncCurrentCourse(p.enrolledCourses);
+        }
       } catch (e) {}
     }
+
+    const loadCoursesList = async () => {
+      try {
+        const list = await getCourses();
+        setAllCourses(list || []);
+      } catch (err) {
+        console.error('Error fetching courses for workbench:', err);
+      }
+    };
+    loadCoursesList();
 
     const syncProfile = async () => {
       const email = localStorage.getItem('loggedInStudentEmail');
@@ -47,38 +77,74 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
         setHotlinePhone(student.phone || '');
         if (Array.isArray(student.enrolledCourses)) {
           setEnrolledList(student.enrolledCourses);
+          syncCurrentCourse(student.enrolledCourses);
         }
       }
     };
     syncProfile();
+
+    const onCourseChange = () => {
+      syncCurrentCourse();
+      loadCoursesList();
+    };
+
     window.addEventListener('profileChanged', syncProfile);
+    window.addEventListener('courseChanged', onCourseChange);
     return () => {
       window.removeEventListener('profileChanged', syncProfile);
+      window.removeEventListener('courseChanged', onCourseChange);
     };
   }, []);
+
+  const handleSelectCourse = (courseId) => {
+    setCurrentCourseId(courseId);
+    localStorage.setItem('activeCourseId', courseId.toString());
+    setActiveNode(2);
+    window.dispatchEvent(new Event('courseChanged'));
+    const matched = allCourses.find((c) => c.id === courseId);
+    const title = matched ? (matched.title.includes(':') ? matched.title.split(':')[0] : matched.title) : `Cohort #${courseId}`;
+    showToast(`Switched to ${title} workspace`);
+  };
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3500);
   };
 
+  const activeCourseObj = allCourses.find((c) => c.id === currentCourseId);
+  const activeCourseTitle = activeCourseObj 
+    ? (activeCourseObj.title.includes(':') ? activeCourseObj.title.split(':')[0] : activeCourseObj.title)
+    : (currentCourseId === 2 ? 'System Design' : 'Full-Stack Web');
+
   // Curriculum node tree details based on selected course
-  const nodes = activeCourseId === 2 ? [
+  const nodes = currentCourseId === 2 ? [
     { id: 1, label: 'Load Balancers & CDN', x: 250, y: 35, status: 'completed' },
     { id: 2, label: 'Database Partitioning', x: 250, y: 115, status: 'active' },
     { id: 3, label: 'Caching (Redis/Memcached)', x: 150, y: 205, status: 'locked' },
     { id: 4, label: 'Message Queues (Kafka)', x: 350, y: 205, status: 'locked' },
     { id: 5, label: 'Microservices Mesh', x: 250, y: 295, status: 'locked' }
+  ] : (activeCourseObj && (activeCourseObj.title.toLowerCase().includes('devops') || activeCourseObj.title.toLowerCase().includes('cloud')) ? [
+    { id: 1, label: 'Containerization (Docker)', x: 250, y: 35, status: 'completed' },
+    { id: 2, label: 'CI/CD Pipelines (GitHub)', x: 250, y: 115, status: 'active' },
+    { id: 3, label: 'Kubernetes Clusters', x: 150, y: 205, status: 'locked' },
+    { id: 4, label: 'Infrastructure as Code', x: 350, y: 205, status: 'locked' },
+    { id: 5, label: 'Observability & Metrics', x: 250, y: 295, status: 'locked' }
+  ] : (activeCourseObj && (activeCourseObj.title.toLowerCase().includes('ai') || activeCourseObj.title.toLowerCase().includes('python') || activeCourseObj.title.toLowerCase().includes('data')) ? [
+    { id: 1, label: 'Python & NumPy Foundations', x: 250, y: 35, status: 'completed' },
+    { id: 2, label: 'Data Pipelines & Pandas', x: 250, y: 115, status: 'active' },
+    { id: 3, label: 'Machine Learning Models', x: 150, y: 205, status: 'locked' },
+    { id: 4, label: 'Neural Networks (PyTorch)', x: 350, y: 205, status: 'locked' },
+    { id: 5, label: 'Model Deployment & APIs', x: 250, y: 295, status: 'locked' }
   ] : [
     { id: 1, label: 'HTML/CSS Basics', x: 250, y: 35, status: 'completed' },
     { id: 2, label: 'JavaScript & DOM', x: 250, y: 115, status: 'active' },
     { id: 3, label: 'Database Schemes', x: 150, y: 205, status: 'locked' },
     { id: 4, label: 'API Development', x: 350, y: 205, status: 'locked' },
     { id: 5, label: 'System Design Root', x: 250, y: 295, status: 'locked' }
-  ];
+  ]));
 
   const getCodeSnippet = () => {
-    if (activeCourseId === 2) {
+    if (currentCourseId === 2) {
       switch (activeNode) {
         case 1:
           return `// Load Balancer Configuration (Nginx)
@@ -107,6 +173,41 @@ function getShardForUser(userId) {
         default:
           return `// Lesson Locked
 // Complete previous topics to view this code.`;
+      }
+    } else if (activeCourseObj && (activeCourseObj.title.toLowerCase().includes('devops') || activeCourseObj.title.toLowerCase().includes('cloud'))) {
+      switch (activeNode) {
+        case 1:
+          return `# Multi-Stage Production Dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+CMD ["npm", "start"]`;
+        case 2:
+          return `# GitHub Actions CI/CD Pipeline
+name: Deploy Pipeline
+on:
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and Test
+        run: |
+          npm ci
+          npm test`;
+        default:
+          return `// Module Locked
+// Complete earlier DevOps lessons to unlock this exercise.`;
       }
     } else {
       switch (activeNode) {
@@ -142,8 +243,11 @@ function lockedNode() {
   };
 
   const getFilename = () => {
-    if (activeCourseId === 2) {
+    if (currentCourseId === 2) {
       return activeNode === 1 ? 'nginx/nginx.conf' : 'sharding/router.js';
+    }
+    if (activeCourseObj && (activeCourseObj.title.toLowerCase().includes('devops') || activeCourseObj.title.toLowerCase().includes('cloud'))) {
+      return activeNode === 1 ? 'docker/Dockerfile' : '.github/workflows/deploy.yml';
     }
     return 'workspace/sandbox/index.js';
   };
@@ -267,6 +371,48 @@ function lockedNode() {
           <span>{toastMessage}</span>
         </div>
       )}
+
+      {/* Interactive Multi-Cohort Switcher Bar */}
+      {enrolledList.length > 1 && (
+        <div className={styles.cohortBarWrapper}>
+          <div className={styles.cohortBarHeader}>
+            <span className={styles.cohortBarLabel}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <rect x="3" y="3" width="7" height="9" />
+                <rect x="14" y="3" width="7" height="5" />
+                <rect x="14" y="12" width="7" height="9" />
+                <rect x="3" y="16" width="7" height="5" />
+              </svg>
+              Workspace Tracks ({enrolledList.length} Active Cohorts)
+            </span>
+            <span className={styles.cohortBarHint}>
+              Click any track below to instantly swap active learning roadmap & workbench
+            </span>
+          </div>
+          <div className={styles.cohortPillsRow}>
+            {enrolledList.map((cId) => {
+              const matched = allCourses.find((c) => c.id === cId);
+              const pillTitle = matched
+                ? (matched.title.includes(':') ? matched.title.split(':')[0] : matched.title)
+                : `Cohort #${cId}`;
+              const isSelected = cId === currentCourseId;
+              return (
+                <button
+                  key={cId}
+                  type="button"
+                  className={`${styles.cohortPill} ${isSelected ? styles.cohortPillActive : ''}`}
+                  onClick={() => handleSelectCourse(cId)}
+                  title={`Switch to ${pillTitle}`}
+                >
+                  <span className={isSelected ? styles.cohortPillDotActive : styles.cohortPillDot} />
+                  <span className={styles.cohortPillText}>{pillTitle}</span>
+                  {isSelected && <span className={styles.cohortPillBadge}>ACTIVE</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       
       {/* LEFT DASHBOARD PANEL */}
       <div className={styles.dashboardLeft}>
@@ -283,7 +429,7 @@ function lockedNode() {
                 <path d="M12 12l-6 4" />
                 <path d="M12 12l6 4" />
               </svg>
-              Learning Roadmap
+              Roadmap: {activeCourseTitle}
             </h2>
             <span className={styles.cardHeaderAction} onClick={() => setActiveNode(2)}>
               Reset View
@@ -396,7 +542,7 @@ function lockedNode() {
               {streak} <span style={{ fontSize: '0.95rem', color: 'var(--accent-orange)', letterSpacing: '0.08em' }}>{streak === 1 ? 'DAY STREAK' : 'DAYS ACTIVE'}</span>
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', marginTop: '0.35rem', lineHeight: '1.45' }}>
-              {activeCourseId === 2 ? 'Complete database sharding tasks to unlock cache design nodes.' : 'Keep coding daily to unlock advanced System Architecture nodes.'}
+              {currentCourseId === 2 ? 'Complete database sharding tasks to unlock cache design nodes.' : `Keep coding daily to unlock advanced topics in ${activeCourseTitle}.`}
             </p>
           </div>
 
@@ -454,7 +600,7 @@ function lockedNode() {
             className={styles.onboardBtn} 
             style={{ width: '100%' }}
             onClick={() => {
-              setHotlineTopic(activeCourseId === 2 ? (activeNode === 1 ? 'Nginx load balancing questions' : 'Database sharding implementation') : (activeNode === 1 ? 'HTML/CSS Layout issue' : 'JavaScript DOM event handling'));
+              setHotlineTopic(currentCourseId === 2 ? (activeNode === 1 ? 'Nginx load balancing questions' : 'Database sharding implementation') : (activeNode === 1 ? `${activeCourseTitle}: Foundations inquiry` : `${activeCourseTitle}: Implementation questions`));
               setShowDrawer(true);
             }}
           >

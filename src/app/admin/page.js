@@ -11,6 +11,12 @@ import {
   getTransactions, deleteTransaction,
   verifyAdminClearance, validateAdminSession
 } from '../actions';
+import {
+  getAllAssessmentsAdminAction,
+  saveAssessmentAdminAction,
+  deleteAssessmentAdminAction,
+  getAssessmentResultsAdmin
+} from '@/lib/assessments/actions';
 import styles from './admin.module.css';
 
 export default function AdminConsole() {
@@ -19,7 +25,7 @@ export default function AdminConsole() {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Active Entity Tab: 'users' | 'courses' | 'live' | 'materials' | 'callbacks' | 'lecturers' | 'payments'
+  // Active Entity Tab: 'users' | 'courses' | 'live' | 'materials' | 'callbacks' | 'lecturers' | 'payments' | 'assessments'
   const [activeTab, setActiveTab] = useState('users');
 
   // DB entities state
@@ -31,6 +37,24 @@ export default function AdminConsole() {
   const [callbacks, setCallbacks] = useState([]);
   const [lecturers, setLecturers] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [adminAssessments, setAdminAssessments] = useState([]);
+
+  // Assessment results modal state
+  const [selectedAssessmentForResults, setSelectedAssessmentForResults] = useState(null);
+  const [adminAttempts, setAdminAttempts] = useState([]);
+  const [showAdminResultsModal, setShowAdminResultsModal] = useState(false);
+  const [showAdminAsstModal, setShowAdminAsstModal] = useState(false);
+  const [adminAsstForm, setAdminAsstForm] = useState({
+    id: null,
+    course_id: '',
+    title: '',
+    description: '',
+    duration_minutes: 45,
+    passing_marks: 20,
+    max_attempts: 2,
+    status: 'published',
+    proctoring_enabled: 1
+  });
 
   // Search filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,6 +100,7 @@ export default function AdminConsole() {
     setCallbacks(await getCallbacks());
     setLecturers(await getLecturers());
     setTransactions(await getTransactions());
+    setAdminAssessments(await getAllAssessmentsAdminAction().catch(() => []));
   };
 
   // Fetch db lists
@@ -147,6 +172,8 @@ export default function AdminConsole() {
         await deleteLecturer(id);
       } else if (activeTab === 'payments') {
         await deleteTransaction(id);
+      } else if (activeTab === 'assessments') {
+        await deleteAssessmentAdminAction(id);
       }
       
       // Sync list
@@ -160,6 +187,36 @@ export default function AdminConsole() {
   // Open add/edit modal
   const openModal = (mode, entity = null) => {
     setModalMode(mode);
+
+    if (activeTab === 'assessments') {
+      if (mode === 'edit' && entity) {
+        setAdminAsstForm({
+          id: entity.id,
+          course_id: entity.course_id,
+          title: entity.title,
+          description: entity.description || '',
+          duration_minutes: entity.duration_minutes,
+          passing_marks: entity.passing_marks,
+          max_attempts: entity.max_attempts,
+          status: entity.status,
+          proctoring_enabled: entity.proctoring_enabled
+        });
+      } else {
+        setAdminAsstForm({
+          id: null,
+          course_id: courses[0]?.id || '',
+          title: '',
+          description: '',
+          duration_minutes: 45,
+          passing_marks: 20,
+          max_attempts: 2,
+          status: 'published',
+          proctoring_enabled: 1
+        });
+      }
+      setShowAdminAsstModal(true);
+      return;
+    }
     if (mode === 'edit' && entity) {
       setEditId(entity.id);
       const initialData = { ...entity };
@@ -367,6 +424,65 @@ export default function AdminConsole() {
   const filteredCallbacks = callbacks.filter(c => c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || c.topic.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredLecturers = lecturers.filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.expertise.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredTransactions = transactions.filter(t => t.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || t.courseTitle.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredAssessments = adminAssessments.filter(a => {
+    const q = searchTerm.toLowerCase();
+    return (
+      (a.title && a.title.toLowerCase().includes(q)) ||
+      (a.course_title && a.course_title.toLowerCase().includes(q)) ||
+      (a.status && a.status.toLowerCase().includes(q))
+    );
+  });
+
+  const handleOpenAdminResults = async (asst) => {
+    try {
+      setSelectedAssessmentForResults(asst);
+      const results = await getAssessmentResultsAdmin(asst.id);
+      setAdminAttempts(results || []);
+      setShowAdminResultsModal(true);
+    } catch (err) {
+      alert('Error loading assessment results: ' + err.message);
+    }
+  };
+
+  const handleExportCsv = (asst, attempts) => {
+    const headers = ['Attempt ID', 'Student Name', 'Student Email', 'Attempt Number', 'Score', 'Total Marks', 'Percentage', 'Passed', 'Proctoring Flags', 'Status', 'Submitted At'];
+    const rows = attempts.map(att => [
+      att.id,
+      `"${(att.student_name || '').replace(/"/g, '""')}"`,
+      att.student_email,
+      att.attempt_number,
+      att.total_score,
+      asst.total_marks,
+      `${att.percentage}%`,
+      att.passed ? 'PASSED' : 'FAILED',
+      att.proctoring_flags,
+      att.status,
+      att.submitted_at ? new Date(att.submitted_at).toISOString() : 'In Progress'
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `assessment_${asst.id}_analytics.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSaveAdminAssessment = async (e) => {
+    e.preventDefault();
+    if (!adminAsstForm.course_id) {
+      alert('Please select a target course for this assessment.');
+      return;
+    }
+    try {
+      await saveAssessmentAdminAction(adminAsstForm);
+      setShowAdminAsstModal(false);
+      setAdminAssessments(await getAllAssessmentsAdminAction());
+    } catch (err) {
+      alert('Error saving assessment: ' + err.message);
+    }
+  };
 
   // Dynamic stats calculations
   const activeEnrolledCount = students.filter(s => s.enrolledCourses && s.enrolledCourses.length > 0).length;
@@ -431,6 +547,7 @@ export default function AdminConsole() {
           <button className={`${styles.tabBtn} ${activeTab === 'callbacks' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('callbacks'); setSearchTerm(''); }}>Hotline Callback Logs ({callbacks.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'lecturers' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('lecturers'); setSearchTerm(''); }}>Mentors ({lecturers.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'payments' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('payments'); setSearchTerm(''); }}>Payments ({transactions.length})</button>
+          <button className={`${styles.tabBtn} ${activeTab === 'assessments' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('assessments'); setSearchTerm(''); }}>Assessments ({adminAssessments.length})</button>
         </div>
 
         {/* Dynamic Metric Gauges */}
@@ -802,6 +919,72 @@ export default function AdminConsole() {
             </table>
           )}
 
+          {/* TAB 8: ASSESSMENTS ENTITIES */}
+          {activeTab === 'assessments' && (
+            <table className={styles.adminTable}>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Assessment Title</th>
+                  <th>Assigned Course</th>
+                  <th>Duration & Marks</th>
+                  <th>Questions</th>
+                  <th>Attempts</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAssessments.map((asst) => (
+                  <tr key={asst.id}>
+                    <td>#{asst.id}</td>
+                    <td>
+                      <div style={{ fontWeight: '600', color: '#ffffff' }}>{asst.title}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', maxWidth: 260, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {asst.description || 'Cohort assessment'}
+                      </div>
+                    </td>
+                    <td>
+                      <span className={styles.categoryBadge}>{asst.course_title}</span>
+                    </td>
+                    <td>
+                      <div>{asst.duration_minutes} Mins</div>
+                      <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+                        {asst.total_marks} Marks ({asst.passing_marks} to pass)
+                      </div>
+                    </td>
+                    <td>{asst.question_count || 0} Questions</td>
+                    <td>
+                      <button
+                        className={styles.actionBtn}
+                        style={{ color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '0.3rem 0.6rem' }}
+                        onClick={() => handleOpenAdminResults(asst)}
+                      >
+                        {asst.attempt_count || 0} Attempts 📊
+                      </button>
+                    </td>
+                    <td>
+                      <span className={styles.statusBadge} style={{ color: asst.status === 'published' ? '#34d399' : '#94a3b8' }}>
+                        {asst.status}
+                      </span>
+                    </td>
+                    <td>
+                      <button className={`${styles.actionBtn} ${styles.editBtn}`} onClick={() => openModal('edit', asst)}>Edit</button>
+                      <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(asst.id)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+                {filteredAssessments.length === 0 && (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2rem' }}>
+                      No assessments matching search filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+
         </div>
       </main>
 
@@ -1156,6 +1339,209 @@ export default function AdminConsole() {
           </div>
         </div>
       )}
+
+      {/* ─── ADMIN MODAL: CREATE / EDIT ASSESSMENT ─── */}
+      {showAdminAsstModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowAdminAsstModal(false)}>
+          <div className={styles.modalContent} style={{ maxWidth: '620px' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>
+                {adminAsstForm.id ? 'Modify Assessment' : 'Create Global Assessment'}
+              </h3>
+              <button className={styles.modalClose} onClick={() => setShowAdminAsstModal(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveAdminAssessment}>
+              <div className={styles.formScrollBody}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Target Course Cohort *</label>
+                  <select
+                    required
+                    className={styles.formInput}
+                    value={adminAsstForm.course_id}
+                    onChange={(e) => setAdminAsstForm({ ...adminAsstForm, course_id: parseInt(e.target.value, 10) })}
+                  >
+                    <option value="">Select Course...</option>
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Assessment Title *</label>
+                  <input
+                    type="text"
+                    required
+                    className={styles.formInput}
+                    placeholder="e.g. Full-Stack Systems & Diagnostic Assessment"
+                    value={adminAsstForm.title}
+                    onChange={(e) => setAdminAsstForm({ ...adminAsstForm, title: e.target.value })}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Description</label>
+                  <textarea
+                    className={styles.formTextarea}
+                    placeholder="Comprehensive evaluation details..."
+                    value={adminAsstForm.description}
+                    onChange={(e) => setAdminAsstForm({ ...adminAsstForm, description: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Duration (Mins)</label>
+                    <input
+                      type="number"
+                      required
+                      className={styles.formInput}
+                      value={adminAsstForm.duration_minutes}
+                      onChange={(e) => setAdminAsstForm({ ...adminAsstForm, duration_minutes: parseInt(e.target.value || 0, 10) })}
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Passing Marks</label>
+                    <input
+                      type="number"
+                      required
+                      className={styles.formInput}
+                      value={adminAsstForm.passing_marks}
+                      onChange={(e) => setAdminAsstForm({ ...adminAsstForm, passing_marks: parseInt(e.target.value || 0, 10) })}
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Max Attempts</label>
+                    <input
+                      type="number"
+                      required
+                      className={styles.formInput}
+                      value={adminAsstForm.max_attempts}
+                      onChange={(e) => setAdminAsstForm({ ...adminAsstForm, max_attempts: parseInt(e.target.value || 1, 10) })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Publish Status</label>
+                    <select
+                      className={styles.formInput}
+                      value={adminAsstForm.status}
+                      onChange={(e) => setAdminAsstForm({ ...adminAsstForm, status: e.target.value })}
+                    >
+                      <option value="published">Published</option>
+                      <option value="draft">Draft</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Proctoring Monitoring</label>
+                    <select
+                      className={styles.formInput}
+                      value={adminAsstForm.proctoring_enabled ? 1 : 0}
+                      onChange={(e) => setAdminAsstForm({ ...adminAsstForm, proctoring_enabled: parseInt(e.target.value, 10) })}
+                    >
+                      <option value={1}>Enabled</option>
+                      <option value={0}>Disabled</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.actionBtn} style={{ color: '#ffffff', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setShowAdminAsstModal(false)}>Cancel</button>
+                <button type="submit" className={styles.gateBtn} style={{ width: 'auto', padding: '0.5rem 1rem' }}>Save Assessment</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── ADMIN MODAL: RESULTS & CSV EXPORT ─── */}
+      {showAdminResultsModal && selectedAssessmentForResults && (
+        <div className={styles.modalOverlay} onClick={() => setShowAdminResultsModal(false)}>
+          <div className={styles.modalContent} style={{ maxWidth: '920px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>
+                  Results & Analytics: {selectedAssessmentForResults.title}
+                </h3>
+                <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>
+                  {selectedAssessmentForResults.course_title} • {adminAttempts.length} Total Submissions
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => handleExportCsv(selectedAssessmentForResults, adminAttempts)}
+                  className={styles.gateBtn}
+                  style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '0.78rem', background: '#10b981', borderColor: '#10b981' }}
+                >
+                  📥 Export CSV
+                </button>
+                <button className={styles.modalClose} onClick={() => setShowAdminResultsModal(false)}>✕</button>
+              </div>
+            </div>
+
+            <table className={styles.adminTable}>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Attempt</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Proctoring</th>
+                  <th>Submitted At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminAttempts.map((att) => (
+                  <tr key={att.id}>
+                    <td>
+                      <div style={{ fontWeight: '600', color: '#ffffff' }}>{att.student_name}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>{att.student_email}</div>
+                    </td>
+                    <td>#{att.attempt_number}</td>
+                    <td>
+                      <strong style={{ color: att.passed ? '#34d399' : '#f87171' }}>
+                        {att.total_score} ({att.percentage}%)
+                      </strong>
+                    </td>
+                    <td>
+                      <span className={styles.statusBadge} style={{ color: att.status === 'evaluated' ? '#34d399' : '#fbbf24' }}>
+                        {att.status === 'evaluated' ? (att.passed ? 'PASSED' : 'FAILED') : 'EVALUATING'}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: att.proctoring_flags > 0 ? '#fbbf24' : '#34d399' }}>
+                        {att.proctoring_flags} Flags
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>
+                      {att.submitted_at ? new Date(att.submitted_at).toLocaleString() : 'In Progress'}
+                    </td>
+                  </tr>
+                ))}
+                {adminAttempts.length === 0 && (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: '2rem' }}>
+                      No student submissions recorded for this assessment.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
 
     </div>
   );

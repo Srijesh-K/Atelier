@@ -42,10 +42,11 @@ async function initDb() {
   initPromise = (async () => {
     const p = await getPool();
 
-    // Fast-path: if tables already exist, skip running 40+ DDL migration statements
+    // Fast-path: if assessment tables already exist, check seed and return
     try {
-      const [tables] = await p.execute("SHOW TABLES LIKE 'atelier_student_progress'");
+      const [tables] = await p.execute("SHOW TABLES LIKE 'atelier_assessments'");
       if (tables && tables.length > 0) {
+        await seedSampleAssessmentsIfEmpty(p);
         initialized = true;
         return;
       }
@@ -452,6 +453,198 @@ async function runFullSchemaMigration(p) {
     await p.execute("ALTER TABLE atelier_student_courses ADD COLUMN completed_at TIMESTAMP NULL");
   }
 
+  // ─── ASSESSMENTS TABLE (Core course-owned assessments) ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_assessments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      course_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      duration_minutes INT DEFAULT 60,
+      total_marks INT DEFAULT 0,
+      passing_marks INT DEFAULT 0,
+      max_attempts INT DEFAULT 1,
+      status ENUM('draft','published','archived') DEFAULT 'draft',
+      start_date DATETIME NULL,
+      end_date DATETIME NULL,
+      randomize_questions TINYINT(1) DEFAULT 0,
+      randomize_options TINYINT(1) DEFAULT 0,
+      sequential_navigation TINYINT(1) DEFAULT 0,
+      proctoring_enabled TINYINT(1) DEFAULT 0,
+      proctoring_config TEXT NULL,
+      grading_policy ENUM('best','latest','average') DEFAULT 'best',
+      show_results_immediately TINYINT(1) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (course_id) REFERENCES atelier_courses(id) ON DELETE CASCADE,
+      INDEX idx_course_status (course_id, status)
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── ASSESSMENT SECTIONS TABLE (Optional logical grouping) ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_assessment_sections (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      assessment_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      sort_order INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (assessment_id) REFERENCES atelier_assessments(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── QUESTION BANK TABLE (Course-scoped reusable questions) ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_questions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      course_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      question_text TEXT NOT NULL,
+      question_type VARCHAR(50) NOT NULL,
+      difficulty ENUM('easy','medium','hard') DEFAULT 'medium',
+      marks INT DEFAULT 1,
+      negative_marks DECIMAL(5,2) DEFAULT 0,
+      partial_credit TINYINT(1) DEFAULT 0,
+      tags VARCHAR(255) NULL,
+      config_json TEXT NULL,
+      created_by INT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (course_id) REFERENCES atelier_courses(id) ON DELETE CASCADE,
+      INDEX idx_course_type (course_id, question_type)
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── QUESTION OPTIONS TABLE (For MCQ, Multi-select, True/False) ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_question_options (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      question_id INT NOT NULL,
+      option_text TEXT NOT NULL,
+      is_correct TINYINT(1) DEFAULT 0,
+      explanation TEXT NULL,
+      sort_order INT DEFAULT 0,
+      FOREIGN KEY (question_id) REFERENCES atelier_questions(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── QUESTION TEST CASES (For Coding, Debugging, SQL) ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_question_test_cases (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      question_id INT NOT NULL,
+      input TEXT NULL,
+      expected_output TEXT NOT NULL,
+      is_hidden TINYINT(1) DEFAULT 0,
+      marks INT DEFAULT 0,
+      explanation TEXT NULL,
+      FOREIGN KEY (question_id) REFERENCES atelier_questions(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── QUESTION RUBRICS (For Essay, Short Answer manual evaluation) ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_question_rubrics (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      question_id INT NOT NULL,
+      criterion VARCHAR(255) NOT NULL,
+      max_marks INT NOT NULL,
+      description TEXT NULL,
+      FOREIGN KEY (question_id) REFERENCES atelier_questions(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── ASSESSMENT QUESTIONS JUNCTION ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_assessment_questions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      assessment_id INT NOT NULL,
+      section_id INT NULL,
+      question_id INT NOT NULL,
+      sort_order INT DEFAULT 0,
+      marks INT DEFAULT 1,
+      FOREIGN KEY (assessment_id) REFERENCES atelier_assessments(id) ON DELETE CASCADE,
+      FOREIGN KEY (section_id) REFERENCES atelier_assessment_sections(id) ON DELETE SET NULL,
+      FOREIGN KEY (question_id) REFERENCES atelier_questions(id) ON DELETE CASCADE,
+      UNIQUE KEY uniq_assessment_q (assessment_id, question_id)
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── STUDENT ASSESSMENT ATTEMPTS (Server-authoritative timer & scoring) ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_attempts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      assessment_id INT NOT NULL,
+      student_id INT NOT NULL,
+      attempt_number INT DEFAULT 1,
+      status ENUM('not_started','in_progress','submitted','evaluating','evaluated','auto_submitted','cancelled') DEFAULT 'in_progress',
+      started_at DATETIME NOT NULL,
+      ends_at DATETIME NOT NULL,
+      submitted_at DATETIME NULL,
+      total_score DECIMAL(6,2) DEFAULT 0,
+      percentage DECIMAL(5,2) DEFAULT 0,
+      passed TINYINT(1) DEFAULT 0,
+      feedback TEXT NULL,
+      proctoring_flags INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (assessment_id) REFERENCES atelier_assessments(id) ON DELETE CASCADE,
+      FOREIGN KEY (student_id) REFERENCES atelier_students(id) ON DELETE CASCADE,
+      INDEX idx_student_assessment (student_id, assessment_id)
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── ATTEMPT QUESTIONS (Frozen snapshot for versioning & pools) ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_attempt_questions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      attempt_id INT NOT NULL,
+      question_id INT NOT NULL,
+      section_id INT NULL,
+      sort_order INT DEFAULT 0,
+      marks INT DEFAULT 1,
+      question_snapshot JSON NULL,
+      FOREIGN KEY (attempt_id) REFERENCES atelier_attempts(id) ON DELETE CASCADE,
+      FOREIGN KEY (question_id) REFERENCES atelier_questions(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── STUDENT RESPONSES & MANUAL / AUTO EVALUATION ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_responses (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      attempt_id INT NOT NULL,
+      question_id INT NOT NULL,
+      response_data JSON NULL,
+      status ENUM('unanswered','saved','correct','incorrect','partial','pending_manual_review','error') DEFAULT 'saved',
+      marks_awarded DECIMAL(5,2) DEFAULT 0,
+      max_marks DECIMAL(5,2) DEFAULT 1,
+      evaluator_feedback TEXT NULL,
+      graded_by INT NULL,
+      graded_at DATETIME NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (attempt_id) REFERENCES atelier_attempts(id) ON DELETE CASCADE,
+      FOREIGN KEY (question_id) REFERENCES atelier_questions(id) ON DELETE CASCADE,
+      UNIQUE KEY uniq_attempt_q_resp (attempt_id, question_id)
+    ) ENGINE=InnoDB
+  `);
+
+  // ─── PROCTORING AUDIT LOG TABLE ───
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_proctoring_events (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      attempt_id INT NOT NULL,
+      student_id INT NOT NULL,
+      event_type VARCHAR(50) NOT NULL,
+      metadata JSON NULL,
+      timestamp DATETIME NOT NULL,
+      FOREIGN KEY (attempt_id) REFERENCES atelier_attempts(id) ON DELETE CASCADE,
+      FOREIGN KEY (student_id) REFERENCES atelier_students(id) ON DELETE CASCADE,
+      INDEX idx_attempt_event (attempt_id, timestamp)
+    ) ENGINE=InnoDB
+  `);
+
   // ─── SAFE ORDERED SEEDING (Idempotent & Constraint-Aware) ───
 
   // 1. Seed Lecturers if table is empty
@@ -774,7 +967,364 @@ async function runFullSchemaMigration(p) {
     console.warn("Seeding default transactions note:", err.message);
   }
 
+  // 11. Seed Sample Mixed Assessment & Questions if empty
+  await seedSampleAssessmentsIfEmpty(p);
+
   initialized = true;
+}
+
+async function seedSampleAssessmentsIfEmpty(p) {
+  try {
+    const [countRows] = await p.execute("SELECT COUNT(*) as count FROM atelier_assessments");
+    if (countRows[0].count > 0) return;
+
+    const [courses] = await p.execute("SELECT id FROM atelier_courses ORDER BY id ASC LIMIT 2");
+    if (!courses || courses.length === 0) return;
+
+    const courseId = courses[0].id;
+
+    // 1. Create Assessment 1 (Mixed Comprehensive)
+    const [asstRes] = await p.execute(`
+      INSERT INTO atelier_assessments (
+        course_id, title, description, duration_minutes, total_marks, passing_marks, max_attempts,
+        status, randomize_questions, randomize_options, sequential_navigation, proctoring_enabled,
+        proctoring_config, grading_policy, show_results_immediately
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      courseId,
+      'Full-Stack Architecture & Engineering Assessment',
+      'Comprehensive multi-section mixed diagnostic examination evaluating architecture fundamentals, ACID semantics, algorithms, SQL queries, debugging, and system design.',
+      45,
+      55,
+      28,
+      3,
+      'published',
+      0,
+      0,
+      0,
+      1,
+      JSON.stringify({ tabSwitchLimit: 3, warnOnBlur: true, fullScreenRecommended: true }),
+      'best',
+      1
+    ]);
+    const assessmentId = asstRes.insertId;
+
+    // Create 3 Sections
+    const [sec1Res] = await p.execute(
+      "INSERT INTO atelier_assessment_sections (assessment_id, title, description, sort_order) VALUES (?, ?, ?, ?)",
+      [assessmentId, 'Section A: Architectural Fundamentals & Concepts', 'Objective multi-format core concepts (MCQ, Multi-select, True/False, Fill Blank, Numerical)', 1]
+    );
+    const sec1Id = sec1Res.insertId;
+
+    const [sec2Res] = await p.execute(
+      "INSERT INTO atelier_assessment_sections (assessment_id, title, description, sort_order) VALUES (?, ?, ?, ?)",
+      [assessmentId, 'Section B: Systems & Domain Analysis', 'Systems patterns, matching, ordering, and subjective essay evaluations', 2]
+    );
+    const sec2Id = sec2Res.insertId;
+
+    const [sec3Res] = await p.execute(
+      "INSERT INTO atelier_assessment_sections (assessment_id, title, description, sort_order) VALUES (?, ?, ?, ?)",
+      [assessmentId, 'Section C: Practical Engineering & Coding', 'Interactive programming, debugging, SQL queries, code output, and architectural artifact upload', 3]
+    );
+    const sec3Id = sec3Res.insertId;
+
+    // Seed questions list
+    const questionsToSeed = [
+      // --- SECTION 1 ---
+      {
+        sectionId: sec1Id,
+        title: 'React Server Components Architecture',
+        questionText: 'What is the primary architectural advantage of React Server Components (RSC) compared to traditional client-side rendering?',
+        questionType: 'single_choice',
+        difficulty: 'medium',
+        marks: 2,
+        negativeMarks: 0.5,
+        partialCredit: 0,
+        tags: 'react,nextjs,architecture',
+        config: null,
+        options: [
+          { text: 'They eliminate unnecessary bundle weight by streaming zero JavaScript bundle to the client for server-only components.', isCorrect: 1, explanation: 'RSCs render purely on the server and emit serialized JSON/JSX without adding JS runtime cost.' },
+          { text: 'They execute entirely inside service workers in the user browser.', isCorrect: 0, explanation: 'Service workers handle caching and background tasks on the client, not RSC.' },
+          { text: 'They replace relational databases with in-memory browser storage.', isCorrect: 0, explanation: 'RSCs query databases directly from server context, but do not replace databases.' },
+          { text: 'They automatically compile React code directly into native WebAssembly binaries.', isCorrect: 0, explanation: 'RSC runs standard JavaScript/TypeScript on the Node/Edge server runtime.' }
+        ]
+      },
+      {
+        sectionId: sec1Id,
+        title: 'ACID Database Properties',
+        questionText: 'Which of the following represent core ACID guarantees provided by relational database management systems? (Select all that apply)',
+        questionType: 'multiple_choice',
+        difficulty: 'medium',
+        marks: 3,
+        negativeMarks: 0,
+        partialCredit: 1,
+        tags: 'database,sql,acid',
+        config: null,
+        options: [
+          { text: 'Atomicity (all operations within a transaction succeed or all rollback)', isCorrect: 1, explanation: 'Atomicity ensures all-or-nothing transactions.' },
+          { text: 'Consistency (database transitions strictly between valid schema states)', isCorrect: 1, explanation: 'Consistency guarantees integrity rules and foreign keys.' },
+          { text: 'Isolation (concurrent transactions execute without race conditions)', isCorrect: 1, explanation: 'Isolation prevents dirty reads, non-repeatable reads, and phantom reads.' },
+          { text: 'Durability (committed modifications persist despite power losses or crashes)', isCorrect: 1, explanation: 'Durability is guaranteed via Write-Ahead Logs (WAL).' },
+          { text: 'Availability (every non-failing node must return an immediate response)', isCorrect: 0, explanation: 'Availability is a CAP theorem attribute, not an ACID database transaction property.' }
+        ]
+      },
+      {
+        sectionId: sec1Id,
+        title: 'HTTP/2 & HTTP/3 Multiplexing',
+        questionText: 'True or False: In HTTP/2 and HTTP/3, multiplexing allows multiple concurrent requests and responses over a single transport connection, eliminating head-of-line blocking at the application layer.',
+        questionType: 'true_false',
+        difficulty: 'easy',
+        marks: 1,
+        negativeMarks: 0,
+        partialCredit: 0,
+        tags: 'networking,http',
+        config: null,
+        options: [
+          { text: 'True', isCorrect: 1, explanation: 'HTTP/2 multiplexes streams across binary frames over a single TCP connection.' },
+          { text: 'False', isCorrect: 0, explanation: '' }
+        ]
+      },
+      {
+        sectionId: sec1Id,
+        title: 'DDL Truncate Operation',
+        questionText: 'The DDL SQL statement used to quickly deallocate all data pages from a table without individually recording row-level deletes is `[[TRUNCATE]]`.',
+        questionType: 'fill_blank',
+        difficulty: 'medium',
+        marks: 2,
+        negativeMarks: 0,
+        partialCredit: 0,
+        tags: 'sql,ddl',
+        config: { caseSensitive: false, acceptedAnswers: ['TRUNCATE', 'TRUNCATE TABLE'] }
+      },
+      {
+        sectionId: sec1Id,
+        title: 'Hash Table Load Factor',
+        questionText: 'A hash table has 1,000 allocated buckets and currently stores 650 unique elements. What is the current load factor (alpha) of this hash table? (Express as a decimal number)',
+        questionType: 'numerical',
+        difficulty: 'easy',
+        marks: 2,
+        negativeMarks: 0,
+        partialCredit: 0,
+        tags: 'data-structures,hash-table',
+        config: { targetValue: 0.65, tolerance: 0.01 }
+      },
+
+      // --- SECTION 2 ---
+      {
+        sectionId: sec2Id,
+        title: 'Distributed Systems Patterns Matching',
+        questionText: 'Match each distributed systems component/pattern with its primary operational purpose.',
+        questionType: 'matching',
+        difficulty: 'hard',
+        marks: 4,
+        negativeMarks: 0,
+        partialCredit: 1,
+        tags: 'distributed-systems,architecture',
+        config: {
+          pairs: [
+            { left: 'Reverse Proxy', right: 'Terminates TLS and distributes load to upstream application servers' },
+            { left: 'Write-Ahead Log (WAL)', right: 'Ensures durability by appending operations to disk before flushing memory' },
+            { left: 'Consistent Hashing', right: 'Minimizes key reorganization when cache nodes scale dynamically' },
+            { left: 'Circuit Breaker', right: 'Prevents cascading failures by halting calls to an unhealthy dependency' }
+          ]
+        }
+      },
+      {
+        sectionId: sec2Id,
+        title: 'Browser Critical Rendering Path',
+        questionText: 'Arrange the stages of the Browser Critical Rendering Path in chronological order from earliest to latest.',
+        questionType: 'ordering',
+        difficulty: 'medium',
+        marks: 4,
+        negativeMarks: 0,
+        partialCredit: 1,
+        tags: 'web-performance,browser',
+        config: {
+          items: [
+            'Parse HTML and construct DOM tree',
+            'Parse CSS and construct CSSOM tree',
+            'Combine DOM and CSSOM to create Render Tree',
+            'Compute geometry and execute Layout (Reflow)',
+            'Paint pixels and Composite layers onto GPU'
+          ]
+        }
+      },
+      {
+        sectionId: sec2Id,
+        title: 'Database Indexing Trade-offs',
+        questionText: 'Explain the fundamental trade-off of adding multiple B-Tree indexes to an OLTP database table with high write volume.',
+        questionType: 'short_answer',
+        difficulty: 'medium',
+        marks: 3,
+        negativeMarks: 0,
+        partialCredit: 1,
+        tags: 'databases,indexing,tradeoffs',
+        rubrics: [
+          { criterion: 'Read Acceleration Explanation', maxMarks: 1, description: 'Clearly explains how B-tree search reduces disk I/O for SELECT queries.' },
+          { criterion: 'Write Overhead & Page Splitting Impact', maxMarks: 2, description: 'Accurately explains write amplification, index tree maintenance, and page splits on INSERT/UPDATE/DELETE.' }
+        ]
+      },
+      {
+        sectionId: sec2Id,
+        title: 'Monolith vs Microservices Architecture',
+        questionText: 'Compare Monolithic Architecture and Microservices Architecture across three dimensions: 1) Deployment independence and blast radius, 2) Data consistency & distributed transactions (Saga / 2PC), and 3) Operational and observability overhead. Provide concrete trade-offs.',
+        questionType: 'essay',
+        difficulty: 'hard',
+        marks: 10,
+        negativeMarks: 0,
+        partialCredit: 1,
+        tags: 'architecture,microservices,system-design',
+        rubrics: [
+          { criterion: 'Deployment & Blast Radius Analysis', maxMarks: 3, description: 'Compares unified deployment pipeline vs decentralized services with bounded blast radiuses.' },
+          { criterion: 'Data Consistency & Distributed Transactions', maxMarks: 4, description: 'Evaluates ACID single-database transactions vs Saga orchestrator/choreography and eventual consistency.' },
+          { criterion: 'Operational Overhead & Observability', maxMarks: 3, description: 'Details tracing (OpenTelemetry), distributed logging, service mesh, and infrastructure complexity.' }
+        ]
+      },
+
+      // --- SECTION 3 ---
+      {
+        sectionId: sec3Id,
+        title: 'Two Sum Algorithm',
+        questionText: 'Write a JavaScript function `twoSum(nums, target)` that returns an array with the two 0-based indices of the numbers such that they add up to `target`. Assume exactly one valid solution exists.',
+        questionType: 'coding',
+        difficulty: 'medium',
+        marks: 6,
+        negativeMarks: 0,
+        partialCredit: 1,
+        tags: 'algorithms,javascript,hash-map',
+        config: {
+          language: 'javascript',
+          starterCode: 'function twoSum(nums, target) {\n  // Implement your O(n) hash map or O(n^2) solution\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const complement = target - nums[i];\n    if (map.has(complement)) {\n      return [map.get(complement), i];\n    }\n    map.set(nums[i], i);\n  }\n  return [];\n}'
+        },
+        testCases: [
+          { input: JSON.stringify({ args: [[2, 7, 11, 15], 9] }), expectedOutput: '[0,1]', isHidden: 0, marks: 2 },
+          { input: JSON.stringify({ args: [[3, 2, 4], 6] }), expectedOutput: '[1,2]', isHidden: 0, marks: 2 },
+          { input: JSON.stringify({ args: [[3, 3], 6] }), expectedOutput: '[0,1]', isHidden: 1, marks: 2 }
+        ]
+      },
+      {
+        sectionId: sec3Id,
+        title: 'Binary Search Off-by-One Debugging',
+        questionText: 'The following implementation of binary search contains a bug when searching for boundary elements. Fix the high pointer or boundary condition so all test cases pass.',
+        questionType: 'debugging',
+        difficulty: 'medium',
+        marks: 6,
+        negativeMarks: 0,
+        partialCredit: 1,
+        tags: 'debugging,algorithms,binary-search',
+        config: {
+          language: 'javascript',
+          starterCode: 'function binarySearch(arr, target) {\n  let low = 0;\n  let high = arr.length; // BUG: Should be arr.length - 1\n  while (low <= high) {\n    let mid = Math.floor((low + high) / 2);\n    if (arr[mid] === target) return mid;\n    if (arr[mid] < target) low = mid + 1;\n    else high = mid - 1;\n  }\n  return -1;\n}'
+        },
+        testCases: [
+          { input: JSON.stringify({ args: [[1, 3, 5, 7, 9], 1] }), expectedOutput: '0', isHidden: 0, marks: 2 },
+          { input: JSON.stringify({ args: [[1, 3, 5, 7, 9], 9] }), expectedOutput: '4', isHidden: 0, marks: 2 },
+          { input: JSON.stringify({ args: [[1, 3, 5, 7, 9], 6] }), expectedOutput: '-1', isHidden: 1, marks: 2 }
+        ]
+      },
+      {
+        sectionId: sec3Id,
+        title: 'High Earner Department SQL Query',
+        questionText: 'Write an SQL query to retrieve the `name` and `salary` of all employees from the `employees` table who earn strictly more than 60,000, sorted by `salary` in descending order.',
+        questionType: 'sql',
+        difficulty: 'medium',
+        marks: 5,
+        negativeMarks: 0,
+        partialCredit: 0,
+        tags: 'sql,database,queries',
+        config: {
+          schemaSql: 'CREATE TABLE employees (id INT, name TEXT, salary INT, department TEXT); INSERT INTO employees VALUES (1, "Alice", 75000, "Engineering"), (2, "Bob", 52000, "Design"), (3, "Charlie", 89000, "Engineering"), (4, "David", 60000, "Marketing");',
+          expectedSql: 'SELECT name, salary FROM employees WHERE salary > 60000 ORDER BY salary DESC'
+        }
+      },
+      {
+        sectionId: sec3Id,
+        title: 'JavaScript Event Loop & Closure Output',
+        questionText: 'What is the exact output printed to the console when the following code executes?\n\n```javascript\nfor (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 10);\n}\n```\n(Enter each line of output separated by a newline)',
+        questionType: 'code_output',
+        difficulty: 'medium',
+        marks: 2,
+        negativeMarks: 0,
+        partialCredit: 0,
+        tags: 'javascript,event-loop,closures',
+        config: {
+          expectedOutput: '3\n3\n3',
+          trimWhitespace: true
+        }
+      },
+      {
+        sectionId: sec3Id,
+        title: 'Distributed System Architecture Diagram',
+        questionText: 'Upload your architectural block diagram (PDF, PNG, JPG, or SVG) depicting a distributed URL shortener service (including DNS, load balancers, rate limiter, database, and Redis cache cluster).',
+        questionType: 'file_upload',
+        difficulty: 'hard',
+        marks: 5,
+        negativeMarks: 0,
+        partialCredit: 0,
+        tags: 'system-design,architecture,diagram',
+        config: {
+          allowedExtensions: ['.pdf', '.png', '.jpg', '.jpeg', '.svg'],
+          maxSizeBytes: 10485760
+        }
+      }
+    ];
+
+    let sortOrder = 1;
+    for (const q of questionsToSeed) {
+      const configStr = q.config ? JSON.stringify(q.config) : null;
+      const [qRes] = await p.execute(`
+        INSERT INTO atelier_questions (
+          course_id, title, question_text, question_type, difficulty, marks,
+          negative_marks, partial_credit, tags, config_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        courseId, q.title, q.questionText, q.questionType, q.difficulty, q.marks,
+        q.negativeMarks, q.partialCredit, q.tags, configStr
+      ]);
+      const questionId = qRes.insertId;
+
+      // Options
+      if (q.options) {
+        let optOrder = 1;
+        for (const opt of q.options) {
+          await p.execute(`
+            INSERT INTO atelier_question_options (question_id, option_text, is_correct, explanation, sort_order)
+            VALUES (?, ?, ?, ?, ?)
+          `, [questionId, opt.text, opt.isCorrect, opt.explanation || null, optOrder++]);
+        }
+      }
+
+      // Test Cases
+      if (q.testCases) {
+        for (const tc of q.testCases) {
+          await p.execute(`
+            INSERT INTO atelier_question_test_cases (question_id, input, expected_output, is_hidden, marks)
+            VALUES (?, ?, ?, ?, ?)
+          `, [questionId, tc.input, tc.expectedOutput, tc.isHidden, tc.marks]);
+        }
+      }
+
+      // Rubrics
+      if (q.rubrics) {
+        for (const rub of q.rubrics) {
+          await p.execute(`
+            INSERT INTO atelier_question_rubrics (question_id, criterion, max_marks, description)
+            VALUES (?, ?, ?, ?)
+          `, [questionId, rub.criterion, rub.maxMarks, rub.description]);
+        }
+      }
+
+      // Link to assessment
+      await p.execute(`
+        INSERT INTO atelier_assessment_questions (assessment_id, section_id, question_id, sort_order, marks)
+        VALUES (?, ?, ?, ?, ?)
+      `, [assessmentId, q.sectionId, questionId, sortOrder++, q.marks]);
+    }
+
+    console.log(`[Atelier Assessment Engine] Successfully seeded sample assessment #${assessmentId} with 14 question types.`);
+  } catch (seedErr) {
+    console.warn("Seeding sample assessments error:", seedErr.message);
+  }
 }
 
 // Exported query helpers

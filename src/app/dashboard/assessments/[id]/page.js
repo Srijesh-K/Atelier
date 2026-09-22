@@ -1,0 +1,1169 @@
+'use client';
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { 
+  startOrResumeStudentAttemptAction,
+  getStudentAttemptPlayerAction,
+  saveStudentAttemptProgressAction,
+  recordStudentProctoringAction,
+  submitStudentAttemptAction,
+  getStudentAttemptResultAction,
+  runStudentCodeTestAction,
+  runStudentSQLTestAction
+} from '@/lib/assessments/actions';
+import styles from '../assessments.module.css';
+
+// Dynamically import Monaco Editor to avoid SSR issues
+const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
+
+export default function AssessmentPlayerPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const rawId = params?.id;
+  const assessmentId = rawId ? parseInt(rawId, 10) : null;
+  const isReportParam = searchParams?.get('report') === 'true';
+
+  const [studentEmail, setStudentEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Mode: 'player' | 'report'
+  const [viewMode, setViewMode] = useState(isReportParam ? 'report' : 'player');
+
+  // Player State
+  const [attemptId, setAttemptId] = useState(null);
+  const [attemptData, setAttemptData] = useState(null);
+  const [sections, setSections] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+
+  // Student Responses State: { [questionId]: value }
+  const [responses, setResponses] = useState({});
+  const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
+  const [saveStatus, setSaveStatus] = useState('All changes saved');
+
+  // Server Timer
+  const [remainingSeconds, setRemainingSeconds] = useState(null);
+
+  // Sandboxed Live Code Execution
+  const [codeExecuting, setCodeExecuting] = useState(false);
+  const [codeConsole, setCodeConsole] = useState({ stdout: '', stderr: '', result: null, timeMs: 0 });
+  const [sqlResults, setSqlResults] = useState(null);
+
+  // Proctoring Modal & Count
+  const [proctorWarning, setProctorWarning] = useState(false);
+  const [proctorCount, setProctorCount] = useState(0);
+
+  // Submit Modal
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Report State
+  const [reportData, setReportData] = useState(null);
+
+  const saveTimeoutRef = useRef(null);
+
+  // 1. Initial Load & Session Initialization
+  useEffect(() => {
+    const email = localStorage.getItem('loggedInStudentEmail');
+    if (!email) {
+      router.push('/auth/signin');
+      return;
+    }
+    setStudentEmail(email);
+
+    if (!assessmentId || isNaN(assessmentId)) {
+      setError('Invalid assessment ID.');
+      setLoading(false);
+      return;
+    }
+
+    async function init() {
+      try {
+        if (isReportParam) {
+          // Fetch existing report
+          // We first resume/start to know latest attempt ID or fetch latest
+          const startRes = await startOrResumeStudentAttemptAction(email, assessmentId).catch(() => null);
+          const attId = startRes?.attemptId;
+          if (attId) {
+            const report = await getStudentAttemptResultAction(email, attId);
+            setReportData(report);
+            setViewMode('report');
+          } else {
+            setViewMode('player');
+          }
+        } else {
+          // Start or resume in-progress attempt
+          const startRes = await startOrResumeStudentAttemptAction(email, assessmentId);
+          if (startRes.expired) {
+            // Expired attempt auto-submitted, show report
+            const report = await getStudentAttemptResultAction(email, startRes.attemptId);
+            setReportData(report);
+            setViewMode('report');
+          } else {
+            setAttemptId(startRes.attemptId);
+            const playerState = await getStudentAttemptPlayerAction(email, startRes.attemptId);
+            setAttemptData(playerState.attempt);
+            setSections(playerState.sections || []);
+            setQuestions(playerState.questions || []);
+            setRemainingSeconds(playerState.attempt.remainingSeconds || 0);
+
+            // Hydrate responses
+            const initialResponses = {};
+            playerState.questions.forEach((q) => {
+              if (q.student_response !== null && q.student_response !== undefined) {
+                initialResponses[q.id] = q.student_response;
+              } else if (q.question_type === 'coding' || q.question_type === 'debugging') {
+                initialResponses[q.id] = q.config?.starterCode || '';
+              } else if (q.question_type === 'ordering') {
+                // Initialize with shuffled or default order
+                initialResponses[q.id] = q.config?.items || [];
+              } else if (q.question_type === 'matching') {
+                initialResponses[q.id] = {};
+              }
+            });
+            setResponses(initialResponses);
+            setViewMode('player');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to initialize assessment:', err);
+        setError(err.message || 'Unable to access assessment.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    init();
+  }, [assessmentId, isReportParam, router]);
+
+  // 2. Server-Synced Countdown Timer
+  useEffect(() => {
+    if (viewMode !== 'player' || remainingSeconds === null || remainingSeconds === undefined) return;
+
+    if (remainingSeconds <= 0) {
+      // Auto-submit immediately
+      handleSubmitAttempt(true);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleSubmitAttempt(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [viewMode, remainingSeconds]);
+
+  // 3. Proctoring Event Listeners (Tab Switches, Blurs)
+  useEffect(() => {
+    if (viewMode !== 'player' || !attemptData?.proctoring_enabled || !attemptId) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setProctorCount((prev) => {
+          const next = prev + 1;
+          recordStudentProctoringAction(studentEmail, attemptId, 'tab_switch', { count: next });
+          return next;
+        });
+        setProctorWarning(true);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      setProctorCount((prev) => {
+        const next = prev + 1;
+        recordStudentProctoringAction(studentEmail, attemptId, 'window_blur', { count: next });
+        return next;
+      });
+      setProctorWarning(true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [viewMode, attemptData, attemptId, studentEmail]);
+
+  // 4. Debounced Autosave Engine
+  const triggerAutosave = useCallback((qId, val) => {
+    setSaveStatus('Saving draft...');
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        if (attemptId && studentEmail) {
+          await saveStudentAttemptProgressAction(studentEmail, attemptId, [
+            { questionId: qId, responseData: val }
+          ]);
+          setSaveStatus('Draft saved');
+        }
+      } catch (err) {
+        console.warn('Autosave error:', err);
+        setSaveStatus('Unsaved changes');
+      }
+    }, 1200);
+  }, [attemptId, studentEmail]);
+
+  const handleResponseChange = (qId, val) => {
+    setResponses((prev) => ({
+      ...prev,
+      [qId]: val
+    }));
+    triggerAutosave(qId, val);
+  };
+
+  // 5. Submit Handler
+  const handleSubmitAttempt = async (auto = false) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const payload = Object.entries(responses).map(([k, v]) => ({
+        questionId: parseInt(k, 10),
+        responseData: v
+      }));
+
+      await submitStudentAttemptAction(studentEmail, attemptId, payload);
+      const report = await getStudentAttemptResultAction(studentEmail, attemptId);
+      setReportData(report);
+      setViewMode('report');
+      setShowSubmitModal(false);
+    } catch (err) {
+      alert('Error submitting assessment: ' + (err.message || 'Try again'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 6. Sandboxed Code Runner
+  const handleRunCodeTest = async (q) => {
+    const code = responses[q.id] || '';
+    const lang = q.config?.language || 'javascript';
+    const sampleInput = q.config?.sampleInput || null;
+
+    setCodeExecuting(true);
+    setCodeConsole({ stdout: 'Running code in isolated sandbox...', stderr: '', result: null, timeMs: 0 });
+
+    try {
+      const exec = await runStudentCodeTestAction({
+        language: lang,
+        code,
+        input: sampleInput
+      });
+
+      setCodeConsole({
+        stdout: exec.stdout || '',
+        stderr: exec.stderr || '',
+        result: exec.result,
+        timeMs: exec.executionTimeMs
+      });
+    } catch (err) {
+      setCodeConsole({
+        stdout: '',
+        stderr: err.message || 'Execution error',
+        result: null,
+        timeMs: 0
+      });
+    } finally {
+      setCodeExecuting(false);
+    }
+  };
+
+  // 7. Sandboxed SQL Runner
+  const handleRunSQLTest = async (q) => {
+    const studentSql = responses[q.id] || '';
+    const schemaSql = q.config?.schemaSql || '';
+
+    setCodeExecuting(true);
+    try {
+      const exec = await runStudentSQLTestAction({
+        studentSql,
+        schemaSql
+      });
+
+      if (exec.success) {
+        setSqlResults(exec.studentRows || []);
+      } else {
+        alert(exec.error || 'SQL execution failed');
+      }
+    } catch (err) {
+      alert('SQL Error: ' + err.message);
+    } finally {
+      setCodeExecuting(false);
+    }
+  };
+
+  // 8. Telegram Bot API File Upload Handler
+  const handleFileUpload = async (qId, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size exceeds maximum allowable 10MB limit.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', 'assessment');
+
+    try {
+      setSaveStatus('Uploading artifact to cloud...');
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (data.success && data.file) {
+        handleResponseChange(qId, {
+          fileId: data.file.id,
+          filename: data.file.filename,
+          url: data.file.url,
+          size: data.file.size
+        });
+        setSaveStatus('File attached successfully');
+      } else {
+        alert('File upload failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (upErr) {
+      alert('Upload error: ' + upErr.message);
+    }
+  };
+
+  // Format timer
+  const formatTime = (secs) => {
+    if (secs === null || secs === undefined) return '00:00';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.playerWrapper} style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <p style={{ marginTop: 16, color: '#94a3b8' }}>Loading assessment workspace...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.emptyState}>
+          <h2 style={{ color: '#f87171' }}>Access Restricted</h2>
+          <p className={styles.emptySubtitle}>{error}</p>
+          <div style={{ marginTop: 20 }}>
+            <Link href="/dashboard/assessments" className={styles.btnPrimary}>
+              Back to Assessments
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // REPORT / RESULTS VIEW
+  // ──────────────────────────────────────────────────────────
+  if (viewMode === 'report' && reportData) {
+    const { attempt, responses: respList, proctoringEvents } = reportData;
+    const isEvaluated = attempt.status === 'evaluated';
+
+    return (
+      <div className={styles.container}>
+        <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Link href="/dashboard/assessments" style={{ color: '#818cf8', fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              ← Back to Assessments Catalog
+            </Link>
+            <h1 className={styles.title}>{attempt.assessment_title} — Performance Summary</h1>
+            <p className={styles.subtitle}>{attempt.course_title} • Attempt #{attempt.attempt_number}</p>
+          </div>
+
+          <div>
+            <span className={`${styles.statusPill} ${attempt.passed ? styles.pillPassed : styles.pillFailed}`} style={{ fontSize: 14, padding: '6px 14px' }}>
+              {isEvaluated ? (attempt.passed ? 'PASSED' : 'NOT PASSED') : 'UNDER EVALUATION'}
+            </span>
+          </div>
+        </div>
+
+        {/* Hero Scorecard */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 30 }}>
+          <div style={{ background: 'rgba(30, 41, 59, 0.7)', padding: 20, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Total Score</div>
+            <div style={{ fontSize: 32, fontWeight: 700, color: '#ffffff', margin: '4px 0' }}>
+              {attempt.total_score} <span style={{ fontSize: 16, color: '#64748b' }}>/ {attempt.total_marks}</span>
+            </div>
+            <div style={{ fontSize: 12, color: attempt.passed ? '#34d399' : '#f87171' }}>
+              {attempt.percentage}% (Passing: {attempt.passing_marks} marks)
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(30, 41, 59, 0.7)', padding: 20, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Status</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#ffffff', margin: '8px 0' }}>
+              {attempt.status === 'evaluated' ? 'Fully Evaluated' : 'Pending Manual Review'}
+            </div>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>
+              Submitted on {new Date(attempt.submitted_at || attempt.updated_at).toLocaleString()}
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(30, 41, 59, 0.7)', padding: 20, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Proctoring Flags</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: attempt.proctoring_flags > 0 ? '#fbbf24' : '#34d399', margin: '6px 0' }}>
+              {attempt.proctoring_flags} Flags
+            </div>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>
+              {attempt.proctoring_flags === 0 ? 'Clean integrity session' : 'Tab or blur events logged'}
+            </div>
+          </div>
+        </div>
+
+        {/* Questions Breakdown */}
+        <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 16px', color: '#ffffff' }}>Detailed Question Breakdown</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {respList.map((resp, idx) => {
+            const snap = resp.question_snapshot || {};
+            const isCorrect = resp.status === 'correct';
+            const isPartial = resp.status === 'partial';
+            const isPending = resp.status === 'pending_manual_review';
+
+            return (
+              <div key={resp.id} style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontWeight: 700, color: '#6366f1' }}>Q{idx + 1}.</span>
+                    <span style={{ fontWeight: 600, color: '#ffffff' }}>{snap.title || resp.question_title}</span>
+                    <span className={styles.qTypeTag}>{resp.question_type}</span>
+                  </div>
+
+                  <div>
+                    <span className={`${styles.statusPill} ${isCorrect ? styles.pillPassed : isPartial ? styles.pillInProgress : isPending ? styles.pillSubmitted : styles.pillFailed}`}>
+                      {resp.marks_awarded} / {resp.max_marks} Marks
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ color: '#cbd5e1', fontSize: 14, marginBottom: 14 }}>
+                  {snap.question_text || resp.question_text}
+                </div>
+
+                {/* Response preview */}
+                <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: 12, borderRadius: 8, fontSize: 13, color: '#e2e8f0', marginBottom: 10 }}>
+                  <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 4, textTransform: 'uppercase' }}>Your Response</div>
+                  {resp.response_data ? (
+                    typeof resp.response_data === 'object' ? (
+                      resp.response_data.url ? (
+                        <a href={resp.response_data.url} target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', textDecoration: 'underline' }}>
+                          Uploaded File: {resp.response_data.filename}
+                        </a>
+                      ) : (
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                          {JSON.stringify(resp.response_data, null, 2)}
+                        </pre>
+                      )
+                    ) : (
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{String(resp.response_data)}</div>
+                    )
+                  ) : (
+                    <em style={{ color: '#64748b' }}>Unanswered</em>
+                  )}
+                </div>
+
+                {/* Feedback */}
+                {resp.evaluator_feedback && (
+                  <div style={{ fontSize: 13, color: isCorrect ? '#34d399' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                    <span>{resp.evaluator_feedback}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // PLAYER WORKSPACE VIEW
+  // ──────────────────────────────────────────────────────────
+  const currentQ = questions[currentQIndex];
+  if (!currentQ) return null;
+
+  const currentVal = responses[currentQ.id];
+  const isFlagged = flaggedQuestions.has(currentQ.id);
+
+  const toggleFlag = () => {
+    setFlaggedQuestions((prev) => {
+      const next = new Set(prev);
+      if (next.has(currentQ.id)) next.delete(currentQ.id);
+      else next.add(currentQ.id);
+      return next;
+    });
+  };
+
+  const answeredCount = Object.keys(responses).filter((k) => {
+    const v = responses[k];
+    return v !== null && v !== undefined && v !== '';
+  }).length;
+
+  return (
+    <div className={styles.playerWrapper}>
+      {/* Proctoring Warning Modal */}
+      {proctorWarning && (
+        <div className={styles.proctorModal}>
+          <div className={styles.proctorCard}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" style={{ margin: '0 auto' }}>
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <h2 className={styles.proctorWarningTitle}>Integrity Warning</h2>
+            <p className={styles.proctorWarningText}>
+              A browser tab switch or focus loss was detected ({proctorCount} incident recorded).
+              This assessment is monitored. Excessive deviations may invalidate your attempt.
+            </p>
+            <button
+              onClick={() => setProctorWarning(false)}
+              className={styles.btnPrimary}
+              style={{ width: '100%' }}
+            >
+              I Understand & Resume Assessment
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Confirmation Modal */}
+      {showSubmitModal && (
+        <div className={styles.proctorModal}>
+          <div className={styles.proctorCard} style={{ borderColor: '#6366f1' }}>
+            <h2 style={{ color: '#ffffff', fontSize: 20, marginBottom: 8 }}>Ready to Submit Assessment?</h2>
+            <p style={{ color: '#cbd5e1', fontSize: 14, lineHeight: 1.5, marginBottom: 20 }}>
+              You have answered <strong style={{ color: '#34d399' }}>{answeredCount}</strong> of <strong>{questions.length}</strong> questions.
+              {questions.length - answeredCount > 0 && (
+                <span style={{ display: 'block', color: '#f87171', marginTop: 6 }}>
+                  {questions.length - answeredCount} questions are still unanswered.
+                </span>
+              )}
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => setShowSubmitModal(false)}
+                className={styles.btnSecondary}
+                style={{ flex: 1 }}
+              >
+                Continue Test
+              </button>
+              <button
+                onClick={() => handleSubmitAttempt(false)}
+                disabled={submitting}
+                className={styles.btnPrimary}
+                style={{ flex: 1 }}
+              >
+                {submitting ? 'Submitting...' : 'Confirm Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Header */}
+      <div className={styles.playerHeader}>
+        <div className={styles.playerTitleBox}>
+          <span className={styles.courseBadge}>{attemptData?.course_title}</span>
+          <span className={styles.playerAssessmentTitle}>{attemptData?.assessment_title}</span>
+        </div>
+
+        <div className={styles.timerContainer}>
+          <div className={styles.saveStatus}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            <span>{saveStatus}</span>
+          </div>
+
+          <div
+            className={`${styles.timerPill} ${
+              remainingSeconds < 60 ? styles.timerDanger : remainingSeconds < 300 ? styles.timerWarning : ''
+            }`}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>{formatTime(remainingSeconds)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Body */}
+      <div className={styles.playerBody}>
+        {/* Left Question Navigation */}
+        <div className={styles.questionSidebar}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#f8fafc', marginBottom: 12 }}>
+            Questions Overview ({answeredCount}/{questions.length})
+          </div>
+
+          {sections.length > 0 ? (
+            sections.map((sec) => {
+              const secQuestions = questions.filter((q) => q.section_id === sec.id);
+              if (secQuestions.length === 0) return null;
+
+              return (
+                <div key={sec.id} style={{ marginBottom: 16 }}>
+                  <div className={styles.sidebarSectionHeader}>{sec.title}</div>
+                  <div className={styles.questionBadgeGrid}>
+                    {secQuestions.map((q) => {
+                      const idx = questions.findIndex((item) => item.id === q.id);
+                      const isAns = responses[q.id] !== undefined && responses[q.id] !== null && responses[q.id] !== '';
+                      const isCur = idx === currentQIndex;
+                      const isFlag = flaggedQuestions.has(q.id);
+
+                      return (
+                        <button
+                          key={q.id}
+                          onClick={() => setCurrentQIndex(idx)}
+                          className={`${styles.qBadge} ${isCur ? styles.qBadgeActive : ''} ${isAns ? styles.qBadgeAnswered : ''} ${isFlag ? styles.qBadgeFlagged : ''}`}
+                        >
+                          {idx + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className={styles.questionBadgeGrid}>
+              {questions.map((q, idx) => {
+                const isAns = responses[q.id] !== undefined && responses[q.id] !== null && responses[q.id] !== '';
+                const isCur = idx === currentQIndex;
+                const isFlag = flaggedQuestions.has(q.id);
+
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => setCurrentQIndex(idx)}
+                    className={`${styles.qBadge} ${isCur ? styles.qBadgeActive : ''} ${isAns ? styles.qBadgeAnswered : ''} ${isFlag ? styles.qBadgeFlagged : ''}`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Center Stage */}
+        <div className={styles.mainStage}>
+          <div className={styles.questionMetaHeader}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className={styles.qTypeTag}>{currentQ.question_type.replace('_', ' ')}</span>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>
+                Question {currentQIndex + 1} of {questions.length}
+              </span>
+            </div>
+
+            <div className={styles.marksTag}>
+              {currentQ.marks} {currentQ.marks === 1 ? 'Mark' : 'Marks'}
+              {currentQ.negative_marks > 0 && (
+                <span style={{ color: '#f87171', marginLeft: 6 }}>
+                  (-{currentQ.negative_marks} for wrong answer)
+                </span>
+              )}
+            </div>
+          </div>
+
+          <h2 className={styles.questionTitle}>{currentQ.title}</h2>
+          <div className={styles.questionPrompt}>{currentQ.question_text}</div>
+
+          {/* ──────────────────────────────────────────────── */}
+          {/* QUESTION TYPE RENDERERS                          */}
+          {/* ──────────────────────────────────────────────── */}
+
+          {/* 1. Single Choice MCQ */}
+          {currentQ.question_type === 'single_choice' && (
+            <div className={styles.optionList}>
+              {(currentQ.options || []).map((opt) => {
+                const isChecked = String(currentVal) === String(opt.id);
+                return (
+                  <label
+                    key={opt.id}
+                    className={`${styles.optionCard} ${isChecked ? styles.optionCardSelected : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name={`q_${currentQ.id}`}
+                      value={opt.id}
+                      checked={isChecked}
+                      onChange={() => handleResponseChange(currentQ.id, opt.id)}
+                      className={styles.inputRadio}
+                    />
+                    <span>{opt.option_text}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 2. Multiple Choice */}
+          {currentQ.question_type === 'multiple_choice' && (
+            <div className={styles.optionList}>
+              {(currentQ.options || []).map((opt) => {
+                const arr = Array.isArray(currentVal) ? currentVal : [];
+                const isChecked = arr.includes(String(opt.id)) || arr.includes(Number(opt.id));
+
+                const toggleCheck = () => {
+                  let updated;
+                  if (isChecked) {
+                    updated = arr.filter((x) => String(x) !== String(opt.id));
+                  } else {
+                    updated = [...arr, opt.id];
+                  }
+                  handleResponseChange(currentQ.id, updated);
+                };
+
+                return (
+                  <label
+                    key={opt.id}
+                    className={`${styles.optionCard} ${isChecked ? styles.optionCardSelected : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={toggleCheck}
+                      className={styles.inputCheckbox}
+                    />
+                    <span>{opt.option_text}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 3. True / False */}
+          {currentQ.question_type === 'true_false' && (
+            <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+              {['True', 'False'].map((tf) => {
+                const isSelected = String(currentVal).toLowerCase() === tf.toLowerCase();
+                return (
+                  <button
+                    key={tf}
+                    type="button"
+                    onClick={() => handleResponseChange(currentQ.id, tf)}
+                    className={`${styles.btnSecondary} ${isSelected ? styles.optionCardSelected : ''}`}
+                    style={{ flex: 1, padding: '16px 20px', fontSize: 16, fontWeight: 600 }}
+                  >
+                    {tf}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 4. Fill in the blank */}
+          {currentQ.question_type === 'fill_blank' && (
+            <div style={{ marginBottom: 24 }}>
+              <input
+                type="text"
+                placeholder="Type your answer here..."
+                value={currentVal || ''}
+                onChange={(e) => handleResponseChange(currentQ.id, e.target.value)}
+                className={styles.textInput}
+              />
+            </div>
+          )}
+
+          {/* 5. Numerical */}
+          {currentQ.question_type === 'numerical' && (
+            <div style={{ marginBottom: 24 }}>
+              <input
+                type="number"
+                step="any"
+                placeholder="Enter numerical value..."
+                value={currentVal !== undefined ? currentVal : ''}
+                onChange={(e) => handleResponseChange(currentQ.id, e.target.value)}
+                className={styles.textInput}
+                style={{ maxWidth: 320 }}
+              />
+              {currentQ.config?.tolerance && (
+                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
+                  Tolerance: +/- {currentQ.config.tolerance}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 6. Matching */}
+          {currentQ.question_type === 'matching' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              {(currentQ.config?.pairs || []).map((p, idx) => {
+                const matchVal = (currentVal && typeof currentVal === 'object') ? currentVal[p.left] || '' : '';
+
+                return (
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'center' }}>
+                    <div style={{ background: 'rgba(30, 41, 59, 0.6)', padding: '12px 16px', borderRadius: 8, fontSize: 14 }}>
+                      {p.left}
+                    </div>
+                    <select
+                      value={matchVal}
+                      onChange={(e) => {
+                        const updated = { ...(currentVal || {}), [p.left]: e.target.value };
+                        handleResponseChange(currentQ.id, updated);
+                      }}
+                      className={styles.selectInput}
+                      style={{ width: '100%', padding: '12px 14px' }}
+                    >
+                      <option value="">Select match...</option>
+                      {(currentQ.config?.pairs || []).map((rightItem, rIdx) => (
+                        <option key={rIdx} value={rightItem.right}>
+                          {rightItem.right}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 7. Ordering */}
+          {currentQ.question_type === 'ordering' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+              <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>
+                Arrange in correct chronological or execution order (use arrow buttons):
+              </div>
+              {(Array.isArray(currentVal) ? currentVal : (currentQ.config?.items || [])).map((item, idx, arr) => {
+                const moveUp = () => {
+                  if (idx === 0) return;
+                  const next = [...arr];
+                  const temp = next[idx - 1];
+                  next[idx - 1] = next[idx];
+                  next[idx] = temp;
+                  handleResponseChange(currentQ.id, next);
+                };
+
+                const moveDown = () => {
+                  if (idx === arr.length - 1) return;
+                  const next = [...arr];
+                  const temp = next[idx + 1];
+                  next[idx + 1] = next[idx];
+                  next[idx] = temp;
+                  handleResponseChange(currentQ.id, next);
+                };
+
+                return (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(30, 41, 59, 0.6)', padding: '10px 16px', borderRadius: 8 }}>
+                    <span style={{ fontWeight: 700, color: '#6366f1', width: 24 }}>{idx + 1}.</span>
+                    <span style={{ flex: 1, fontSize: 14 }}>{item}</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        type="button"
+                        onClick={moveUp}
+                        disabled={idx === 0}
+                        className={styles.btnSecondary}
+                        style={{ padding: '4px 8px', fontSize: 12 }}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        onClick={moveDown}
+                        disabled={idx === arr.length - 1}
+                        className={styles.btnSecondary}
+                        style={{ padding: '4px 8px', fontSize: 12 }}
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 8. Short Answer */}
+          {currentQ.question_type === 'short_answer' && (
+            <div style={{ marginBottom: 24 }}>
+              <textarea
+                placeholder="Write your answer clearly..."
+                value={currentVal || ''}
+                onChange={(e) => handleResponseChange(currentQ.id, e.target.value)}
+                className={styles.textareaInput}
+                rows={4}
+              />
+              <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 6 }}>
+                {(currentVal || '').length} characters
+              </div>
+            </div>
+          )}
+
+          {/* 9. Essay / Long Answer */}
+          {currentQ.question_type === 'essay' && (
+            <div style={{ marginBottom: 24 }}>
+              {currentQ.rubrics?.length > 0 && (
+                <div style={{ background: 'rgba(30, 41, 59, 0.4)', padding: '12px 16px', borderRadius: 8, marginBottom: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#818cf8', textTransform: 'uppercase', marginBottom: 6 }}>
+                    Grading Rubrics
+                  </div>
+                  {currentQ.rubrics.map((r, rIdx) => (
+                    <div key={rIdx} style={{ fontSize: 12, color: '#cbd5e1', marginBottom: 4 }}>
+                      • <strong>{r.criterion}</strong>: up to {r.max_marks} marks {r.description ? `(${r.description})` : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <textarea
+                placeholder="Compose your comprehensive technical analysis here..."
+                value={currentVal || ''}
+                onChange={(e) => handleResponseChange(currentQ.id, e.target.value)}
+                className={styles.textareaInput}
+                rows={9}
+              />
+              <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 6 }}>
+                {(currentVal || '').split(/\s+/).filter(Boolean).length} words
+              </div>
+            </div>
+          )}
+
+          {/* 10. Interactive Coding & Debugging */}
+          {(currentQ.question_type === 'coding' || currentQ.question_type === 'debugging') && (
+            <div className={styles.codeEditorContainer}>
+              <div className={styles.codeEditorHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}>Language:</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9' }}>
+                    {currentQ.config?.language || 'javascript'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleResponseChange(currentQ.id, currentQ.config?.starterCode || '')}
+                    className={styles.btnSecondary}
+                    style={{ padding: '4px 10px', fontSize: 11 }}
+                  >
+                    Reset Starter Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRunCodeTest(currentQ)}
+                    disabled={codeExecuting}
+                    className={styles.btnPrimary}
+                    style={{ padding: '4px 12px', fontSize: 12 }}
+                  >
+                    {codeExecuting ? 'Executing...' : 'Run Test Code ▶'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ height: 320 }}>
+                <MonacoEditor
+                  height="100%"
+                  language={currentQ.config?.language || 'javascript'}
+                  theme="vs-dark"
+                  value={currentVal !== undefined ? String(currentVal) : (currentQ.config?.starterCode || '')}
+                  onChange={(val) => handleResponseChange(currentQ.id, val || '')}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    tabSize: 2
+                  }}
+                />
+              </div>
+
+              {/* Execution Console */}
+              {(codeConsole.stdout || codeConsole.stderr || codeConsole.result !== null) && (
+                <div className={styles.codeOutputConsole}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#71717a', fontSize: 11, marginBottom: 4 }}>
+                    <span>Console Output</span>
+                    {codeConsole.timeMs > 0 && <span>{codeConsole.timeMs}ms</span>}
+                  </div>
+                  {codeConsole.stdout && <div className={styles.consoleStdout}>{codeConsole.stdout}</div>}
+                  {codeConsole.stderr && <div className={styles.consoleStderr}>{codeConsole.stderr}</div>}
+                  {codeConsole.result !== null && (
+                    <div style={{ color: '#38bdf8', marginTop: 4 }}>
+                      Return Value: {JSON.stringify(codeConsole.result)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 11. SQL Query */}
+          {currentQ.question_type === 'sql' && (
+            <div className={styles.codeEditorContainer}>
+              <div className={styles.codeEditorHeader}>
+                <span style={{ fontSize: 12, color: '#94a3b8' }}>SQL In-Memory Sandbox</span>
+                <button
+                  type="button"
+                  onClick={() => handleRunSQLTest(currentQ)}
+                  disabled={codeExecuting}
+                  className={styles.btnPrimary}
+                  style={{ padding: '4px 12px', fontSize: 12 }}
+                >
+                  {codeExecuting ? 'Running...' : 'Execute SQL ▶'}
+                </button>
+              </div>
+
+              <div style={{ height: 240 }}>
+                <MonacoEditor
+                  height="100%"
+                  language="sql"
+                  theme="vs-dark"
+                  value={currentVal || ''}
+                  onChange={(val) => handleResponseChange(currentQ.id, val || '')}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true
+                  }}
+                />
+              </div>
+
+              {sqlResults && (
+                <div className={styles.codeOutputConsole}>
+                  <div style={{ color: '#71717a', fontSize: 11, marginBottom: 6 }}>
+                    Query Output ({sqlResults.length} rows returned)
+                  </div>
+                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#38bdf8' }}>
+                    {JSON.stringify(sqlResults, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 12. Code Output Prediction */}
+          {currentQ.question_type === 'code_output' && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6 }}>Enter the exact console output:</div>
+              <textarea
+                placeholder="3&#10;3&#10;3"
+                value={currentVal || ''}
+                onChange={(e) => handleResponseChange(currentQ.id, e.target.value)}
+                className={styles.textareaInput}
+                rows={4}
+                style={{ fontFamily: 'monospace' }}
+              />
+            </div>
+          )}
+
+          {/* 13. File Upload */}
+          {currentQ.question_type === 'file_upload' && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ border: '2px dashed rgba(255, 255, 255, 0.15)', borderRadius: 12, padding: '30px 20px', textAlign: 'center', background: 'rgba(30, 41, 59, 0.3)' }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff', marginBottom: 4 }}>
+                  Upload Technical Artifact
+                </div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 16 }}>
+                  PDF, PNG, JPG, or SVG up to 10MB
+                </div>
+
+                <input
+                  type="file"
+                  id={`file_input_${currentQ.id}`}
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFileUpload(currentQ.id, e)}
+                  accept=".pdf,.png,.jpg,.jpeg,.svg"
+                />
+                <label htmlFor={`file_input_${currentQ.id}`} className={styles.btnPrimary} style={{ cursor: 'pointer', display: 'inline-flex' }}>
+                  Select File
+                </label>
+
+                {currentVal && currentVal.filename && (
+                  <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#34d399', fontSize: 13 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Attached: {currentVal.filename}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Control Bar */}
+      <div className={styles.playerFooter}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            type="button"
+            onClick={() => setCurrentQIndex((prev) => Math.max(0, prev - 1))}
+            disabled={currentQIndex === 0}
+            className={styles.btnSecondary}
+            style={{ opacity: currentQIndex === 0 ? 0.5 : 1 }}
+          >
+            ← Previous
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentQIndex((prev) => Math.min(questions.length - 1, prev + 1))}
+            disabled={currentQIndex === questions.length - 1}
+            className={styles.btnSecondary}
+            style={{ opacity: currentQIndex === questions.length - 1 ? 0.5 : 1 }}
+          >
+            Next →
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            type="button"
+            onClick={toggleFlag}
+            className={styles.btnSecondary}
+            style={{ borderColor: isFlagged ? '#a855f7' : undefined, color: isFlagged ? '#c084fc' : undefined }}
+          >
+            {isFlagged ? '★ Flagged for Review' : '☆ Flag Question'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowSubmitModal(true)}
+            className={styles.btnPrimary}
+            style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+          >
+            Finish & Submit Assessment
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

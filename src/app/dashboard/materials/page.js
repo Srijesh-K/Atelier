@@ -1,34 +1,60 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getMaterials } from '../../actions';
+import { getMaterials, getCourses } from '../../actions';
 import styles from '../dashboard.module.css';
 
 export default function MaterialsPage({ activeCourseId = 1, enrolledCourses = [] }) {
-  const [folders, setFolders] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [coursesList, setCoursesList] = useState([]);
   const [downloadingName, setDownloadingName] = useState(null);
   const [enrolledCount, setEnrolledCount] = useState(enrolledCourses.length);
+  const [selectedCohortFilter, setSelectedCohortFilter] = useState('all');
 
   useEffect(() => {
-    const profileStr = localStorage.getItem('studentProfile');
-    if (profileStr) {
-      try {
-        const p = JSON.parse(profileStr);
-        if (Array.isArray(p.enrolledCourses)) {
-          setEnrolledCount(p.enrolledCourses.length);
-        }
-      } catch (e) {}
-    }
+    const loadMaterialsData = async () => {
+      let enrolled = enrolledCourses;
+      const profileStr = localStorage.getItem('studentProfile');
+      if (profileStr) {
+        try {
+          const p = JSON.parse(profileStr);
+          if (Array.isArray(p.enrolledCourses)) {
+            enrolled = p.enrolledCourses;
+            setEnrolledCount(p.enrolledCourses.length);
+          }
+        } catch (e) {}
+      }
 
-    const loadMaterials = async () => {
-      const allMaterials = await getMaterials();
-      const filtered = allMaterials.filter((m) => m.courseId === activeCourseId);
-      setFolders(filtered);
+      if (enrolled.length === 0) {
+        setMaterials([]);
+        setCoursesList([]);
+        return;
+      }
+
+      try {
+        const [allMaterials, allCourses] = await Promise.all([
+          getMaterials(),
+          getCourses()
+        ]);
+
+        const filteredCourses = allCourses.filter((c) => enrolled.includes(c.id));
+        setCoursesList(filteredCourses);
+
+        // Keep only materials belonging to courses the student is enrolled in
+        const studentMaterials = allMaterials.filter((m) => enrolled.includes(m.courseId));
+        setMaterials(studentMaterials);
+      } catch (err) {
+        console.error('Error loading materials:', err);
+      }
     };
 
-    loadMaterials();
-    window.addEventListener('courseChanged', loadMaterials);
-    return () => window.removeEventListener('courseChanged', loadMaterials);
+    loadMaterialsData();
+    window.addEventListener('courseChanged', loadMaterialsData);
+    window.addEventListener('profileChanged', loadMaterialsData);
+    return () => {
+      window.removeEventListener('courseChanged', loadMaterialsData);
+      window.removeEventListener('profileChanged', loadMaterialsData);
+    };
   }, [activeCourseId]);
 
   const handleDownloadAsset = async (asset) => {
@@ -118,62 +144,107 @@ export default function MaterialsPage({ activeCourseId = 1, enrolledCourses = []
     );
   }
 
+  // Filter folders by active tab
+  const displayedFolders = selectedCohortFilter === 'all'
+    ? materials
+    : materials.filter((m) => String(m.courseId) === selectedCohortFilter);
+
   return (
     <div className={styles.simplePageWrapper}>
       <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: '800', marginBottom: '0.5rem', color: '#ffffff' }}>
         Reference Materials & Assets
       </h2>
-      <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', marginBottom: '2rem' }}>
-        Browse and download course slideshows, project templates, cheatsheets, and source code assets.
+      <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.75rem' }}>
+        Browse and download course slideshows, project templates, cheatsheets, and source code assets across your enrolled tracks.
       </p>
 
+      {/* Cohort Tabs if multiple enrolled courses */}
+      {coursesList.length > 1 && (
+        <div className={styles.materialFilterTabs}>
+          <button
+            type="button"
+            className={`${styles.materialFilterTab} ${selectedCohortFilter === 'all' ? styles.materialFilterTabActive : ''}`}
+            onClick={() => setSelectedCohortFilter('all')}
+          >
+            All Tracks ({materials.length})
+          </button>
+          {coursesList.map((c) => {
+            const count = materials.filter((m) => m.courseId === c.id).length;
+            const isSelected = selectedCohortFilter === String(c.id);
+            const title = c.title.includes(':') ? c.title.split(':')[0] : c.title;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`${styles.materialFilterTab} ${isSelected ? styles.materialFilterTabActive : ''}`}
+                onClick={() => setSelectedCohortFilter(String(c.id))}
+              >
+                {title} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className={styles.materialsGrid}>
-        {folders.map((folder) => (
-          <div key={folder.id} className={styles.materialFolderCard}>
-            
-            {/* Folder Header */}
-            <div className={styles.folderHeader}>
-              <svg className={styles.folderIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              <h3 className={styles.folderTitle}>
-                {folder.title}
-              </h3>
-            </div>
+        {displayedFolders.map((folder) => {
+          const matchedCourse = coursesList.find((c) => c.id === folder.courseId);
+          const courseBadgeTitle = matchedCourse
+            ? (matchedCourse.title.includes(':') ? matchedCourse.title.split(':')[0] : matchedCourse.title)
+            : `Track #${folder.courseId}`;
 
-            {/* Folder assets */}
-            <div className={styles.folderAssetList}>
-              {folder.assets && folder.assets.map((asset, idx) => {
-                const isDownloading = downloadingName === asset.name;
-                return (
-                  <div 
-                    key={idx} 
-                    className={styles.assetLink}
-                    onClick={() => handleDownloadAsset(asset)}
-                    style={{ cursor: isDownloading ? 'wait' : 'pointer', opacity: isDownloading ? 0.7 : 1 }}
-                    title={asset.name}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>{isDownloading ? '⏳' : getAssetIcon(asset.type)}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }} title={asset.name}>
-                        {asset.name}
+          return (
+            <div key={folder.id} className={styles.materialFolderCard}>
+              
+              {/* Folder Header */}
+              <div className={styles.folderHeader}>
+                <svg className={styles.folderIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, flex: 1 }}>
+                  {coursesList.length > 1 && (
+                    <span className={styles.materialCourseBadge}>{courseBadgeTitle}</span>
+                  )}
+                  <h3 className={styles.folderTitle}>
+                    {folder.title}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Folder assets */}
+              <div className={styles.folderAssetList}>
+                {folder.assets && folder.assets.map((asset, idx) => {
+                  const isDownloading = downloadingName === asset.name;
+                  return (
+                    <div 
+                      key={idx} 
+                      className={styles.assetLink}
+                      onClick={() => handleDownloadAsset(asset)}
+                      style={{ cursor: isDownloading ? 'wait' : 'pointer', opacity: isDownloading ? 0.7 : 1 }}
+                      title={asset.name}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
+                        <span>{isDownloading ? '⏳' : getAssetIcon(asset.type)}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }} title={asset.name}>
+                          {asset.name}
+                        </span>
                       </span>
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: asset.fileId ? 'var(--accent-orange, #f25522)' : 'rgba(255,255,255,0.25)', fontWeight: '600' }}>
-                      {isDownloading ? 'Downloading...' : asset.size}
-                    </span>
-                  </div>
-                );
-              })}
-              {(!folder.assets || folder.assets.length === 0) && (
-                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.25)', padding: '0.5rem 0' }}>No assets in this module.</p>
-              )}
-            </div>
+                      <span style={{ fontSize: '0.72rem', color: asset.fileId ? 'var(--accent-orange, #f25522)' : 'rgba(255,255,255,0.25)', fontWeight: '600', flexShrink: 0 }}>
+                        {isDownloading ? 'Downloading...' : asset.size}
+                      </span>
+                    </div>
+                  );
+                })}
+                {(!folder.assets || folder.assets.length === 0) && (
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.25)', padding: '0.5rem 0' }}>No assets in this module.</p>
+                )}
+              </div>
 
-          </div>
-        ))}
-        {folders.length === 0 && (
-          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', padding: '1rem 0' }}>No files provisioned for this active workspace module.</p>
+            </div>
+          );
+        })}
+        {displayedFolders.length === 0 && (
+          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', padding: '1rem 0' }}>No files provisioned for this active track.</p>
         )}
       </div>
     </div>

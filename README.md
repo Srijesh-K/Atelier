@@ -178,19 +178,22 @@ erDiagram
 - **Mathematical Progress Engine**: Progress is calculated as:
   $$\text{Progress \%} = \text{round}\left(\frac{\text{completed\_topics}}{\text{total\_topics}} \times 100\right)$$
   Derived from normalized syllabus tables. Completing 100% of curriculum topics automatically timestamps `atelier_student_courses.completed_at`.
-- **Initials Avatar Badge**: Zero reliance on default stock images. Users without a uploaded avatar render an initials avatar (`<InitialsAvatar />`) with a deterministic color palette generated from their name.
-- **Real-Time Live Classroom (`/dashboard/live`)**:
-  - Automatically polls every 25 seconds for live mentor broadcasts.
-  - One-click **"Join Live Classroom"** mounts the embedded theater room right on the page.
-  - Two-way microphone audio to ask doubts, raise hand, and text in the in-class chat space.
+- **Initials Avatar Badge**: Zero reliance on default stock images. Users without an uploaded avatar render a deterministic initials badge (`<InitialsAvatar />`) styled according to their unique name hash.
+- **Resilient Real-Time Live Classroom (`/dashboard/live`)**:
+  - **Dual-Mode Attendance**: Attend inside the high-fidelity embedded in-app classroom (`<LiveClassroom />`) or launch natively via **"Open in Separate Tab ↗"**.
+  - **Intelligent Meeting Link Resolver**: Automatically recognizes external conferencing services (Google Meet, Zoom, MS Teams, YouTube) and renders an instant launch interface instead of forcing broken iframes.
+  - **Auto-Healing Room Links**: Missing, empty, or raw room names automatically normalize into secure, encrypted WebRTC conference URLs.
+  - **Automatic Live Polling**: State synchronizes every 25 seconds, reflecting mentor broadcasts in real time without requiring manual refreshes.
+  - **Replay Library**: Access recorded lecture replays directly with one-click streaming.
 - **Resource Materials**: Direct streaming downloads of course PDF slides, cheatsheets, and starter repositories.
 
 ### 2. 👨‍🏫 Mentor Portal & Workspace (`/mentor`)
 - **Enterprise Security**: Salted `scryptSync` password hashing with timing-attack mitigation, 5-attempt/15-minute brute-force lockout, and mandatory password reset on initial sign-in.
-- **Ownership Gating**: Mentors are strictly authorized to view only their assigned cohorts (`assertMentorOwnsCourse`).
+- **Intelligent Ownership Resolution & Auto-Healing**: Mentors are strictly authorized to view only their assigned cohorts (`assertMentorOwnsCourse`), with automatic permission healing across `atelier_mentor_courses` and `atelier_courses.instructor_id`.
+- **Route Redirection & Hydration Guards**: Next.js route redirection from `/mentor/course/:id` to `/mentor/courses/:id` with client hydration protection to eliminate premature "Access Denied" flashes.
 - **4-Tab Cohort Studio (`/mentor/courses/[id]`)**:
   1. **Enrolled Students**: Student directory with contact details and real-time curriculum progress bars.
-  2. **Live Classes**: Schedule sessions, start live broadcasts with concurrency prevention (maximum 1 active live class per mentor), enter the **Broadcast Studio**, and conclude classes with recorded replay URLs.
+  2. **Live Classes**: Schedule sessions with MySQL datetime normalization (`YYYY-MM-DD HH:mm:ss`), start live broadcasts with concurrency prevention (maximum 1 active live class per mentor), enter the **Broadcast Studio**, and conclude classes with recorded replay URLs.
   3. **Syllabus Manager**: Add, edit, and delete modules and curriculum topics (deleting a topic automatically cascades and recalculates student percentages).
   4. **Course Materials**: Create resource folders and upload files directly.
 - **Host / Moderator Controls**:
@@ -198,13 +201,43 @@ erDiagram
   - **Kick Disruptive Students**: Eject any attendee from the classroom.
   - **Screen Sharing**: Broadcast code editors and browser windows in HD.
   - **In-Room Chat**: Real-time discussions during live sessions.
+  - **Open in Tab / Direct Breakout**: Host can pop into a full browser window at any time.
 
 ### 3. 🛡️ Admin Console (`/admin`)
-- Accessible via dual-clearance security keys (`NEXT_PUBLIC_MASTER_SECURITY_KEY` / `NEXT_PUBLIC_CLEARANCE_PASSWORD`).
-- **Mentor Provisioning**: Register mentors, assign one or more cohorts, and receive an auto-generated temporary password to share securely.
+- **Hardened Server-Side Security**: Clearance authentication is evaluated entirely server-side via `verifyAdminClearance` and `validateAdminSession` Server Actions against protected environment variables, completely removing sensitive keys from client JavaScript bundles.
+- **HMAC-SHA256 Signed Session Tokens**: Issues cryptographically signed admin tokens valid for 12 hours, verified on initial mount and route transitions.
+- **Modern Responsive Dialog Modals**:
+  - Pinned modal header and footer ("Commit Changes" / "Cancel") with an independently scrollable form body (`max-height: 88vh` / mobile `92vh`).
+  - Modal action buttons are permanently accessible and never clipped off screen, even with 15+ input fields.
+  - Responsive multi-column grids that gracefully collapse into clean single-column inputs on mobile devices (`<= 768px`).
+  - Horizontally scrollable navigation tabs and wide data tables (Payments, Students, Courses) with sleek touch scrolling.
+- **Mentor Provisioning & Automatic Course Sync**: Register mentors, assign cohorts (automatically syncing `atelier_mentor_courses`), and generate temporary credentials with mandatory first-login password reset.
 - **Complete CRUD Management**: Students, courses, live timetables, material assets, hotline callback requests, and Razorpay transaction logs.
 
-### 4. 📦 Zero-Cloudinary File Storage (Telegram Bot API)
+### 4. 📝 Enterprise Assessment & Evaluation Engine
+- **Course-Scoped Architecture**: All assessments natively belong to courses (`atelier_courses`), preserving cohort ownership and strict enrollment authorization.
+- **Support for 14 Question Types**:
+  1. **Single-Choice MCQ**: Automatic key matching and negative scoring.
+  2. **Multiple-Choice (Multi-Select)**: Configurable partial credit and negative marking.
+  3. **True / False**: Single-click Boolean verification.
+  4. **Fill in the Blank**: Exact and whitespace/case-normalized text evaluation.
+  5. **Numerical**: Floating-point value checking with configurable absolute error tolerance.
+  6. **Matching Pairs**: Interactive multi-item correspondence matching.
+  7. **Chronological Ordering**: Interactive up/down sequence sorting.
+  8. **Short Answer**: Concise subjective input with instructor evaluation.
+  9. **Essay / Analysis**: In-depth essay editor with detailed grading rubrics.
+  10. **Interactive Coding**: Embedded Monaco Editor with JavaScript/Python sandboxed runner and test cases.
+  11. **Code Debugging**: Broken starter code with live in-browser test validation.
+  12. **SQL Sandbox**: Ephemeral in-memory SQLite execution (`node:sqlite`) isolated from production MySQL.
+  13. **Predict Code Output**: Accurate console prediction with multi-line matching.
+  14. **Technical File Upload**: Diagram and artifact submission backed by Telegram Bot API private storage.
+- **Section Grouping & Reusable Question Bank**: Group questions logically into sections and link reusable questions from the course question bank.
+- **Server-Authoritative Countdown Timer & Autosave**: Server-synchronized timer prevents client tampering and auto-submits on expiration; debounced autosave continuously persists drafts.
+- **Proctoring Audit Log**: Monitors and records tab switches, window blur events, and full-screen escapes with student warning modals and instructor flags.
+- **Manual Grading & Rubric Scoring**: Mentors review student essay and file submissions, award criteria marks, and provide constructive feedback.
+- **Admin Analytics & CSV Export**: Universal assessment management across all cohorts with one-click results CSV export.
+
+### 5. 📦 Zero-Cloudinary File Storage (Telegram Bot API)
 - Uploaded avatars and course materials are streamed to a private Telegram channel via the Telegram Bot API (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_STORAGE_CHAT_ID`).
 - Supports files up to **50 MB**.
 - All secrets remain on the server; the client interacts solely with sanitized Next.js proxy endpoints (`/api/files/[id]`, `/api/files/upload`).
@@ -234,7 +267,11 @@ TELEGRAM_STORAGE_CHAT_ID=your_channel_chat_id_here
 # ── 4. Session & Mentor JWT Security ──
 SESSION_SECRET=a_strong_random_32_character_secret_here
 
-# ── 5. Admin Console Security Keys (Optional overrides) ──
+# ── 5. Admin Console Server Security Keys (Protected server-side) ──
+MASTER_SECURITY_KEY=ARSHAD-SAMVRUDHI
+CLEARANCE_PASSWORD=noor
+
+# Legacy / Client fallback keys (Optional)
 NEXT_PUBLIC_MASTER_SECURITY_KEY=ARSHAD-SAMVRUDHI
 NEXT_PUBLIC_CLEARANCE_PASSWORD=noor
 

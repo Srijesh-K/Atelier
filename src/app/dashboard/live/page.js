@@ -11,8 +11,9 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState(null);
   const [activeInAppRoom, setActiveInAppRoom] = useState(null);
-
   const [enrolledCount, setEnrolledCount] = useState(null);
+  const [enrolledCourseObjs, setEnrolledCourseObjs] = useState([]);
+  const [cohortFilter, setCohortFilter] = useState('all');
 
   const loadLiveData = async () => {
     try {
@@ -49,8 +50,11 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
         setCourseTitle(currentCourse.title);
       }
 
-      // Fetch real sessions from MySQL database
-      const liveSessions = await getLiveSessions(courseIdToUse);
+      const matchedEnrolled = courses.filter((c) => enrolledCourses.includes(c.id));
+      setEnrolledCourseObjs(matchedEnrolled);
+
+      // Fetch real sessions for all student's enrolled courses from MySQL
+      const liveSessions = await getLiveSessions(enrolledCourses);
       setSessions(liveSessions || []);
     } catch (err) {
       console.error('Failed to load live sessions:', err);
@@ -72,10 +76,19 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
     };
   }, [activeCourseId]);
 
-  // Filter sessions by status
-  const currentLiveSession = sessions.find((s) => s.status === 'live');
-  const scheduledSessions = sessions.filter((s) => s.status === 'scheduled');
-  const completedSessions = sessions.filter((s) => s.status === 'completed' || s.recording_url || s.recordingUrl);
+  // Filter sessions by selected cohort tab
+  const filteredSessions = cohortFilter === 'all'
+    ? sessions
+    : sessions.filter((s) => (s.course_id || s.courseId) === Number(cohortFilter));
+
+  const currentLiveSession = filteredSessions.find((s) => s.status === 'live') || (cohortFilter === 'all' ? sessions.find(s => s.status === 'live') : null);
+  const scheduledSessions = filteredSessions.filter((s) => s.status === 'scheduled');
+  const completedSessions = filteredSessions.filter((s) => s.status === 'completed' || s.recording_url || s.recordingUrl);
+
+  // Cross-cohort alert: if currently filtering by one track, but another track has a live broadcast
+  const outsideLiveSession = (cohortFilter !== 'all')
+    ? sessions.find((s) => s.status === 'live' && (s.course_id || s.courseId) !== Number(cohortFilter))
+    : null;
 
   // Helper: check if session is an embedded room
   const isEmbeddedSession = (link) => {
@@ -178,8 +191,61 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
     <div className={styles.pageWrapper}>
       <h2 className={styles.headerTitle}>Live Sessions & Cohort Syncs</h2>
       <p className={styles.headerSubtitle}>
-        Join real-time lectures, live code reviews, and office hours with your mentors for {courseTitle}.
+        Join real-time lectures, live code reviews, and office hours with your mentors across your enrolled cohort tracks.
       </p>
+
+      {/* Cross-Cohort Urgent Live Alert */}
+      {outsideLiveSession && (
+        <div className={styles.crossCohortAlert}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <span className={styles.liveTabDot} />
+            <span style={{ fontSize: '0.86rem', fontWeight: '700', color: '#ff3b30' }}>
+              LIVE BROADCAST: <strong>{outsideLiveSession.title}</strong> is live right now in <strong>{outsideLiveSession.courseTitle || outsideLiveSession.course_title}</strong>!
+            </span>
+          </div>
+          <button
+            className={styles.joinBtn}
+            style={{ padding: '0.45rem 1rem', fontSize: '0.8rem' }}
+            onClick={() => {
+              setCohortFilter(String(outsideLiveSession.course_id || outsideLiveSession.courseId));
+              handleJoinClass(outsideLiveSession);
+            }}
+          >
+            Switch & Join Live Class &rarr;
+          </button>
+        </div>
+      )}
+
+      {/* Cohort Track Filter Tabs */}
+      {enrolledCount > 1 && (
+        <div className={styles.cohortFilterBar}>
+          <span className={styles.cohortFilterLabel}>Enrolled Tracks:</span>
+          <button
+            type="button"
+            className={`${styles.cohortFilterPill} ${cohortFilter === 'all' ? styles.cohortFilterPillActive : ''}`}
+            onClick={() => setCohortFilter('all')}
+          >
+            All Tracks ({sessions.length})
+          </button>
+          {enrolledCourseObjs.map((c) => {
+            const trackSessions = sessions.filter((s) => (s.course_id || s.courseId) === c.id);
+            const isTrackLive = trackSessions.some((s) => s.status === 'live');
+            const cleanTitle = c.title.includes(':') ? c.title.split(':')[0] : c.title;
+            const isSelected = cohortFilter === String(c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`${styles.cohortFilterPill} ${isSelected ? styles.cohortFilterPillActive : ''}`}
+                onClick={() => setCohortFilter(String(c.id))}
+              >
+                {isTrackLive && <span className={styles.liveTabDot} />}
+                {cleanTitle} ({trackSessions.length})
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Active In-App Classroom View */}
       {activeInAppRoom && (
@@ -189,7 +255,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
             user={{ name: student?.name || 'Student', email: student?.email }}
             isMentor={false}
             title={activeInAppRoom.title}
-            cohortName={courseTitle}
+            cohortName={activeInAppRoom.courseTitle || activeInAppRoom.course_title || courseTitle}
             onClose={() => setActiveInAppRoom(null)}
           />
         </div>
@@ -217,7 +283,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
             <div className={styles.bannerMeta}>
               <span>Mentor: {currentLiveSession.mentor_name || currentLiveSession.mentorName || 'Assigned Instructor'}</span>
               <span>•</span>
-              <span>{courseTitle}</span>
+              <span className={styles.cohortTag}>{currentLiveSession.courseTitle || currentLiveSession.course_title || courseTitle}</span>
               <span>•</span>
               <span style={{ color: '#30d158', fontWeight: '700' }}>Mic & Chat Active</span>
             </div>
@@ -266,7 +332,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
             <div className={styles.bannerMeta}>
               <span>Mentor: {scheduledSessions[0].mentor_name || scheduledSessions[0].mentorName || 'Assigned Instructor'}</span>
               <span>•</span>
-              <span>{courseTitle}</span>
+              <span className={styles.cohortTag}>{scheduledSessions[0].courseTitle || scheduledSessions[0].course_title || courseTitle}</span>
             </div>
           </div>
 
@@ -295,7 +361,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
             No Live Sessions Currently Running
           </h3>
           <p style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.45)', margin: 0 }}>
-            Your mentor will post upcoming scheduled cohort classes and office hours here.
+            Your mentors will post upcoming scheduled cohort classes and office hours here.
           </p>
         </div>
       )}
@@ -316,7 +382,12 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
               {scheduledSessions.map((session) => (
                 <div key={session.id} className={styles.sessionCard}>
                   <div className={styles.sessionTop}>
-                    <div className={styles.sessionTitle}>{session.title}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1 }}>
+                      <span className={styles.cohortTag} style={{ width: 'fit-content' }}>
+                        {session.courseTitle || session.course_title}
+                      </span>
+                      <div className={styles.sessionTitle}>{session.title}</div>
+                    </div>
                     <span className={styles.sessionTimeBadge}>
                       {formatSessionTime(session.scheduled_at || session.scheduledAt)}
                     </span>
@@ -370,7 +441,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
             </div>
           ) : (
             <div className={styles.emptyState}>
-              No scheduled classes for this week. Check back soon!
+              No scheduled classes for this week in this track. Check back soon!
             </div>
           )}
         </div>
@@ -389,6 +460,9 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
               {completedSessions.map((rec) => (
                 <div key={rec.id} className={styles.replayCard}>
                   <div className={styles.replayInfo}>
+                    <span className={styles.cohortTag} style={{ marginBottom: '0.35rem', display: 'inline-block' }}>
+                      {rec.courseTitle || rec.course_title}
+                    </span>
                     <div className={styles.replayTitle}>{rec.title}</div>
                     <div className={styles.replayDate}>
                       {formatSessionTime(rec.scheduled_at || rec.scheduledAt)} • {rec.mentor_name || rec.mentorName || 'Mentor'}
