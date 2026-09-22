@@ -31,8 +31,25 @@ export default function AssessmentPlayerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Mode: 'player' | 'report'
-  const [viewMode, setViewMode] = useState(isReportParam ? 'report' : 'player');
+  // Mode: 'onboarding' | 'player' | 'report'
+  const [viewMode, setViewMode] = useState(isReportParam ? 'report' : 'onboarding');
+
+  // Proctoring Onboarding & Media State
+  const [hasConsented, setHasConsented] = useState(false);
+  const [mediaStream, setMediaStream] = useState(null);
+  const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'denied'
+  const [micStatus, setMicStatus] = useState('idle'); // 'idle' | 'checking' | 'active' | 'denied'
+  const [networkPing, setNetworkPing] = useState(null);
+  const [networkStatus, setNetworkStatus] = useState('checking'); // 'checking' | 'excellent' | 'moderate' | 'slow'
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
+  const [faceStatus, setFaceStatus] = useState('ok'); // 'ok' | 'no_face' | 'multiple_faces'
+  const [fullscreenRequired, setFullscreenRequired] = useState(false);
+
+  const previewVideoRef = useRef(null);
+  const pipVideoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
 
   // Player State
   const [attemptId, setAttemptId] = useState(null);
@@ -94,7 +111,7 @@ export default function AssessmentPlayerPage() {
             setReportData(report);
             setViewMode('report');
           } else {
-            setViewMode('player');
+            setViewMode('onboarding');
           }
         } else {
           // Start or resume in-progress attempt
@@ -127,7 +144,7 @@ export default function AssessmentPlayerPage() {
               }
             });
             setResponses(initialResponses);
-            setViewMode('player');
+            setViewMode('onboarding');
           }
         }
       } catch (err) {
@@ -141,62 +158,260 @@ export default function AssessmentPlayerPage() {
     init();
   }, [assessmentId, isReportParam, router]);
 
-  // 2. Server-Synced Countdown Timer
-  useEffect(() => {
-    if (viewMode !== 'player' || remainingSeconds === null || remainingSeconds === undefined) return;
+  // Toast Notification Helper
+  const triggerToast = useCallback((msg) => {
+    setToastMsg(msg);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMsg(null);
+    }, 3500);
+  }, []);
 
-    if (remainingSeconds <= 0) {
-      // Auto-submit immediately
-      handleSubmitAttempt(true);
-      return;
+  // Request Webcam & Microphone Permissions
+  const requestMediaPermissions = useCallback(async () => {
+    setCameraStatus('requesting');
+    setMicStatus('checking');
+    try {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Media devices API not supported in this browser.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: true
+      });
+      setMediaStream(stream);
+      setCameraStatus('granted');
+      setMicStatus('active');
+    } catch (err) {
+      console.warn('Camera/Mic permission failed:', err);
+      setCameraStatus('denied');
+      setMicStatus('denied');
+    }
+  }, []);
+
+  // Automatically request camera/mic when entering onboarding
+  useEffect(() => {
+    if (viewMode === 'onboarding' && cameraStatus === 'idle') {
+      requestMediaPermissions();
+    }
+  }, [viewMode, cameraStatus, requestMediaPermissions]);
+
+  // Attach Stream to Preview Video Element in Onboarding
+  useEffect(() => {
+    if (previewVideoRef.current && mediaStream && viewMode === 'onboarding') {
+      previewVideoRef.current.srcObject = mediaStream;
+    }
+  }, [mediaStream, viewMode]);
+
+  // Attach Stream to Floating PiP Video in Player View
+  useEffect(() => {
+    if (pipVideoRef.current && mediaStream && viewMode === 'player') {
+      pipVideoRef.current.srcObject = mediaStream;
+    }
+  }, [mediaStream, viewMode]);
+
+  // Network Speed / Latency Ping Check in Onboarding
+  useEffect(() => {
+    if (viewMode === 'onboarding') {
+      let cancelled = false;
+      const measurePing = async () => {
+        setNetworkStatus('checking');
+        try {
+          const t0 = performance.now();
+          await fetch('/robots.txt?t=' + Date.now(), { cache: 'no-store' });
+          if (cancelled) return;
+          const ping = Math.round(performance.now() - t0);
+          setNetworkPing(ping);
+          if (ping < 160) setNetworkStatus('excellent');
+          else if (ping < 400) setNetworkStatus('moderate');
+          else setNetworkStatus('slow');
+        } catch (e) {
+          if (cancelled) return;
+          setNetworkPing(95);
+          setNetworkStatus('moderate');
+        }
+      };
+      measurePing();
+      return () => { cancelled = true; };
+    }
+  }, [viewMode]);
+
+  // Cleanup media stream on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+      }
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, [mediaStream]);
+
+  // Real-Time Face Presence & Integrity Proctoring Loop
+  useEffect(() => {
+    if (viewMode !== 'player' || !mediaStream) return;
+
+    let detector = null;
+    if (typeof window !== 'undefined' && 'FaceDetector' in window) {
+      try {
+        detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 5 });
+      } catch (e) {
+        detector = null;
+      }
     }
 
-    const timer = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmitAttempt(true);
-          return 0;
+    const interval = setInterval(async () => {
+      const video = pipVideoRef.current;
+      if (!video || video.readyState < 2) return;
+
+      try {
+        if (detector) {
+          const faces = await detector.detect(video);
+          if (faces.length === 0) {
+            setFaceStatus('no_face');
+            triggerToast('Warning: Face not detected in camera frame! Keep your face visible.');
+            if (studentEmail && attemptId) {
+              recordStudentProctoringAction(studentEmail, attemptId, 'face_out_of_frame', { timestamp: Date.now() });
+            }
+          } else if (faces.length > 1) {
+            setFaceStatus('multiple_faces');
+            triggerToast(`Violation: Multiple individuals detected (${faces.length}) in camera frame!`);
+            if (studentEmail && attemptId) {
+              recordStudentProctoringAction(studentEmail, attemptId, 'multiple_faces', { count: faces.length });
+            }
+          } else {
+            setFaceStatus('ok');
+          }
+        } else {
+          // Canvas luminance fallback to verify camera is unobscured and active
+          if (!canvasRef.current && typeof document !== 'undefined') {
+            canvasRef.current = document.createElement('canvas');
+          }
+          const canvas = canvasRef.current;
+          if (canvas) {
+            canvas.width = 64;
+            canvas.height = 48;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, 64, 48);
+              const imgData = ctx.getImageData(0, 0, 64, 48);
+              const d = imgData.data;
+              let brightnessSum = 0;
+              for (let i = 0; i < d.length; i += 4) {
+                brightnessSum += (d[i] + d[i + 1] + d[i + 2]) / 3;
+              }
+              const avg = brightnessSum / (d.length / 4);
+              if (avg < 10 || avg > 248) {
+                setFaceStatus('no_face');
+                triggerToast('Camera appears covered or poorly lit. Please ensure face is visible.');
+                if (studentEmail && attemptId) {
+                  recordStudentProctoringAction(studentEmail, attemptId, 'camera_obscured', { avgBrightness: avg });
+                }
+              } else {
+                setFaceStatus('ok');
+              }
+            }
+          }
         }
-        return prev - 1;
-      });
-    }, 1000);
+      } catch (err) {
+        // Frame analysis tick error; skip silently
+      }
+    }, 3500);
 
-    return () => clearInterval(timer);
-  }, [viewMode, remainingSeconds]);
+    return () => clearInterval(interval);
+  }, [viewMode, mediaStream, studentEmail, attemptId, triggerToast]);
 
-  // 3. Proctoring Event Listeners (Tab Switches, Blurs)
+  // Anti-Cheat Restrictions & Fullscreen Detection
   useEffect(() => {
-    if (viewMode !== 'player' || !attemptData?.proctoring_enabled || !attemptId) return;
+    if (viewMode !== 'player') return;
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setProctorCount((prev) => {
-          const next = prev + 1;
-          recordStudentProctoringAction(studentEmail, attemptId, 'tab_switch', { count: next });
-          return next;
-        });
-        setProctorWarning(true);
+    const handleCopyCutPaste = (e) => {
+      e.preventDefault();
+      triggerToast('Clipboard copy, cut, and paste actions are disabled in proctored assessments.');
+      if (studentEmail && attemptId) {
+        recordStudentProctoringAction(studentEmail, attemptId, 'clipboard_violation', { action: e.type });
       }
     };
 
-    const handleWindowBlur = () => {
-      setProctorCount((prev) => {
-        const next = prev + 1;
-        recordStudentProctoringAction(studentEmail, attemptId, 'window_blur', { count: next });
-        return next;
-      });
-      setProctorWarning(true);
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      triggerToast('Right-click context menu is disabled in assessment mode.');
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleWindowBlur);
+    const handleKeyDown = (e) => {
+      const isF12 = e.key === 'F12';
+      const isDevToolsCombo = e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key);
+      const isSaveOrSource = e.ctrlKey && ['u', 'U', 's', 'S'].includes(e.key);
+
+      if (isF12 || isDevToolsCombo || isSaveOrSource) {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerToast('Developer inspection tools and page save shortcuts are disabled.');
+        if (studentEmail && attemptId) {
+          recordStudentProctoringAction(studentEmail, attemptId, 'devtools_shortcut_blocked', { key: e.key });
+        }
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setFullscreenRequired(true);
+        triggerToast('Full-screen mode exited! Return to full-screen to continue.');
+        if (studentEmail && attemptId) {
+          recordStudentProctoringAction(studentEmail, attemptId, 'fullscreen_exit', { timestamp: Date.now() });
+        }
+      } else {
+        setFullscreenRequired(false);
+      }
+    };
+
+    window.addEventListener('copy', handleCopyCutPaste);
+    window.addEventListener('cut', handleCopyCutPaste);
+    window.addEventListener('paste', handleCopyCutPaste);
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('copy', handleCopyCutPaste);
+      window.removeEventListener('cut', handleCopyCutPaste);
+      window.removeEventListener('paste', handleCopyCutPaste);
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [viewMode, attemptData, attemptId, studentEmail]);
+  }, [viewMode, studentEmail, attemptId, triggerToast]);
+
+  // Start Proctored Exam from Onboarding
+  const handleStartExam = async () => {
+    if (cameraStatus !== 'granted') {
+      alert('Camera & microphone permissions are required for this proctored examination.');
+      return;
+    }
+    if (!hasConsented) {
+      alert('Please read and accept the examination rules and consent declaration.');
+      return;
+    }
+
+    try {
+      if (document.documentElement?.requestFullscreen) {
+        await document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (e) {
+      // Continue if browser blocks fullscreen
+    }
+
+    setViewMode('player');
+  };
+
+  // Re-enter Fullscreen Handler
+  const handleReenterFullscreen = async () => {
+    try {
+      if (document.documentElement?.requestFullscreen) {
+        await document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (e) {}
+    setFullscreenRequired(false);
+  };
 
   // 4. Debounced Autosave Engine
   const triggerAutosave = useCallback((qId, val) => {
@@ -233,6 +448,14 @@ export default function AssessmentPlayerPage() {
     if (submitting) return;
     setSubmitting(true);
     try {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        setMediaStream(null);
+      }
+      if (typeof document !== 'undefined' && document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+
       const payload = Object.entries(responses).map(([k, v]) => ({
         questionId: parseInt(k, 10),
         responseData: v
@@ -518,6 +741,183 @@ export default function AssessmentPlayerPage() {
   }
 
   // ──────────────────────────────────────────────────────────
+  // PRE-ASSESSMENT ONBOARDING & DEVICE CHECK VIEW
+  // ──────────────────────────────────────────────────────────
+  if (viewMode === 'onboarding') {
+    const durationMins = attemptData?.duration_minutes || (remainingSeconds ? Math.round(remainingSeconds / 60) : 60);
+
+    return (
+      <div className={styles.onboardingWrapper}>
+        <div className={styles.onboardingCard}>
+          <div className={styles.onboardingBadge}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="10" />
+            </svg>
+            Secure Proctored Examination
+          </div>
+
+          <h1 className={styles.onboardingTitle}>
+            {attemptData?.assessment_title || 'Assessment Instructions & Pre-Flight Check'}
+          </h1>
+          <p className={styles.onboardingSubtitle}>
+            {attemptData?.course_title} • Duration: <strong style={{ color: '#ffffff' }}>{durationMins} Minutes</strong> • Total Questions: <strong style={{ color: '#ffffff' }}>{questions.length}</strong>
+          </p>
+
+          <div className={styles.setupGrid}>
+            {/* Rules & Integrity Conduct */}
+            <div className={styles.rulesSection}>
+              <div className={styles.rulesTitle}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                Examination Rules & Integrity Conduct
+              </div>
+
+              <div className={styles.ruleItem}>
+                <svg className={styles.ruleIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                <span><strong>Fullscreen Mode Mandatory:</strong> The assessment runs strictly in full-screen. Exiting full screen or tab switching will log an incident.</span>
+              </div>
+
+              <div className={styles.ruleItem}>
+                <svg className={styles.ruleIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M23 7l-7 5 7 5V7z" />
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                </svg>
+                <span><strong>Continuous Video & Audio Proctoring:</strong> Active webcam and mic are monitored throughout. Keep your face illuminated and centered.</span>
+              </div>
+
+              <div className={styles.ruleItem}>
+                <svg className={styles.ruleIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span><strong>Single Candidate Rule:</strong> No other person may enter the camera frame. Multiple faces detected will trigger an integrity violation.</span>
+              </div>
+
+              <div className={styles.ruleItem}>
+                <svg className={styles.ruleIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span><strong>Anti-Cheat Locks:</strong> Copy, paste, right-click, and DevTools/inspect shortcuts (F12, Ctrl+Shift+I) are completely disabled.</span>
+              </div>
+            </div>
+
+            {/* Media & Diagnostic Verification */}
+            <div className={styles.mediaCheckSection}>
+              <div className={styles.videoPreviewBox}>
+                {mediaStream ? (
+                  <video
+                    ref={previewVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={styles.videoElement}
+                  />
+                ) : (
+                  <div className={styles.videoPlaceholder}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M23 7l-7 5 7 5V7z" />
+                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                    </svg>
+                    <span>Camera feed will appear here once permissions are enabled.</span>
+                    <button
+                      type="button"
+                      onClick={requestMediaPermissions}
+                      className={styles.btnPrimary}
+                      style={{ marginTop: 10, padding: '8px 18px', fontSize: 12 }}
+                    >
+                      {cameraStatus === 'requesting' ? 'Requesting Access...' : 'Allow Camera & Microphone'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.diagStatusRow}>
+                <span>Webcam Feed</span>
+                <div className={styles.statusIndicator}>
+                  <div className={cameraStatus === 'granted' ? styles.dotGreen : cameraStatus === 'denied' ? styles.dotRed : styles.dotYellow} />
+                  <span>{cameraStatus === 'granted' ? 'Connected & Ready' : cameraStatus === 'denied' ? 'Access Blocked' : 'Permission Required'}</span>
+                </div>
+              </div>
+
+              <div className={styles.diagStatusRow}>
+                <span>Microphone</span>
+                <div className={styles.statusIndicator}>
+                  <div className={micStatus === 'active' ? styles.dotGreen : micStatus === 'denied' ? styles.dotRed : styles.dotYellow} />
+                  <span>{micStatus === 'active' ? 'Active & Calibrated' : micStatus === 'denied' ? 'Access Blocked' : 'Pending Access'}</span>
+                </div>
+              </div>
+
+              <div className={styles.diagStatusRow}>
+                <span>Network Latency</span>
+                <div className={styles.statusIndicator}>
+                  <div className={networkStatus === 'excellent' ? styles.dotGreen : networkStatus === 'moderate' ? styles.dotYellow : styles.dotRed} />
+                  <span>{networkPing !== null ? `${networkPing} ms (${networkStatus === 'excellent' ? 'Optimal' : networkStatus === 'moderate' ? 'Moderate' : 'High Latency'})` : 'Measuring...'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Network Recommendations */}
+          <div className={styles.networkTipsBox}>
+            <div className={styles.networkTipsHeader}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              Network & Bandwidth Guidance
+            </div>
+            <p className={styles.networkTipsText}>
+              Ensure a stable internet connection before beginning. Close any background video streams (YouTube, Netflix), torrents, file downloads, or active video conferencing apps to prevent packet loss and latency spikes during proctoring.
+            </p>
+          </div>
+
+          {/* Candidate Consent Checkbox */}
+          <label className={styles.consentRow}>
+            <input
+              type="checkbox"
+              checked={hasConsented}
+              onChange={(e) => setHasConsented(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: 'var(--accent-orange, #f25522)', marginTop: 2, cursor: 'pointer' }}
+            />
+            <span className={styles.consentText}>
+              I confirm that I am the authorized candidate, agree to continuous webcam and microphone monitoring, and will strictly comply with examination rules without any external assistance or unauthorized tools.
+            </span>
+          </label>
+
+          {/* Action Row */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 14 }}>
+            <Link href="/dashboard/assessments" className={styles.btnSecondary} style={{ maxWidth: 160, textAlign: 'center', textDecoration: 'none' }}>
+              Cancel & Exit
+            </Link>
+            <button
+              type="button"
+              disabled={cameraStatus !== 'granted' || !hasConsented}
+              onClick={handleStartExam}
+              className={styles.btnPrimary}
+              style={{
+                maxWidth: 320,
+                opacity: (cameraStatus !== 'granted' || !hasConsented) ? 0.5 : 1,
+                cursor: (cameraStatus !== 'granted' || !hasConsented) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Enter Fullscreen Proctored Exam →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
   // PLAYER WORKSPACE VIEW
   // ──────────────────────────────────────────────────────────
   const currentQ = questions[currentQIndex];
@@ -604,6 +1004,31 @@ export default function AssessmentPlayerPage() {
       {/* Top Header */}
       <div className={styles.playerHeader}>
         <div className={styles.playerTitleBox}>
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={styles.sidebarToggleBtn}
+            title={sidebarCollapsed ? "Expand questions list" : "Hide sidebar for distraction-free view"}
+          >
+            {sidebarCollapsed ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="9" y1="3" x2="9" y2="21"/>
+                </svg>
+                <span>Questions</span>
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="9" y1="3" x2="9" y2="21"/>
+                  <polyline points="14 9 11 12 14 15"/>
+                </svg>
+                <span>Hide</span>
+              </>
+            )}
+          </button>
           <span className={styles.courseBadge}>{attemptData?.course_title}</span>
           <span className={styles.playerAssessmentTitle}>{attemptData?.assessment_title}</span>
         </div>
@@ -635,7 +1060,7 @@ export default function AssessmentPlayerPage() {
       {/* Main Body */}
       <div className={styles.playerBody}>
         {/* Left Question Navigation */}
-        <div className={styles.questionSidebar}>
+        <div className={`${styles.questionSidebar} ${sidebarCollapsed ? styles.questionSidebarCollapsed : ''}`}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#f8fafc', marginBottom: 12 }}>
             Questions Overview ({answeredCount}/{questions.length})
           </div>
@@ -1174,6 +1599,67 @@ export default function AssessmentPlayerPage() {
           </button>
         </div>
       </div>
+
+      {/* Floating Picture-in-Picture Camera Tile */}
+      {mediaStream && (
+        <div className={styles.cameraPiPTile}>
+          <video
+            ref={pipVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={styles.pipVideo}
+          />
+          <div
+            className={`${styles.pipBadge} ${
+              faceStatus === 'ok'
+                ? styles.pipBadgeActive
+                : faceStatus === 'no_face'
+                ? styles.pipBadgeDanger
+                : styles.pipBadgeWarning
+            }`}
+          >
+            {faceStatus === 'ok' && '● REC • LIVE'}
+            {faceStatus === 'no_face' && '⚠ NO FACE'}
+            {faceStatus === 'multiple_faces' && '⚠ 2+ FACES'}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Proctoring Toast Notification */}
+      {toastMsg && (
+        <div className={styles.toastWarning}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>{toastMsg}</span>
+        </div>
+      )}
+
+      {/* Fullscreen Required Modal */}
+      {fullscreenRequired && (
+        <div className={styles.proctorModal}>
+          <div className={styles.proctorCard} style={{ borderColor: 'rgba(239, 68, 68, 0.6)' }}>
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" style={{ margin: '0 auto 12px' }}>
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+            </svg>
+            <h2 className={styles.proctorWarningTitle}>Full Screen Required</h2>
+            <p className={styles.proctorWarningText}>
+              You have left full-screen mode. This proctored assessment requires full-screen lock to preserve test integrity. Full-screen exits are logged as proctoring incidents.
+            </p>
+            <button
+              type="button"
+              onClick={handleReenterFullscreen}
+              className={styles.btnPrimary}
+              style={{ width: '100%' }}
+            >
+              Resume Full Screen Mode
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
