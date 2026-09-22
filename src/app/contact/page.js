@@ -3,26 +3,28 @@
 import React, { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { saveCallback } from '../actions';
+import { saveContactInquiry } from '../actions';
 import styles from './contact.module.css';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',
-    phone: '',
     email: '',
-    topic: 'Cohort Admissions',
+    phone: '',
+    subject: '',
+    department: 'Cohort Admissions',
     message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const topics = [
+  const departments = [
     { id: 'Cohort Admissions', label: 'Cohort Admissions' },
-    { id: 'Hackwise Hackathon', label: 'Hackwise Hackathons' },
-    { id: 'Startup Incubation', label: 'Startup Incubation' },
-    { id: 'Mentorship / Other', label: 'Mentorship / General' }
+    { id: 'Hackwise Hackathons', label: 'Hackwise Hackathons' },
+    { id: 'Startup Incubation Lab', label: 'Startup Incubation' },
+    { id: 'Enterprise Partnerships', label: 'College / Enterprise' },
+    { id: 'Technical Support', label: 'General / Support' }
   ];
 
   const handleChange = (e) => {
@@ -31,14 +33,14 @@ export default function ContactPage() {
     if (errorMsg) setErrorMsg('');
   };
 
-  const handleTopicSelect = (topicId) => {
-    setFormData((prev) => ({ ...prev, topic: topicId }));
+  const handleDepartmentSelect = (deptId) => {
+    setFormData((prev) => ({ ...prev, department: deptId }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.phone.trim()) {
-      setErrorMsg('Please provide your name and phone/WhatsApp number.');
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      setErrorMsg('Please provide your name, email address, and message.');
       return;
     }
 
@@ -46,27 +48,27 @@ export default function ContactPage() {
     setErrorMsg('');
 
     try {
-      const contactTopic = `[${formData.topic}] ${formData.email ? `Email: ${formData.email} | ` : ''}${formData.message || 'Direct callback requested'}`;
-      
-      await saveCallback({
-        studentName: formData.name.trim(),
-        phone: formData.phone.trim(),
-        topic: contactTopic,
-        time: new Date().toISOString(),
-        status: 'Pending'
+      await saveContactInquiry({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || null,
+        subject: formData.subject.trim() || `${formData.department} Inquiry`,
+        department: formData.department,
+        message: formData.message.trim()
       });
 
       setIsSuccess(true);
       setFormData({
         name: '',
-        phone: '',
         email: '',
-        topic: 'Cohort Admissions',
+        phone: '',
+        subject: '',
+        department: 'Cohort Admissions',
         message: ''
       });
     } catch (err) {
-      console.error('Submission error:', err);
-      setIsSuccess(true);
+      console.error('Contact submission error:', err);
+      setErrorMsg(err.message || 'Unable to submit your message. Please try again or reach out via email directly.');
     } finally {
       setIsSubmitting(false);
     }
@@ -92,7 +94,7 @@ export default function ContactPage() {
                 <span className={styles.outlineBox}>Sphere Hive</span> At KVGCE
               </h1>
               <p className={styles.subtitle}>
-                Have questions regarding cohort roadmaps, scholarship evaluations, Hackwise national hackathons, or visiting our physical lab at KVGCE? Reach out directly below.
+                Have questions regarding cohort roadmaps, scholarship evaluations, Hackwise national hackathons, campus incubation, or visiting our physical lab at KVGCE? Reach out directly below.
               </p>
             </div>
 
@@ -207,9 +209,9 @@ export default function ContactPage() {
                         <polyline points="20 6 9 17 4 12"></polyline>
                       </svg>
                     </div>
-                    <h3 className={styles.successTitle}>Message Sent</h3>
+                    <h3 className={styles.successTitle}>Message Dispatched</h3>
                     <p className={styles.successDesc}>
-                      Your message has been received by our mentorship coordinators. We will reach out via WhatsApp or phone call shortly.
+                      Your inquiry has been recorded into our admissions and mentorship portal. Our coordinators will review and reply to {formData.email || 'your email'} shortly.
                     </p>
                     <button onClick={() => setIsSuccess(false)} className={styles.resetBtn}>
                       Send Another Message
@@ -220,7 +222,7 @@ export default function ContactPage() {
                     <div className={styles.formHeader}>
                       <h2 className={styles.formTitle}>Send Us A Message</h2>
                       <p className={styles.formSubtitle}>
-                        Fill out your details below and our team will get in touch directly.
+                        Fill out your inquiry details below and our team will get in touch directly.
                       </p>
                     </div>
 
@@ -245,59 +247,74 @@ export default function ContactPage() {
                         />
                       </div>
 
-                      {/* Phone & WhatsApp */}
-                      <div className={styles.formGroup}>
-                        <label className={styles.label}>WhatsApp / Phone Number *</label>
-                        <input
-                          type="tel"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleChange}
-                          placeholder="+91 98765 43210"
-                          className={styles.input}
-                          required
-                        />
+                      {/* Email & Phone */}
+                      <div className={styles.formRow || ''} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Email Address *</label>
+                          <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            placeholder="name@domain.com"
+                            className={styles.input}
+                            required
+                          />
+                        </div>
+
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>WhatsApp / Phone</label>
+                          <input
+                            type="tel"
+                            name="phone"
+                            value={formData.phone}
+                            onChange={handleChange}
+                            placeholder="+91 98765 43210"
+                            className={styles.input}
+                          />
+                        </div>
                       </div>
 
-                      {/* Email */}
+                      {/* Department Track Pills */}
                       <div className={styles.formGroup}>
-                        <label className={styles.label}>Email Address (Optional)</label>
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          placeholder="name@domain.com"
-                          className={styles.input}
-                        />
-                      </div>
-
-                      {/* Inquiry Track Pills */}
-                      <div className={styles.formGroup}>
-                        <label className={styles.label}>Inquiry Focus Track</label>
+                        <label className={styles.label}>Department / Topic</label>
                         <div className={styles.topicPillsGrid}>
-                          {topics.map((t) => (
+                          {departments.map((d) => (
                             <div
-                              key={t.id}
-                              onClick={() => handleTopicSelect(t.id)}
-                              className={`${styles.topicPill} ${formData.topic === t.id ? styles.topicPillActive : ''}`}
+                              key={d.id}
+                              onClick={() => handleDepartmentSelect(d.id)}
+                              className={`${styles.topicPill} ${formData.department === d.id ? styles.topicPillActive : ''}`}
                             >
                               <span className={styles.topicRadioDot} />
-                              <span>{t.label}</span>
+                              <span>{d.label}</span>
                             </div>
                           ))}
                         </div>
                       </div>
 
+                      {/* Subject */}
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Subject (Optional)</label>
+                        <input
+                          type="text"
+                          name="subject"
+                          value={formData.subject}
+                          onChange={handleChange}
+                          placeholder="e.g. Question regarding installment schedule"
+                          className={styles.input}
+                        />
+                      </div>
+
                       {/* Message */}
                       <div className={styles.formGroup}>
-                        <label className={styles.label}>What are you looking to build or explore?</label>
+                        <label className={styles.label}>Your Message *</label>
                         <textarea
                           name="message"
                           value={formData.message}
                           onChange={handleChange}
-                          placeholder="Tell us about your background, track preference, or questions..."
+                          placeholder="Tell us about your background, track preference, questions, or collaboration idea..."
                           className={styles.textarea}
+                          required
                         />
                       </div>
 
@@ -308,7 +325,7 @@ export default function ContactPage() {
                         className={styles.submitBtn}
                       >
                         {isSubmitting ? (
-                          <span>Sending Message...</span>
+                          <span>Sending Inquiry...</span>
                         ) : (
                           <>
                             Send Message

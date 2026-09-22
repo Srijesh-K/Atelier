@@ -6,7 +6,9 @@ import {
   getCourses, saveCourse, deleteCourse,
   getSchedule, saveSchedule, deleteSchedule,
   getMaterials, saveMaterial, deleteMaterial,
-  getCallbacks, resolveCallback, deleteCallback,
+  getCallbacks, updateCallbackStatus, updateCallback, resolveCallback, deleteCallback,
+  getContactInquiries, updateContactInquiryStatus, updateContactInquiry, deleteContactInquiry,
+  getFacultyApplications, updateFacultyApplicationStatus, updateFacultyApplication, deleteFacultyApplication, approveFacultyToMentor,
   getLecturers, saveLecturer, deleteLecturer,
   getTransactions, deleteTransaction,
   verifyAdminClearance, validateAdminSession
@@ -25,7 +27,7 @@ export default function AdminConsole() {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Active Entity Tab: 'users' | 'courses' | 'live' | 'materials' | 'callbacks' | 'lecturers' | 'payments' | 'assessments'
+  // Active Entity Tab: 'users' | 'courses' | 'live' | 'materials' | 'callbacks' | 'contact' | 'faculty' | 'lecturers' | 'payments' | 'assessments'
   const [activeTab, setActiveTab] = useState('users');
 
   // DB entities state
@@ -35,9 +37,22 @@ export default function AdminConsole() {
   const [recordings, setRecordings] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [callbacks, setCallbacks] = useState([]);
+  const [contactInquiries, setContactInquiries] = useState([]);
+  const [facultyApplications, setFacultyApplications] = useState([]);
   const [lecturers, setLecturers] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [adminAssessments, setAdminAssessments] = useState([]);
+
+  // Filter states
+  const [callbackStatusFilter, setCallbackStatusFilter] = useState('All');
+  const [inquiryStatusFilter, setInquiryStatusFilter] = useState('All');
+  const [facultyStatusFilter, setFacultyStatusFilter] = useState('All');
+
+  // Inspection & management modals
+  const [selectedCallback, setSelectedCallback] = useState(null);
+  const [selectedInquiry, setSelectedInquiry] = useState(null);
+  const [selectedFaculty, setSelectedFaculty] = useState(null);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
 
   // Assessment results modal state
   const [selectedAssessmentForResults, setSelectedAssessmentForResults] = useState(null);
@@ -98,6 +113,8 @@ export default function AdminConsole() {
     setSchedule(await getSchedule());
     setMaterials(await getMaterials());
     setCallbacks(await getCallbacks());
+    setContactInquiries(await getContactInquiries().catch(() => []));
+    setFacultyApplications(await getFacultyApplications().catch(() => []));
     setLecturers(await getLecturers());
     setTransactions(await getTransactions());
     setAdminAssessments(await getAllAssessmentsAdminAction().catch(() => []));
@@ -138,7 +155,7 @@ export default function AdminConsole() {
           sessionStorage.setItem('adminCleared', 'true');
         }
       } else {
-        setLoginError('Clearance denied: Invalid Security Key credentials.');
+        setLoginError('Authorization failed: ' + err.message);
       }
     } finally {
       setIsLoggingIn(false);
@@ -146,10 +163,79 @@ export default function AdminConsole() {
   };
 
   const handleLogout = () => {
-    setAuthorized(false);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('adminSessionToken');
       sessionStorage.removeItem('adminCleared');
+    }
+    setAuthorized(false);
+  };
+
+  const handleResolveCallback = async (id) => {
+    try {
+      await updateCallbackStatus(id, 'Resolved');
+      await loadData();
+    } catch (err) {
+      alert("Error resolving callback: " + err.message);
+    }
+  };
+
+  const handleUpdateCallback = async (e) => {
+    e.preventDefault();
+    if (!selectedCallback) return;
+    setIsProcessingAction(true);
+    try {
+      await updateCallback(selectedCallback.id, selectedCallback);
+      await loadData();
+      setSelectedCallback(null);
+    } catch (err) {
+      alert("Error updating callback: " + err.message);
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleUpdateInquiry = async (e) => {
+    e.preventDefault();
+    if (!selectedInquiry) return;
+    setIsProcessingAction(true);
+    try {
+      await updateContactInquiry(selectedInquiry.id, selectedInquiry);
+      await loadData();
+      setSelectedInquiry(null);
+    } catch (err) {
+      alert("Error updating inquiry: " + err.message);
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleUpdateFaculty = async (e) => {
+    e.preventDefault();
+    if (!selectedFaculty) return;
+    setIsProcessingAction(true);
+    try {
+      await updateFacultyApplication(selectedFaculty.id, selectedFaculty);
+      await loadData();
+      setSelectedFaculty(null);
+    } catch (err) {
+      alert("Error updating faculty application: " + err.message);
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleApproveFaculty = async (id) => {
+    if (!confirm("Are you sure you want to approve this applicant and onboard them as an official Atelier Mentor?")) return;
+    setIsProcessingAction(true);
+    try {
+      const res = await approveFacultyToMentor(id);
+      alert(`Applicant successfully onboarded as Atelier Mentor (Mentor ID: ${res.lecturerId}). Temporary password initialized to: mentor123`);
+      await loadData();
+      setSelectedFaculty(null);
+    } catch (err) {
+      alert("Error onboarding faculty member: " + err.message);
+    } finally {
+      setIsProcessingAction(false);
     }
   };
 
@@ -168,6 +254,10 @@ export default function AdminConsole() {
         await deleteMaterial(id);
       } else if (activeTab === 'callbacks') {
         await deleteCallback(id);
+      } else if (activeTab === 'contact') {
+        await deleteContactInquiry(id);
+      } else if (activeTab === 'faculty') {
+        await deleteFacultyApplication(id);
       } else if (activeTab === 'lecturers') {
         await deleteLecturer(id);
       } else if (activeTab === 'payments') {
@@ -177,6 +267,7 @@ export default function AdminConsole() {
       }
       
       // Sync list
+      await loadData();
       window.dispatchEvent(new Event('courseChanged'));
     } catch (err) {
       console.error(err);
@@ -406,22 +497,48 @@ export default function AdminConsole() {
   };
 
 
-  // Hotline callback operations
-  const handleResolveCallback = async (id) => {
-    try {
-      await resolveCallback(id);
-      window.dispatchEvent(new Event('courseChanged'));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   // Filters logic
   const filteredStudents = students.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.email.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredCourses = courses.filter(c => c.title.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredSchedule = schedule.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredMaterials = materials.filter(m => m.title.toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredCallbacks = callbacks.filter(c => c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || c.topic.toLowerCase().includes(searchTerm.toLowerCase()));
+  
+  const filteredCallbacks = callbacks.filter(c => {
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = !q || 
+      (c.studentName && c.studentName.toLowerCase().includes(q)) || 
+      (c.topic && c.topic.toLowerCase().includes(q)) ||
+      (c.phone && c.phone.toLowerCase().includes(q)) ||
+      (c.email && c.email.toLowerCase().includes(q));
+    const matchesStatus = callbackStatusFilter === 'All' || c.status === callbackStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filteredContactInquiries = contactInquiries.filter(ci => {
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = !q || 
+      (ci.name && ci.name.toLowerCase().includes(q)) ||
+      (ci.email && ci.email.toLowerCase().includes(q)) ||
+      (ci.subject && ci.subject.toLowerCase().includes(q)) ||
+      (ci.department && ci.department.toLowerCase().includes(q)) ||
+      (ci.message && ci.message.toLowerCase().includes(q));
+    const matchesStatus = inquiryStatusFilter === 'All' || ci.status === inquiryStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filteredFacultyApplications = facultyApplications.filter(f => {
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = !q || 
+      (f.name && f.name.toLowerCase().includes(q)) ||
+      (f.email && f.email.toLowerCase().includes(q)) ||
+      (f.phone && f.phone.toLowerCase().includes(q)) ||
+      (f.roleApplied && f.roleApplied.toLowerCase().includes(q)) ||
+      (f.expertise && f.expertise.toLowerCase().includes(q)) ||
+      (f.currentCompany && f.currentCompany.toLowerCase().includes(q));
+    const matchesStatus = facultyStatusFilter === 'All' || f.status === facultyStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   const filteredLecturers = lecturers.filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.expertise.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredTransactions = transactions.filter(t => t.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || t.courseTitle.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredAssessments = adminAssessments.filter(a => {
@@ -544,7 +661,24 @@ export default function AdminConsole() {
           <button className={`${styles.tabBtn} ${activeTab === 'courses' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('courses'); setSearchTerm(''); }}>Courses ({courses.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'live' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('live'); setSearchTerm(''); }}>Live Schedule ({schedule.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'materials' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('materials'); setSearchTerm(''); }}>Materials ({materials.length})</button>
-          <button className={`${styles.tabBtn} ${activeTab === 'callbacks' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('callbacks'); setSearchTerm(''); }}>Hotline Callback Logs ({callbacks.length})</button>
+          <button className={`${styles.tabBtn} ${activeTab === 'callbacks' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('callbacks'); setSearchTerm(''); }}>
+            Hotline Callbacks ({callbacks.length})
+            {callbacks.filter(c => c.status === 'Pending').length > 0 && (
+              <span className={styles.badgePill}>{callbacks.filter(c => c.status === 'Pending').length}</span>
+            )}
+          </button>
+          <button className={`${styles.tabBtn} ${activeTab === 'contact' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('contact'); setSearchTerm(''); }}>
+            Contact Inquiries ({contactInquiries.length})
+            {contactInquiries.filter(c => c.status === 'new').length > 0 && (
+              <span className={styles.badgePill}>{contactInquiries.filter(c => c.status === 'new').length}</span>
+            )}
+          </button>
+          <button className={`${styles.tabBtn} ${activeTab === 'faculty' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('faculty'); setSearchTerm(''); }}>
+            Faculty Dossiers ({facultyApplications.length})
+            {facultyApplications.filter(f => f.status === 'pending').length > 0 && (
+              <span className={styles.badgePill}>{facultyApplications.filter(f => f.status === 'pending').length}</span>
+            )}
+          </button>
           <button className={`${styles.tabBtn} ${activeTab === 'lecturers' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('lecturers'); setSearchTerm(''); }}>Mentors ({lecturers.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'payments' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('payments'); setSearchTerm(''); }}>Payments ({transactions.length})</button>
           <button className={`${styles.tabBtn} ${activeTab === 'assessments' ? styles.tabBtnActive : ''}`} onClick={() => { setActiveTab('assessments'); setSearchTerm(''); }}>Assessments ({adminAssessments.length})</button>
@@ -561,20 +695,24 @@ export default function AdminConsole() {
             <p className={styles.statValue}>{courses.length}</p>
           </div>
           <div className={styles.statCard}>
-            <span className={styles.statLabel}>Upcoming Streams Scheduled</span>
-            <p className={styles.statValue}>{schedule.length}</p>
-          </div>
-          <div className={styles.statCard}>
             <span className={styles.statLabel}>Pending Callback Requests</span>
             <p className={styles.statValue} style={{ color: 'var(--accent-orange)' }}>{callbacks.filter(c => c.status === 'Pending').length}</p>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statLabel}>New Contact Inquiries</span>
+            <p className={styles.statValue} style={{ color: '#3498db' }}>{contactInquiries.filter(c => c.status === 'new').length}</p>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statLabel}>Pending Faculty Applications</span>
+            <p className={styles.statValue} style={{ color: '#f1c40f' }}>{facultyApplications.filter(f => f.status === 'pending').length}</p>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>Registered Mentors</span>
             <p className={styles.statValue}>{lecturers.length}</p>
           </div>
           <div className={styles.statCard}>
-            <span className={styles.statLabel}>Total Payments Logs</span>
-            <p className={styles.statValue}>{transactions.length}</p>
+            <span className={styles.statLabel}>Upcoming Streams Scheduled</span>
+            <p className={styles.statValue}>{schedule.length}</p>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>Total Course Enrollments</span>
@@ -599,7 +737,7 @@ export default function AdminConsole() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {activeTab !== 'callbacks' && activeTab !== 'payments' && (
+          {activeTab !== 'callbacks' && activeTab !== 'contact' && activeTab !== 'faculty' && activeTab !== 'payments' && (
             <button 
               className={styles.gateBtn} 
               style={{ width: 'auto', padding: '0.5rem 1rem' }}
@@ -760,42 +898,238 @@ export default function AdminConsole() {
 
           {/* TAB 5: HOTLINE CALLBACK REQUEST LOGS */}
           {activeTab === 'callbacks' && (
-            <table className={styles.adminTable}>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Student</th>
-                  <th>Phone</th>
-                  <th>Topic Request</th>
-                  <th>Submitted Time</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCallbacks.map((c) => (
-                  <tr key={c.id}>
-                    <td>{c.id}</td>
-                    <td style={{ fontWeight: '600' }}>{c.studentName}</td>
-                    <td>{c.phone}</td>
-                    <td>{c.topic}</td>
-                    <td>{c.time ? new Date(c.time).toLocaleTimeString() : 'Recent'}</td>
-                    <td>
-                      <span className={`${styles.statusBadge} ${c.status === 'Pending' ? styles.statusPending : styles.statusResolved}`}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td>
-                      {c.status === 'Pending' && (
-                        <button className={`${styles.actionBtn} ${styles.resolveBtn}`} onClick={() => handleResolveCallback(c.id)}>Resolve</button>
-                      )}
-                      <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(c.id)}>Delete</button>
-                    </td>
-                  </tr>
+            <div>
+              <div className={styles.filterPillsRow}>
+                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginRight: '0.5rem', textTransform: 'uppercase', fontWeight: '700' }}>Filter Status:</span>
+                {['All', 'Pending', 'In Progress', 'Resolved'].map((st) => (
+                  <button
+                    key={st}
+                    className={`${styles.filterPill} ${callbackStatusFilter === st ? styles.filterPillActive : ''}`}
+                    onClick={() => setCallbackStatusFilter(st)}
+                  >
+                    {st}
+                  </button>
                 ))}
-                {filteredCallbacks.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2rem' }}>No callback submissions.</td></tr>}
-              </tbody>
-            </table>
+              </div>
+
+              <table className={styles.adminTable}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Student Name</th>
+                    <th>Contact Info</th>
+                    <th>Preferred Slot</th>
+                    <th>Track / Topic</th>
+                    <th>Submitted Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCallbacks.map((c) => (
+                    <tr key={c.id}>
+                      <td>{c.id}</td>
+                      <td style={{ fontWeight: '600' }}>{c.studentName}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <span style={{ color: '#fff' }}>{c.phone}</span>
+                          {c.email && <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>{c.email}</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
+                          {c.preferredTime || 'Immediate / Flexible'}
+                        </span>
+                      </td>
+                      <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {c.topic}
+                      </td>
+                      <td>{c.createdAt || c.time ? new Date(c.createdAt || c.time).toLocaleString() : 'Recent'}</td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${
+                          c.status === 'Pending' ? styles.statusPending : 
+                          c.status === 'In Progress' ? styles.statusInProgress : 
+                          styles.statusResolved
+                        }`}>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button className={`${styles.actionBtn} ${styles.viewBtn}`} onClick={() => setSelectedCallback({ ...c })}>Inspect</button>
+                        {c.status === 'Pending' && (
+                          <button className={`${styles.actionBtn} ${styles.resolveBtn}`} onClick={() => handleResolveCallback(c.id)}>Resolve</button>
+                        )}
+                        <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(c.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredCallbacks.length === 0 && <tr><td colSpan="8" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2.5rem' }}>No callback submissions match your criteria.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* TAB: CONTACT INQUIRIES */}
+          {activeTab === 'contact' && (
+            <div>
+              <div className={styles.filterPillsRow}>
+                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginRight: '0.5rem', textTransform: 'uppercase', fontWeight: '700' }}>Status:</span>
+                {['All', 'new', 'in_progress', 'resolved', 'archived'].map((st) => (
+                  <button
+                    key={st}
+                    className={`${styles.filterPill} ${inquiryStatusFilter === st ? styles.filterPillActive : ''}`}
+                    onClick={() => setInquiryStatusFilter(st)}
+                  >
+                    {st === 'in_progress' ? 'In Progress' : st.charAt(0).toUpperCase() + st.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              <table className={styles.adminTable}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Sender Name</th>
+                    <th>Contact Details</th>
+                    <th>Department</th>
+                    <th>Subject</th>
+                    <th>Message Snippet</th>
+                    <th>Received At</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredContactInquiries.map((ci) => (
+                    <tr key={ci.id}>
+                      <td>{ci.id}</td>
+                      <td style={{ fontWeight: '600' }}>{ci.name}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <a href={`mailto:${ci.email}`} style={{ color: 'var(--accent-orange)', textDecoration: 'none', fontSize: '0.82rem' }}>{ci.email}</a>
+                          {ci.phone && <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{ci.phone}</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.78rem', color: '#3498db', fontWeight: '600' }}>{ci.department || 'General'}</span>
+                      </td>
+                      <td style={{ maxWidth: '160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {ci.subject || 'Inquiry'}
+                      </td>
+                      <td style={{ maxWidth: '240px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'rgba(255,255,255,0.7)' }}>
+                        {ci.message}
+                      </td>
+                      <td>{ci.createdAt ? new Date(ci.createdAt).toLocaleString() : 'Recent'}</td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${
+                          ci.status === 'new' ? styles.statusNew :
+                          ci.status === 'in_progress' ? styles.statusInProgress :
+                          ci.status === 'resolved' ? styles.statusApproved :
+                          styles.statusArchived
+                        }`}>
+                          {ci.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button className={`${styles.actionBtn} ${styles.viewBtn}`} onClick={() => setSelectedInquiry({ ...ci })}>Inspect</button>
+                        <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(ci.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredContactInquiries.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2.5rem' }}>No contact inquiries match your criteria.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* TAB: FACULTY APPLICATIONS */}
+          {activeTab === 'faculty' && (
+            <div>
+              <div className={styles.filterPillsRow}>
+                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginRight: '0.5rem', textTransform: 'uppercase', fontWeight: '700' }}>Status:</span>
+                {['All', 'pending', 'under_review', 'approved', 'rejected'].map((st) => (
+                  <button
+                    key={st}
+                    className={`${styles.filterPill} ${facultyStatusFilter === st ? styles.filterPillActive : ''}`}
+                    onClick={() => setFacultyStatusFilter(st)}
+                  >
+                    {st === 'under_review' ? 'Under Review' : st.charAt(0).toUpperCase() + st.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              <table className={styles.adminTable}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Candidate</th>
+                    <th>Role Applied</th>
+                    <th>Domain / Expertise</th>
+                    <th>Experience</th>
+                    <th>Current Org</th>
+                    <th>Profiles</th>
+                    <th>Applied At</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredFacultyApplications.map((f) => (
+                    <tr key={f.id}>
+                      <td>{f.id}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <span style={{ fontWeight: '600' }}>{f.name}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{f.email}</span>
+                          <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>{f.phone}</span>
+                        </div>
+                      </td>
+                      <td style={{ fontWeight: '600', color: 'var(--accent-orange)', fontSize: '0.82rem' }}>
+                        {f.roleApplied}
+                      </td>
+                      <td style={{ maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {f.expertise}
+                      </td>
+                      <td>{f.experienceYears || '2-5 Yrs'}</td>
+                      <td>{f.currentCompany || 'N/A'}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          {f.linkedin && (
+                            <a href={f.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: '#0077b5', fontSize: '0.75rem', textDecoration: 'underline' }}>
+                              LinkedIn
+                            </a>
+                          )}
+                          {f.github && (
+                            <a href={f.github} target="_blank" rel="noopener noreferrer" style={{ color: '#fff', fontSize: '0.75rem', textDecoration: 'underline' }}>
+                              GitHub
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td>{f.createdAt ? new Date(f.createdAt).toLocaleDateString() : 'Recent'}</td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${
+                          f.status === 'pending' ? styles.statusPending :
+                          f.status === 'under_review' ? styles.statusInProgress :
+                          f.status === 'approved' ? styles.statusApproved :
+                          styles.statusRejected
+                        }`}>
+                          {f.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button className={`${styles.actionBtn} ${styles.viewBtn}`} onClick={() => setSelectedFaculty({ ...f })}>Inspect Dossier</button>
+                        {f.status !== 'approved' && (
+                          <button className={`${styles.actionBtn} ${styles.approveBtn}`} onClick={() => handleApproveFaculty(f.id)}>Approve</button>
+                        )}
+                        <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(f.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredFacultyApplications.length === 0 && <tr><td colSpan="10" style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '2.5rem' }}>No faculty dossiers match your criteria.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {/* TAB 6: MENTORS ENTITIES */}
@@ -1542,6 +1876,334 @@ export default function AdminConsole() {
         </div>
       )}
 
+
+      {/* ─── ADMIN MODAL: CALLBACK INSPECTION & EDIT ─── */}
+      {selectedCallback && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedCallback(null)}>
+          <div className={styles.modalContent} style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Inspect Callback #{selectedCallback.id}</h3>
+              <button className={styles.modalClose} onClick={() => setSelectedCallback(null)}>✕</button>
+            </div>
+
+            <form onSubmit={handleUpdateCallback} className={styles.modalFormContainer}>
+              <div className={styles.modalFormBody}>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.modalLabel}>Student Name</label>
+                    <input
+                      type="text"
+                      className={styles.modalInput}
+                      value={selectedCallback.studentName || ''}
+                      onChange={(e) => setSelectedCallback({ ...selectedCallback, studentName: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.modalLabel}>Phone Number</label>
+                    <input
+                      type="text"
+                      className={styles.modalInput}
+                      value={selectedCallback.phone || ''}
+                      onChange={(e) => setSelectedCallback({ ...selectedCallback, phone: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.modalLabel}>Email</label>
+                    <input
+                      type="email"
+                      className={styles.modalInput}
+                      value={selectedCallback.email || ''}
+                      onChange={(e) => setSelectedCallback({ ...selectedCallback, email: e.target.value })}
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.modalLabel}>Preferred Slot</label>
+                    <input
+                      type="text"
+                      className={styles.modalInput}
+                      value={selectedCallback.preferredTime || ''}
+                      onChange={(e) => setSelectedCallback({ ...selectedCallback, preferredTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.modalLabel}>Topic / Program Request</label>
+                  <input
+                    type="text"
+                    className={styles.modalInput}
+                    value={selectedCallback.topic || ''}
+                    onChange={(e) => setSelectedCallback({ ...selectedCallback, topic: e.target.value })}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.modalLabel}>Internal Notes / Student Questions</label>
+                  <textarea
+                    className={styles.modalTextarea}
+                    rows={3}
+                    value={selectedCallback.notes || ''}
+                    onChange={(e) => setSelectedCallback({ ...selectedCallback, notes: e.target.value })}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.modalLabel}>Callback Status</label>
+                  <select
+                    className={styles.modalSelect}
+                    value={selectedCallback.status || 'Pending'}
+                    onChange={(e) => setSelectedCallback({ ...selectedCallback, status: e.target.value })}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.actionBtn} style={{ color: '#ffffff', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setSelectedCallback(null)}>Cancel</button>
+                <button type="submit" disabled={isProcessingAction} className={styles.gateBtn} style={{ width: 'auto', padding: '0.5rem 1rem' }}>
+                  {isProcessingAction ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── ADMIN MODAL: CONTACT INQUIRY INSPECTION ─── */}
+      {selectedInquiry && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedInquiry(null)}>
+          <div className={styles.modalContent} style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Inquiry #{selectedInquiry.id}</h3>
+                <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>
+                  From {selectedInquiry.name} • {selectedInquiry.createdAt ? new Date(selectedInquiry.createdAt).toLocaleString() : 'Recent'}
+                </span>
+              </div>
+              <button className={styles.modalClose} onClick={() => setSelectedInquiry(null)}>✕</button>
+            </div>
+
+            <form onSubmit={handleUpdateInquiry} className={styles.modalFormContainer}>
+              <div className={styles.modalFormBody}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Email:</span>
+                    <div><a href={`mailto:${selectedInquiry.email}`} style={{ color: 'var(--accent-orange)', fontSize: '0.85rem' }}>{selectedInquiry.email}</a></div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Phone:</span>
+                    <div style={{ fontSize: '0.85rem', color: '#fff' }}>{selectedInquiry.phone || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Department:</span>
+                    <div style={{ fontSize: '0.85rem', color: '#3498db', fontWeight: '600' }}>{selectedInquiry.department}</div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Subject:</span>
+                    <div style={{ fontSize: '0.85rem', color: '#fff' }}>{selectedInquiry.subject || 'General'}</div>
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.modalLabel}>Message Content</label>
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '0.9rem', color: '#ffffff', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                    {selectedInquiry.message}
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.modalLabel}>Status</label>
+                  <select
+                    className={styles.modalSelect}
+                    value={selectedInquiry.status || 'new'}
+                    onChange={(e) => setSelectedInquiry({ ...selectedInquiry, status: e.target.value })}
+                  >
+                    <option value="new">New (Unread)</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.modalLabel}>Internal Admin Notes</label>
+                  <textarea
+                    className={styles.modalTextarea}
+                    rows={3}
+                    placeholder="Add team notes on resolution, reply sent, or follow-up tasks..."
+                    value={selectedInquiry.adminNotes || ''}
+                    onChange={(e) => setSelectedInquiry({ ...selectedInquiry, adminNotes: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.actionBtn} style={{ color: '#ffffff', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setSelectedInquiry(null)}>Cancel</button>
+                <button type="submit" disabled={isProcessingAction} className={styles.gateBtn} style={{ width: 'auto', padding: '0.5rem 1rem' }}>
+                  {isProcessingAction ? 'Saving...' : 'Update Inquiry'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── ADMIN MODAL: FACULTY APPLICATION DOSSIER ─── */}
+      {selectedFaculty && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedFaculty(null)}>
+          <div className={styles.modalContent} style={{ maxWidth: '720px', maxHeight: '92vh' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Faculty Dossier: {selectedFaculty.name}</h3>
+                <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>
+                  Applied For: <strong style={{ color: 'var(--accent-orange)' }}>{selectedFaculty.roleApplied}</strong> • {selectedFaculty.experienceYears} Exp
+                </span>
+              </div>
+              <button className={styles.modalClose} onClick={() => setSelectedFaculty(null)}>✕</button>
+            </div>
+
+            <form onSubmit={handleUpdateFaculty} className={styles.modalFormContainer}>
+              <div className={styles.modalFormBody}>
+                {/* Candidate Overview Card */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Email:</span>
+                    <div><a href={`mailto:${selectedFaculty.email}`} style={{ color: 'var(--accent-orange)', fontSize: '0.85rem' }}>{selectedFaculty.email}</a></div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Phone / WhatsApp:</span>
+                    <div style={{ fontSize: '0.85rem', color: '#fff' }}>{selectedFaculty.phone}</div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Current Company:</span>
+                    <div style={{ fontSize: '0.85rem', color: '#fff' }}>{selectedFaculty.currentCompany || 'Independent / Stealth'}</div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Availability:</span>
+                    <div style={{ fontSize: '0.85rem', color: '#2ecc71' }}>{selectedFaculty.availability || 'Flexible'}</div>
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Verified Profiles:</span>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                      {selectedFaculty.linkedin && (
+                        <a href={selectedFaculty.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: '#0077b5', fontSize: '0.82rem', textDecoration: 'underline' }}>
+                          ↗ LinkedIn Profile
+                        </a>
+                      )}
+                      {selectedFaculty.github && (
+                        <a href={selectedFaculty.github} target="_blank" rel="noopener noreferrer" style={{ color: '#ffffff', fontSize: '0.82rem', textDecoration: 'underline' }}>
+                          ↗ GitHub / Tech Blog
+                        </a>
+                      )}
+                      {selectedFaculty.portfolio && (
+                        <a href={selectedFaculty.portfolio} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-orange)', fontSize: '0.82rem', textDecoration: 'underline' }}>
+                          ↗ Portfolio Site
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.modalLabel}>Primary Domain & Technical Stack</label>
+                  <input
+                    type="text"
+                    className={styles.modalInput}
+                    value={selectedFaculty.expertise || ''}
+                    onChange={(e) => setSelectedFaculty({ ...selectedFaculty, expertise: e.target.value })}
+                  />
+                </div>
+
+                {selectedFaculty.bio && (
+                  <div className={styles.formGroup}>
+                    <label className={styles.modalLabel}>Professional Bio & Career Highlights</label>
+                    <div style={{ padding: '0.85rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', fontSize: '0.88rem', color: '#ffffff', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                      {selectedFaculty.bio}
+                    </div>
+                  </div>
+                )}
+
+                {selectedFaculty.courseProposal && (
+                  <div className={styles.formGroup}>
+                    <label className={styles.modalLabel}>Proposed Masterclass / Workshop Topic</label>
+                    <div style={{ padding: '0.85rem', background: 'rgba(242, 85, 34, 0.05)', border: '1px solid rgba(242, 85, 34, 0.2)', borderRadius: '8px', fontSize: '0.88rem', color: '#ffffff', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                      {selectedFaculty.courseProposal}
+                    </div>
+                  </div>
+                )}
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.modalLabel}>Application Status</label>
+                    <select
+                      className={styles.modalSelect}
+                      value={selectedFaculty.status || 'pending'}
+                      onChange={(e) => setSelectedFaculty({ ...selectedFaculty, status: e.target.value })}
+                    >
+                      <option value="pending">Pending Review</option>
+                      <option value="under_review">Under Academic Review</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.modalLabel}>Teaching Track</label>
+                    <input
+                      type="text"
+                      className={styles.modalInput}
+                      value={selectedFaculty.roleApplied || ''}
+                      onChange={(e) => setSelectedFaculty({ ...selectedFaculty, roleApplied: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.modalLabel}>Internal Admin Notes & Interview Notes</label>
+                  <textarea
+                    className={styles.modalTextarea}
+                    rows={3}
+                    placeholder="Log academic board feedback, interview notes, or remuneration terms..."
+                    value={selectedFaculty.adminNotes || ''}
+                    onChange={(e) => setSelectedFaculty({ ...selectedFaculty, adminNotes: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.modalFooter} style={{ justifyContent: 'space-between' }}>
+                <div>
+                  {selectedFaculty.status !== 'approved' && (
+                    <button
+                      type="button"
+                      disabled={isProcessingAction}
+                      onClick={() => handleApproveFaculty(selectedFaculty.id)}
+                      className={styles.approveBtn}
+                      style={{ padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      ✓ Approve & Onboard as Mentor
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" className={styles.actionBtn} style={{ color: '#ffffff', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setSelectedFaculty(null)}>Cancel</button>
+                  <button type="submit" disabled={isProcessingAction} className={styles.gateBtn} style={{ width: 'auto', padding: '0.5rem 1rem' }}>
+                    {isProcessingAction ? 'Saving...' : 'Save Dossier'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

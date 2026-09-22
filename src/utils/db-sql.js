@@ -1,5 +1,5 @@
 import mysql from 'mysql2/promise';
-import { hashPassword } from './auth';
+import { hashPassword } from './auth.js';
 import {
   defaultStudents,
   defaultCourses,
@@ -9,7 +9,7 @@ import {
   defaultCallbacks,
   defaultLecturers,
   defaultTransactions
-} from './db';
+} from './db.js';
 
 const DB_CONFIG = {
   host: process.env.DB_HOST || 'localhost',
@@ -263,6 +263,63 @@ async function runFullSchemaMigration(p) {
       topic TEXT,
       time VARCHAR(100),
       status VARCHAR(50) DEFAULT 'Pending'
+    ) ENGINE=InnoDB
+  `);
+
+  // Ensure callback columns exist on existing tables
+  const [cbColumns] = await p.execute("SHOW COLUMNS FROM atelier_callbacks");
+  const cbColNames = cbColumns.map(c => c.Field);
+  if (!cbColNames.includes('email')) {
+    await p.execute("ALTER TABLE atelier_callbacks ADD COLUMN email VARCHAR(255) NULL");
+  }
+  if (!cbColNames.includes('preferred_time')) {
+    await p.execute("ALTER TABLE atelier_callbacks ADD COLUMN preferred_time VARCHAR(100) NULL");
+  }
+  if (!cbColNames.includes('notes')) {
+    await p.execute("ALTER TABLE atelier_callbacks ADD COLUMN notes TEXT NULL");
+  }
+  if (!cbColNames.includes('created_at')) {
+    await p.execute("ALTER TABLE atelier_callbacks ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+  }
+
+  // Contact Inquiries Table
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_contact_inquiries (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      phone VARCHAR(50) NULL,
+      subject VARCHAR(255) NULL,
+      department VARCHAR(100) DEFAULT 'Cohort Admissions',
+      message TEXT NOT NULL,
+      status VARCHAR(50) DEFAULT 'new',
+      admin_notes TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `);
+
+  // Faculty Applications Table
+  await p.execute(`
+    CREATE TABLE IF NOT EXISTS atelier_faculty_applications (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      phone VARCHAR(50) NOT NULL,
+      role_applied VARCHAR(255) DEFAULT 'Industry Mentor / Guest Faculty',
+      expertise VARCHAR(255) NOT NULL,
+      experience_years VARCHAR(50) NULL,
+      current_company VARCHAR(255) NULL,
+      linkedin VARCHAR(500) NULL,
+      github VARCHAR(500) NULL,
+      portfolio VARCHAR(500) NULL,
+      bio TEXT NULL,
+      course_proposal TEXT NULL,
+      availability VARCHAR(100) NULL,
+      status VARCHAR(50) DEFAULT 'pending',
+      admin_notes TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB
   `);
 

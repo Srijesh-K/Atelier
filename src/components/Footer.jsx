@@ -106,10 +106,10 @@ export default function Footer() {
             <h4 className={styles.colTitle}>ABOUT</h4>
             <ul className={styles.linksList}>
               <li><Link href="/#bootcamp" className={styles.footerLink}>About Us</Link></li>
-              <li><Link href="/contact" className={styles.footerLink}>Support</Link></li>
+              <li><Link href="/request-callback" className={styles.footerLink}>Request Callback</Link></li>
+              <li><Link href="/contact" className={styles.footerLink}>Contact & Support</Link></li>
               <li><Link href="/terms" className={styles.footerLink}>Terms and Condition</Link></li>
               <li><Link href="/privacy-policy" className={styles.footerLink}>Privacy Policy</Link></li>
-              <li><Link href="/contact" className={styles.footerLink}>Submit Projects</Link></li>
             </ul>
           </div>
 
@@ -117,11 +117,11 @@ export default function Footer() {
           <div className={styles.linksCol}>
             <h4 className={styles.colTitle}>COMPANY</h4>
             <ul className={styles.linksList}>
+              <li><Link href="/join-faculty" className={styles.footerLink}>Join Faculty & Mentors</Link></li>
+              <li><Link href="/courses" className={styles.footerLink}>All Cohorts</Link></li>
               <li><Link href="/contact" className={styles.footerLink}>Hire From Us</Link></li>
               <li><a href="https://discord.gg" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>Discord</a></li>
               <li><Link href="/refund-policy" className={styles.footerLink}>Pricing and Refund</Link></li>
-              <li><Link href="/courses" className={styles.footerLink}>All Cohorts</Link></li>
-              <li><Link href="/contact" className={styles.footerLink}>Jobs</Link></li>
             </ul>
           </div>
 

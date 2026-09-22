@@ -477,10 +477,11 @@ export async function deleteMaterial(id) {
 // --- HOTLINE CALLBACKS ACTIONS ---
 export async function getCallbacks() {
   try {
-    const callbacks = await query("SELECT * FROM atelier_callbacks");
+    const callbacks = await query("SELECT * FROM atelier_callbacks ORDER BY id DESC");
     callbacks.forEach(c => {
       c.studentName = c.student_name;
-      delete c.student_name;
+      c.preferredTime = c.preferred_time;
+      c.createdAt = c.created_at || c.time;
     });
     return callbacks;
   } catch (e) {
@@ -493,12 +494,57 @@ export async function saveCallback(cb) {
   try {
     const timestamp = cb.time || new Date().toISOString();
     await execute(
-      `INSERT INTO atelier_callbacks (student_name, phone, topic, time, status) VALUES (?, ?, ?, ?, ?)`,
-      [cb.studentName || cb.student_name, cb.phone, cb.topic, timestamp, cb.status || 'Pending']
+      `INSERT INTO atelier_callbacks (student_name, phone, email, preferred_time, topic, notes, time, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        cb.studentName || cb.student_name || 'Prospective Student',
+        cb.phone || '',
+        cb.email || null,
+        cb.preferredTime || cb.preferred_time || null,
+        cb.topic || 'Cohort Advisory',
+        cb.notes || null,
+        timestamp,
+        cb.status || 'Pending'
+      ]
     );
     return { success: true };
   } catch (e) {
     console.error("SQL Error in saveCallback:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function updateCallbackStatus(id, status, notes = null) {
+  try {
+    if (notes !== null) {
+      await execute("UPDATE atelier_callbacks SET status = ?, notes = ? WHERE id = ?", [status, notes, id]);
+    } else {
+      await execute("UPDATE atelier_callbacks SET status = ? WHERE id = ?", [status, id]);
+    }
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in updateCallbackStatus:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function updateCallback(id, data) {
+  try {
+    await execute(
+      `UPDATE atelier_callbacks SET student_name = ?, phone = ?, email = ?, preferred_time = ?, topic = ?, notes = ?, status = ? WHERE id = ?`,
+      [
+        data.studentName || data.student_name,
+        data.phone || '',
+        data.email || null,
+        data.preferredTime || data.preferred_time || null,
+        data.topic || '',
+        data.notes || null,
+        data.status || 'Pending',
+        id
+      ]
+    );
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in updateCallback:", e);
     throw new Error(e.message);
   }
 }
@@ -519,6 +565,263 @@ export async function deleteCallback(id) {
     return { success: true };
   } catch (e) {
     console.error("SQL Error in deleteCallback:", e);
+    throw new Error(e.message);
+  }
+}
+
+// --- CONTACT INQUIRIES ACTIONS ---
+export async function getContactInquiries() {
+  try {
+    const rows = await query("SELECT * FROM atelier_contact_inquiries ORDER BY created_at DESC");
+    return rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      phone: r.phone,
+      subject: r.subject,
+      department: r.department,
+      message: r.message,
+      status: r.status,
+      adminNotes: r.admin_notes,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at
+    }));
+  } catch (e) {
+    console.error("SQL Error in getContactInquiries:", e);
+    return [];
+  }
+}
+
+export async function saveContactInquiry(data) {
+  try {
+    if (!data.name || !data.email || !data.message) {
+      throw new Error("Name, email, and message are required.");
+    }
+    const res = await execute(
+      `INSERT INTO atelier_contact_inquiries (name, email, phone, subject, department, message, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        data.name.trim(),
+        data.email.trim(),
+        data.phone ? data.phone.trim() : null,
+        data.subject ? data.subject.trim() : 'General Inquiry',
+        data.department ? data.department.trim() : 'Cohort Admissions',
+        data.message.trim(),
+        data.status || 'new'
+      ]
+    );
+    return { success: true, id: res.insertId };
+  } catch (e) {
+    console.error("SQL Error in saveContactInquiry:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function updateContactInquiryStatus(id, status, adminNotes = null) {
+  try {
+    if (adminNotes !== null) {
+      await execute("UPDATE atelier_contact_inquiries SET status = ?, admin_notes = ? WHERE id = ?", [status, adminNotes, id]);
+    } else {
+      await execute("UPDATE atelier_contact_inquiries SET status = ? WHERE id = ?", [status, id]);
+    }
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in updateContactInquiryStatus:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function updateContactInquiry(id, data) {
+  try {
+    await execute(
+      `UPDATE atelier_contact_inquiries SET name = ?, email = ?, phone = ?, subject = ?, department = ?, message = ?, status = ?, admin_notes = ? WHERE id = ?`,
+      [
+        data.name,
+        data.email,
+        data.phone || null,
+        data.subject || null,
+        data.department || 'Cohort Admissions',
+        data.message,
+        data.status || 'new',
+        data.adminNotes || null,
+        id
+      ]
+    );
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in updateContactInquiry:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function deleteContactInquiry(id) {
+  try {
+    await execute("DELETE FROM atelier_contact_inquiries WHERE id = ?", [id]);
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in deleteContactInquiry:", e);
+    throw new Error(e.message);
+  }
+}
+
+// --- FACULTY / TEACHING STAFF APPLICATIONS ACTIONS ---
+export async function getFacultyApplications() {
+  try {
+    const rows = await query("SELECT * FROM atelier_faculty_applications ORDER BY created_at DESC");
+    return rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      phone: r.phone,
+      roleApplied: r.role_applied,
+      expertise: r.expertise,
+      experienceYears: r.experience_years,
+      currentCompany: r.current_company,
+      linkedin: r.linkedin,
+      github: r.github,
+      portfolio: r.portfolio,
+      bio: r.bio,
+      courseProposal: r.course_proposal,
+      availability: r.availability,
+      status: r.status,
+      adminNotes: r.admin_notes,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at
+    }));
+  } catch (e) {
+    console.error("SQL Error in getFacultyApplications:", e);
+    return [];
+  }
+}
+
+export async function saveFacultyApplication(data) {
+  try {
+    if (!data.name || !data.email || !data.phone || !data.expertise) {
+      throw new Error("Name, email, phone, and expertise are required fields.");
+    }
+    const res = await execute(
+      `INSERT INTO atelier_faculty_applications 
+       (name, email, phone, role_applied, expertise, experience_years, current_company, linkedin, github, portfolio, bio, course_proposal, availability, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        data.name.trim(),
+        data.email.trim(),
+        data.phone.trim(),
+        data.roleApplied ? data.roleApplied.trim() : 'Industry Mentor / Guest Faculty',
+        data.expertise.trim(),
+        data.experienceYears ? data.experienceYears.trim() : '2-5 Years',
+        data.currentCompany ? data.currentCompany.trim() : null,
+        data.linkedin ? data.linkedin.trim() : null,
+        data.github ? data.github.trim() : null,
+        data.portfolio ? data.portfolio.trim() : null,
+        data.bio ? data.bio.trim() : null,
+        data.courseProposal ? data.courseProposal.trim() : null,
+        data.availability ? data.availability.trim() : 'Flexible / Weekends',
+        data.status || 'pending'
+      ]
+    );
+    return { success: true, id: res.insertId };
+  } catch (e) {
+    console.error("SQL Error in saveFacultyApplication:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function updateFacultyApplicationStatus(id, status, adminNotes = null) {
+  try {
+    if (adminNotes !== null) {
+      await execute("UPDATE atelier_faculty_applications SET status = ?, admin_notes = ? WHERE id = ?", [status, adminNotes, id]);
+    } else {
+      await execute("UPDATE atelier_faculty_applications SET status = ? WHERE id = ?", [status, id]);
+    }
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in updateFacultyApplicationStatus:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function updateFacultyApplication(id, data) {
+  try {
+    await execute(
+      `UPDATE atelier_faculty_applications SET 
+        name = ?, email = ?, phone = ?, role_applied = ?, expertise = ?, 
+        experience_years = ?, current_company = ?, linkedin = ?, github = ?, 
+        portfolio = ?, bio = ?, course_proposal = ?, availability = ?, 
+        status = ?, admin_notes = ? 
+       WHERE id = ?`,
+      [
+        data.name,
+        data.email,
+        data.phone,
+        data.roleApplied || 'Industry Mentor / Guest Faculty',
+        data.expertise,
+        data.experienceYears || null,
+        data.currentCompany || null,
+        data.linkedin || null,
+        data.github || null,
+        data.portfolio || null,
+        data.bio || null,
+        data.courseProposal || null,
+        data.availability || null,
+        data.status || 'pending',
+        data.adminNotes || null,
+        id
+      ]
+    );
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in updateFacultyApplication:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function deleteFacultyApplication(id) {
+  try {
+    await execute("DELETE FROM atelier_faculty_applications WHERE id = ?", [id]);
+    return { success: true };
+  } catch (e) {
+    console.error("SQL Error in deleteFacultyApplication:", e);
+    throw new Error(e.message);
+  }
+}
+
+export async function approveFacultyToMentor(id) {
+  try {
+    const rows = await query("SELECT * FROM atelier_faculty_applications WHERE id = ?", [id]);
+    if (!rows || rows.length === 0) {
+      throw new Error("Faculty application not found.");
+    }
+    const app = rows[0];
+
+    // Check if lecturer with this email already exists
+    const existing = await query("SELECT id FROM atelier_lecturers WHERE email = ?", [app.email]);
+    let lecturerId = null;
+
+    if (existing.length > 0) {
+      lecturerId = existing[0].id;
+      await execute(
+        "UPDATE atelier_lecturers SET name = ?, expertise = ?, bio = ?, phone = ? WHERE id = ?",
+        [app.name, app.expertise, app.bio || 'Industry Faculty', app.phone, lecturerId]
+      );
+    } else {
+      const tempHash = hashPassword('mentor123');
+      const res = await execute(
+        `INSERT INTO atelier_lecturers (name, email, expertise, bio, phone, role, password_hash, must_change_password) 
+         VALUES (?, ?, ?, ?, ?, 'mentor', ?, 1)`,
+        [app.name, app.email, app.expertise, app.bio || 'Industry Faculty at Atelier Sphere Hive', app.phone, tempHash]
+      );
+      lecturerId = res.insertId;
+    }
+
+    // Update application status to approved
+    await execute(
+      "UPDATE atelier_faculty_applications SET status = 'approved', admin_notes = CONCAT(IFNULL(admin_notes, ''), '\n[Auto-Approved] Onboarded to Atelier Mentors (ID: ', ?, ')') WHERE id = ?",
+      [lecturerId, id]
+    );
+
+    return { success: true, lecturerId };
+  } catch (e) {
+    console.error("SQL Error in approveFacultyToMentor:", e);
     throw new Error(e.message);
   }
 }
@@ -1010,6 +1313,10 @@ export async function getSiteStats() {
     const [pendingRow] = await query("SELECT COUNT(*) as count FROM atelier_callbacks WHERE status = 'Pending'");
     const [lecturersRow] = await query("SELECT COUNT(*) as count FROM atelier_lecturers");
     const [transactionsRow] = await query("SELECT COUNT(*) as count FROM atelier_transactions");
+    const [contactRow] = await query("SELECT COUNT(*) as count FROM atelier_contact_inquiries");
+    const [newInquiriesRow] = await query("SELECT COUNT(*) as count FROM atelier_contact_inquiries WHERE status = 'new'");
+    const [facultyRow] = await query("SELECT COUNT(*) as count FROM atelier_faculty_applications");
+    const [pendingFacultyRow] = await query("SELECT COUNT(*) as count FROM atelier_faculty_applications WHERE status = 'pending'");
 
     // Dynamic analytics
     const [activeRow] = await query("SELECT COUNT(DISTINCT student_id) as count FROM atelier_student_courses");
@@ -1022,6 +1329,10 @@ export async function getSiteStats() {
       pendingCallbacks: pendingRow.count,
       lecturersCount: lecturersRow.count,
       transactionsCount: transactionsRow.count,
+      contactInquiriesCount: contactRow.count,
+      newInquiriesCount: newInquiriesRow.count,
+      facultyApplicationsCount: facultyRow.count,
+      pendingFacultyCount: pendingFacultyRow.count,
       activeEnrolledCount: activeRow.count,
       avgXP: avgRow.avgXp || 0
     };
@@ -1034,6 +1345,10 @@ export async function getSiteStats() {
       pendingCallbacks: 0,
       lecturersCount: 0,
       transactionsCount: 0,
+      contactInquiriesCount: 0,
+      newInquiriesCount: 0,
+      facultyApplicationsCount: 0,
+      pendingFacultyCount: 0,
       activeEnrolledCount: 0,
       avgXP: 0
     };

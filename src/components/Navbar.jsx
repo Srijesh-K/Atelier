@@ -20,8 +20,9 @@ export default function Navbar() {
   const navItems = [
     { label: 'Home', href: '/' },
     { label: 'Courses', href: '/courses' },
-    { label: 'Bootcamp', href: '/#bootcamp' },
-    { label: 'Request Callback', href: '/#callback' }
+    { label: 'Callback', href: '/request-callback' },
+    { label: 'Contact', href: '/contact' },
+    { label: 'Faculty', href: '/join-faculty' }
   ];
 
   // Dynamic active index based on route and scroll spy
