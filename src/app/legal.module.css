@@ -1,11 +1,12 @@
 .legalPage {
   position: relative;
   min-height: 100vh;
-  background-color: #000000;
+  background-color: #050508;
   color: #ffffff;
-  padding-top: 8rem;
-  padding-bottom: 6rem;
+  padding-top: 7.5rem;
+  padding-bottom: 7rem;
   overflow: hidden;
+  font-family: var(--font-body, sans-serif);
 }
 
 .backgroundGrid {
@@ -17,23 +18,23 @@
   background-image: 
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 80px 80px;
+  background-size: 72px 72px;
   background-position: center top;
   z-index: 1;
   pointer-events: none;
-  mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 65%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 65%, transparent 100%);
 }
 
 .glowEffect {
   position: absolute;
-  top: 0;
+  top: -120px;
   left: 50%;
   transform: translateX(-50%);
-  width: 800px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(242, 85, 34, 0.08) 0%, transparent 70%);
-  filter: blur(90px);
+  width: 900px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(242, 85, 34, 0.12) 0%, transparent 70%);
+  filter: blur(100px);
   pointer-events: none;
   z-index: 2;
 }
@@ -41,93 +42,531 @@
 .container {
   position: relative;
   z-index: 5;
-  max-width: 860px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
 }
 
-.badge {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--accent-orange);
-  letter-spacing: 0.18em;
-  border: 1px solid rgba(242, 85, 34, 0.4);
-  padding: 0.25rem 0.85rem;
-  border-radius: 4px;
-  display: inline-block;
-  margin-bottom: 1.5rem;
-}
-
-.title {
-  font-size: 2.75rem;
-  font-weight: 800;
-  line-height: 1.2;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.02em;
-  font-family: var(--font-heading);
-}
-
-.lastUpdated {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.45);
-  margin-bottom: 3rem;
-  padding-bottom: 1.5rem;
+/* ─── Hero Header ─── */
+.hero {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--accent-orange, #f25522);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: rgba(242, 85, 34, 0.08);
+  border: 1px solid rgba(242, 85, 34, 0.3);
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  margin-bottom: 1.25rem;
+}
+
+.title {
+  font-size: 2.85rem;
+  font-weight: 800;
+  line-height: 1.18;
+  margin-bottom: 0.85rem;
+  letter-spacing: -0.025em;
+  font-family: var(--font-heading, sans-serif);
+  color: #ffffff;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.65);
+  max-width: 780px;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.metaDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ─── Policy Navigation Tabs ─── */
+.policyNav {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 3rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: none;
+}
+
+.policyNav::-webkit-scrollbar {
+  display: none;
+}
+
+.navPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.15rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.navPill:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.navPillActive {
+  color: #ffffff;
+  background: rgba(242, 85, 34, 0.12);
+  border-color: rgba(242, 85, 34, 0.4);
+}
+
+/* ─── Two-Column Layout ─── */
+.layoutGrid {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  gap: 3.5rem;
+  align-items: start;
+}
+
+/* ─── Sticky Sidebar ─── */
+.sidebar {
+  position: sticky;
+  top: 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tocCard {
+  background: #09090d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.tocTitle {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tocList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-right: 0.4rem;
+}
+
+.tocList::-webkit-scrollbar {
+  width: 4px;
+}
+.tocList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+
+.tocLink {
+  display: block;
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  transition: all 0.18s ease;
+  line-height: 1.4;
+}
+
+.tocLink:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(3px);
+}
+
+.sidebarMetaCard {
+  background: #09090d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.35rem;
+}
+
+.sidebarMetaTitle {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 0.85rem;
+}
+
+.sidebarMetaText {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.55;
+  margin-bottom: 0.5rem;
+}
+
+.sidebarMetaText strong {
+  color: #ffffff;
+}
+
+.helpBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.7rem;
+  margin-top: 0.85rem;
+  background: rgba(242, 85, 34, 0.1);
+  border: 1px solid rgba(242, 85, 34, 0.3);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-orange, #f25522);
+  transition: all 0.2s ease;
+}
+
+.helpBtn:hover {
+  background: rgba(242, 85, 34, 0.2);
+  color: #ffffff;
+}
+
+/* ─── Main Content Column ─── */
 .content {
   display: flex;
   flex-direction: column;
-  gap: 2.25rem;
-  line-height: 1.7;
-  color: rgba(255, 255, 255, 0.75);
+  gap: 3rem;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.78);
   font-size: 0.98rem;
 }
 
+.section {
+  scroll-margin-top: 6.5rem;
+  padding-bottom: 2.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.15rem;
+}
+
+.sectionNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(242, 85, 34, 0.1);
+  border: 1px solid rgba(242, 85, 34, 0.3);
+  color: var(--accent-orange, #f25522);
+  font-family: var(--font-heading, sans-serif);
+  font-size: 0.85rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
 .sectionTitle {
-  font-size: 1.45rem;
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: var(--font-heading, sans-serif);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.subSectionTitle {
+  font-size: 1.15rem;
   font-weight: 700;
   color: #ffffff;
-  margin-bottom: 0.75rem;
-  font-family: var(--font-heading);
-  letter-spacing: -0.01em;
+  font-family: var(--font-heading, sans-serif);
+  margin-top: 1.5rem;
+  margin-bottom: 0.6rem;
+}
+
+/* ─── In Plain English / Summary Callout Box ─── */
+.summaryBox {
+  background: rgba(242, 85, 34, 0.04);
+  border: 1px solid rgba(242, 85, 34, 0.25);
+  border-left: 3px solid var(--accent-orange, #f25522);
+  border-radius: 0 12px 12px 0;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.summaryLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-orange, #f25522);
+  margin-bottom: 0.4rem;
 }
 
 .paragraph {
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.paragraph strong {
+  color: #ffffff;
 }
 
 .list {
-  padding-left: 1.5rem;
+  padding-left: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: 0.6rem;
+  margin: 1rem 0;
 }
 
 .list li {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.74);
+  line-height: 1.65;
 }
 
+.list li strong {
+  color: #ffffff;
+}
+
+/* ─── Highlights / Grid Cards ─── */
+.highlightGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.highlightCard {
+  background: #09090d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: border-color 0.2s ease;
+}
+
+.highlightCard:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.highlightCardTitle {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.highlightCardText {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ─── Styled Table for Privacy / Data Types ─── */
+.tableWrapper {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: #09090d;
+}
+
+.legalTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  text-align: left;
+}
+
+.legalTable th {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.85rem 1rem;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.legalTable td {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.7);
+  vertical-align: top;
+  line-height: 1.5;
+}
+
+.legalTable tr:last-child td {
+  border-bottom: none;
+}
+
+/* ─── Contact & Redressal Cards ─── */
 .contactBox {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(242, 85, 34, 0.2);
+  background: #09090d;
+  border: 1px solid rgba(242, 85, 34, 0.25);
   border-radius: 16px;
-  padding: 1.75rem;
+  padding: 2rem;
   margin-top: 1.5rem;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
 }
 
 .contactBox h4 {
-  color: var(--accent-orange);
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
+  color: var(--accent-orange, #f25522);
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+  font-family: var(--font-heading, sans-serif);
+  font-weight: 800;
 }
 
-@media (max-width: 768px) {
-  .title {
-    font-size: 2rem;
+.contactGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.contactItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.contactLabel {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.contactValue {
+  font-size: 0.9rem;
+  color: #ffffff;
+  line-height: 1.5;
+}
+
+.contactLink {
+  color: var(--accent-orange, #f25522);
+  transition: opacity 0.2s ease;
+}
+
+.contactLink:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+/* ─── Responsive Overrides ─── */
+@media (max-width: 980px) {
+  .layoutGrid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
   }
+
+  .sidebar {
+    position: relative;
+    top: 0;
+  }
+
+  .tocCard {
+    display: none;
+  }
+
+  .title {
+    font-size: 2.25rem;
+  }
+}
+
+@media (max-width: 640px) {
   .legalPage {
-    padding-top: 6.5rem;
+    padding-top: 6rem;
+    padding-bottom: 4rem;
+  }
+
+  .container {
+    padding: 0 1.25rem;
+  }
+
+  .title {
+    font-size: 1.85rem;
+  }
+
+  .subtitle {
+    font-size: 0.98rem;
+  }
+
+  .contactBox {
+    padding: 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.35rem;
   }
 }

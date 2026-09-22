@@ -1,16 +1,34 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
+
+function getGitHubCredentials() {
+  let clientId = process.env.GITHUB_CLIENT_ID;
+  if (!clientId) {
+    try {
+      const keysPath = path.join(process.cwd(), 'github-auth-keys.json');
+      if (fs.existsSync(keysPath)) {
+        const raw = fs.readFileSync(keysPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        clientId = parsed.clientID || parsed.client_id;
+      }
+    } catch (e) {
+      console.error('Failed to read github-auth-keys.json:', e);
+    }
+  }
+  return { clientId };
+}
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const returnTo = searchParams.get('returnTo') || '/dashboard';
-  const clientId = process.env.GITHUB_CLIENT_ID;
+  const { clientId } = getGitHubCredentials();
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin || 'http://localhost:3000';
   const callbackUrl = `${appUrl}/api/auth/github/callback`;
 
   if (!clientId) {
-    // If no GitHub Client ID is configured, redirect to the signin page with the sandbox modal trigger
-    return NextResponse.redirect(`${appUrl}/auth/signin?oauth_sandbox=github&returnTo=${encodeURIComponent(returnTo)}`);
+    return NextResponse.redirect(`${appUrl}/auth/signin?error=${encodeURIComponent('GitHub authentication client ID is not configured.')}`);
   }
 
   const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');

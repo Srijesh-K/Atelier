@@ -1033,17 +1033,21 @@ export async function authenticateStudent(email, password) {
       return { success: false, error: "Please enter your password." };
     }
 
-    const rows = await query("SELECT * FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
+    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = ? LIMIT 1", [cleanEmail]);
     const student = rows.length > 0 ? rows[0] : null;
 
     if (!student) {
       return { success: false, error: "No account found with this email. Please check your spelling or sign up." };
     }
 
-    // Check if account uses social provider without local password
-    if (student.auth_provider && student.auth_provider !== 'credentials' && student.password !== password) {
+    // Check if account was created via social OAuth without a custom password
+    const isOauthPlaceholder = student.password && (student.password.startsWith('oauth_') || student.password === 'password');
+    if (isOauthPlaceholder && student.auth_provider && student.auth_provider !== 'credentials') {
       const providerName = student.auth_provider === 'google' ? 'Google' : student.auth_provider === 'github' ? 'GitHub' : student.auth_provider;
-      return { success: false, error: `This account was registered using ${providerName}. Please continue with ${providerName}.` };
+      return { 
+        success: false, 
+        error: `This account was registered using ${providerName}. Please click "Continue with ${providerName}" above, or use "Forgot password?" to set a password.` 
+      };
     }
 
     if (student.password !== password) {
@@ -1054,7 +1058,7 @@ export async function authenticateStudent(email, password) {
     student.enrolledCourses = enrollments.map(e => e.course_id);
     student.gradYear = student.grad_year;
     delete student.grad_year;
-    student.skills = student.skills ? student.skills.split(',') : [];
+    student.skills = student.skills ? (Array.isArray(student.skills) ? student.skills : student.skills.split(',')) : [];
     student.authProvider = student.auth_provider || 'credentials';
     delete student.password;
     delete student.reset_code;
@@ -1071,11 +1075,15 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (name || cleanEmail.split('@')[0] || 'Student').trim();
 
-    const rows = await query("SELECT * FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
+    if (!cleanEmail) {
+      return { success: false, error: "A valid email address is required from your social provider." };
+    }
+
+    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = ? LIMIT 1", [cleanEmail]);
     let student = rows.length > 0 ? rows[0] : null;
 
     if (student) {
-      // Existing student: update avatar/auth_provider if not set
+      // Existing student: link provider and update avatar without throwing unique constraint error
       await execute(
         "UPDATE atelier_students SET auth_provider = COALESCE(auth_provider, ?), avatar = COALESCE(avatar, ?) WHERE id = ?",
         [provider, avatar || null, student.id]
@@ -1087,11 +1095,19 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
         await conn.beginTransaction();
 
         const [result] = await conn.execute(
-          `INSERT INTO atelier_students (name, email, password, phone, college, grad_year, xp, streak, auth_provider, avatar, bio) VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?)`,
-          [cleanName, cleanEmail, `oauth_${Date.now()}`, '', 'Not specified yet', '2026', provider, avatar || null, 'Joined via ' + provider]
+          `INSERT INTO atelier_students (name, email, password, phone, college, grad_year, xp, streak, auth_provider, avatar, bio) 
+           VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?)`,
+          [cleanName, cleanEmail, `oauth_${Date.now()}`, '', 'Atelier Academy', '2026', provider, avatar || null, 'Joined via ' + provider]
         );
 
         const newStudentId = result.insertId;
+
+        // Auto-enroll in default foundational cohort (Course 1)
+        await conn.execute(
+          "INSERT IGNORE INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
+          [newStudentId, 1]
+        );
+
         await conn.commit();
       } catch (txErr) {
         await conn.rollback();
@@ -1101,14 +1117,21 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
       }
     }
 
-    // Retrieve fresh profile
-    const freshRows = await query("SELECT * FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
+    // Retrieve fresh synchronized profile
+    const freshRows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = ? LIMIT 1", [cleanEmail]);
     const studentProfile = freshRows[0];
     const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [studentProfile.id]);
-    studentProfile.enrolledCourses = enrollments.map(e => e.course_id);
+    studentProfile.enrolledCourses = (enrollments || []).map(e => e.course_id);
+
+    // If enrollments are empty, guarantee at least cohort 1
+    if (studentProfile.enrolledCourses.length === 0) {
+      await execute("INSERT IGNORE INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)", [studentProfile.id, 1]);
+      studentProfile.enrolledCourses = [1];
+    }
+
     studentProfile.gradYear = studentProfile.grad_year;
     delete studentProfile.grad_year;
-    studentProfile.skills = studentProfile.skills ? studentProfile.skills.split(',') : ['React', 'Next.js', 'System Design'];
+    studentProfile.skills = studentProfile.skills ? (Array.isArray(studentProfile.skills) ? studentProfile.skills : studentProfile.skills.split(',')) : ['React', 'Next.js', 'System Design'];
     studentProfile.authProvider = studentProfile.auth_provider || provider;
     delete studentProfile.password;
     delete studentProfile.reset_code;
@@ -1126,7 +1149,7 @@ export async function getStudentProfileByEmail(email) {
     const cleanEmail = (email || '').trim().toLowerCase();
     if (!cleanEmail) return null;
 
-    const rows = await query("SELECT * FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
+    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = ? LIMIT 1", [cleanEmail]);
     if (rows.length === 0) return null;
 
     const student = rows[0];
@@ -1164,8 +1187,45 @@ export async function registerStudentAccount(name, email, password, phone, colle
       return { success: false, error: "Password must be at least 8 characters long." };
     }
 
-    const existsRows = await query("SELECT id FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
+    const existsRows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = ? LIMIT 1", [cleanEmail]);
     if (existsRows.length > 0) {
+      const existing = existsRows[0];
+      const isOauthPlaceholder = existing.password && (existing.password.startsWith('oauth_') || existing.password === 'password');
+      
+      // If student previously authenticated via Google/GitHub without setting a password:
+      if (isOauthPlaceholder || existing.auth_provider !== 'credentials') {
+        await execute(
+          `UPDATE atelier_students 
+           SET password = ?, 
+               phone = COALESCE(NULLIF(phone, ''), ?), 
+               college = COALESCE(NULLIF(college, ''), ?), 
+               grad_year = COALESCE(NULLIF(grad_year, ''), ?) 
+           WHERE id = ?`,
+          [password, (phone || '').trim(), college || 'Atelier Student', gradYear || '2026', existing.id]
+        );
+
+        const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [existing.id]);
+        existing.enrolledCourses = (enrollments || []).map(e => e.course_id);
+        if (existing.enrolledCourses.length === 0) {
+          await execute("INSERT IGNORE INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)", [existing.id, 1]);
+          existing.enrolledCourses = [1];
+        }
+
+        existing.gradYear = existing.grad_year;
+        delete existing.grad_year;
+        existing.skills = existing.skills ? (Array.isArray(existing.skills) ? existing.skills : existing.skills.split(',')) : ['HTML', 'CSS', 'JavaScript'];
+        delete existing.password;
+        delete existing.reset_code;
+        delete existing.reset_code_expires;
+
+        return { 
+          success: true, 
+          student: existing, 
+          ...existing,
+          message: "Password linked successfully to your account!" 
+        };
+      }
+
       return { success: false, error: "An account is already registered with this email. Try signing in instead." };
     }
 
@@ -1182,6 +1242,12 @@ export async function registerStudentAccount(name, email, password, phone, colle
 
       newStudentId = result.insertId;
 
+      // Auto-enroll in default foundational cohort (Course 1)
+      await conn.execute(
+        "INSERT IGNORE INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
+        [newStudentId, 1]
+      );
+
       await conn.commit();
     } catch (txErr) {
       await conn.rollback();
@@ -1196,7 +1262,7 @@ export async function registerStudentAccount(name, email, password, phone, colle
       return { success: false, error: "Unable to retrieve newly registered account. Please try signing in." };
     }
     const student = studentRows[0];
-    student.enrolledCourses = [];
+    student.enrolledCourses = [1];
     student.gradYear = student.grad_year;
     delete student.grad_year;
     student.skills = student.skills ? student.skills.split(',') : ['HTML', 'CSS', 'JavaScript'];

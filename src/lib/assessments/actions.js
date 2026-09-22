@@ -189,7 +189,8 @@ export async function gradeManualResponseAdmin({ attemptId, questionId, marksAwa
 
 async function getStudentByEmail(email) {
   if (!email) throw new Error('Unauthorized: Student email required.');
-  const [student] = await query(`SELECT id, name, email FROM atelier_students WHERE email = ? LIMIT 1`, [email]);
+  const cleanEmail = email.trim().toLowerCase();
+  const [student] = await query(`SELECT id, name, email FROM atelier_students WHERE LOWER(email) = ? LIMIT 1`, [cleanEmail]);
   if (!student) throw new Error('Student account not found.');
   return student;
 }

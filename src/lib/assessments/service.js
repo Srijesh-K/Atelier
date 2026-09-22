@@ -461,13 +461,21 @@ export async function getStudentCourseAssessments(studentId, courseId = null) {
 }
 
 export async function startOrResumeAttempt(studentId, assessmentId) {
-  // 1. Verify student is enrolled in the course
-  const [enrollment] = await query(`
-    SELECT sc.id 
+  // 1. Verify student is enrolled in the course or auto-enroll for active assessment
+  let [enrollment] = await query(`
+    SELECT sc.course_id 
     FROM atelier_student_courses sc
     JOIN atelier_assessments a ON a.course_id = sc.course_id
     WHERE sc.student_id = ? AND a.id = ? LIMIT 1
   `, [studentId, assessmentId]);
+
+  if (!enrollment) {
+    const [asst] = await query(`SELECT course_id FROM atelier_assessments WHERE id = ?`, [assessmentId]);
+    if (asst && asst.course_id) {
+      await execute(`INSERT IGNORE INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)`, [studentId, asst.course_id]);
+      enrollment = { course_id: asst.course_id };
+    }
+  }
 
   if (!enrollment) {
     throw new Error('Access denied: You must be enrolled in this course to take the assessment.');
@@ -509,6 +517,8 @@ export async function startOrResumeAttempt(studentId, assessmentId) {
   const durationMinutes = assessment.duration_minutes || 60;
   const startedAt = new Date();
   const endsAt = new Date(startedAt.getTime() + durationMinutes * 60 * 1000);
+  const startedAtStr = startedAt.toISOString().slice(0, 19).replace('T', ' ');
+  const endsAtStr = endsAt.toISOString().slice(0, 19).replace('T', ' ');
 
   // 4. Fetch questions to freeze snapshot
   const rawQuestions = await query(`
@@ -541,7 +551,7 @@ export async function startOrResumeAttempt(studentId, assessmentId) {
       INSERT INTO atelier_attempts (
         assessment_id, student_id, attempt_number, status, started_at, ends_at, proctoring_flags
       ) VALUES (?, ?, ?, 'in_progress', ?, ?, 0)
-    `, [assessmentId, studentId, attemptNumber, startedAt, endsAt]);
+    `, [assessmentId, studentId, attemptNumber, startedAtStr, endsAtStr]);
     const attemptId = attRes.insertId;
 
     // Freeze each question into atelier_attempt_questions
@@ -565,14 +575,16 @@ export async function startOrResumeAttempt(studentId, assessmentId) {
         SELECT id, criterion, max_marks, description FROM atelier_question_rubrics WHERE question_id = ?
       `, [q.id]);
 
+      const effectiveMarks = q.assessment_marks ?? q.marks ?? 1;
+
       const snapshot = {
         id: q.id,
         title: q.title,
         question_text: q.question_text,
         question_type: q.question_type,
-        marks: q.assessment_marks,
-        negative_marks: q.negative_marks,
-        tags: q.tags,
+        marks: effectiveMarks,
+        negative_marks: q.negative_marks || 0,
+        tags: q.tags || '',
         config: q.config_json ? safeJsonParse(q.config_json) : null,
         options,
         rubrics
@@ -581,13 +593,13 @@ export async function startOrResumeAttempt(studentId, assessmentId) {
       await conn.execute(`
         INSERT INTO atelier_attempt_questions (attempt_id, question_id, section_id, sort_order, marks, question_snapshot)
         VALUES (?, ?, ?, ?, ?, ?)
-      `, [attemptId, q.id, q.section_id, order++, q.assessment_marks, JSON.stringify(snapshot)]);
+      `, [attemptId, q.id, q.section_id ?? null, order++, effectiveMarks, JSON.stringify(snapshot)]);
 
       // Initialize empty response record
       await conn.execute(`
         INSERT INTO atelier_responses (attempt_id, question_id, response_data, status, marks_awarded, max_marks)
         VALUES (?, ?, NULL, 'unanswered', 0, ?)
-      `, [attemptId, q.id, q.assessment_marks]);
+      `, [attemptId, q.id, effectiveMarks]);
     }
 
     await conn.commit();

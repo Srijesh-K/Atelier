@@ -97,8 +97,8 @@ export default function StudentAssessmentsPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
-          <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(255,255,255,0.6)' }}>
+          <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--accent-orange, #f25522)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
           <p style={{ marginTop: 14 }}>Loading your course assessments...</p>
         </div>
       ) : filteredAssessments.length === 0 ? (

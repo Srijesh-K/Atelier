@@ -1,5 +1,26 @@
 import { NextResponse } from 'next/server';
 import { authenticateOAuthStudent } from '../../../../actions';
+import fs from 'fs';
+import path from 'path';
+
+function getGoogleCredentials() {
+  let clientId = process.env.GOOGLE_CLIENT_ID;
+  let clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    try {
+      const keysPath = path.join(process.cwd(), 'google-auth-keys.json');
+      if (fs.existsSync(keysPath)) {
+        const raw = fs.readFileSync(keysPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (!clientId) clientId = parsed.web?.client_id;
+        if (!clientSecret) clientSecret = parsed.web?.client_secret;
+      }
+    } catch (e) {
+      console.error('Failed to read google-auth-keys.json in callback:', e);
+    }
+  }
+  return { clientId, clientSecret };
+}
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
@@ -27,9 +48,12 @@ export async function GET(request) {
   }
 
   try {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const { clientId, clientSecret } = getGoogleCredentials();
     const callbackUrl = `${appUrl}/api/auth/google/callback`;
+
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth credentials not configured on the server.');
+    }
 
     // Exchange authorization code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -63,12 +87,18 @@ export async function GET(request) {
     }
 
     // Authenticate or register student via OAuth
-    const student = await authenticateOAuthStudent({
+    const authResult = await authenticateOAuthStudent({
       name: userData.name || userData.email.split('@')[0],
       email: userData.email,
       avatar: userData.picture || null,
       provider: 'google',
     });
+
+    if (!authResult || authResult.success === false) {
+      throw new Error(authResult?.error || 'Failed to link Google account.');
+    }
+
+    const student = authResult.student || authResult;
 
     // Render an HTML bridge page that synchronizes client localStorage and dispatches state events
     const profileJson = JSON.stringify(student).replace(/</g, '\\u003c');

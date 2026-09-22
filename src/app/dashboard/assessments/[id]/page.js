@@ -357,8 +357,8 @@ export default function AssessmentPlayerPage() {
   if (loading) {
     return (
       <div className={styles.playerWrapper} style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 36, height: 36, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        <p style={{ marginTop: 16, color: '#94a3b8' }}>Loading assessment workspace...</p>
+        <div style={{ width: 36, height: 36, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--accent-orange, #f25522)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <p style={{ marginTop: 16, color: 'rgba(255,255,255,0.6)' }}>Loading assessment workspace...</p>
       </div>
     );
   }
@@ -367,11 +367,21 @@ export default function AssessmentPlayerPage() {
     return (
       <div className={styles.container}>
         <div className={styles.emptyState}>
-          <h2 style={{ color: '#f87171' }}>Access Restricted</h2>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(242, 85, 34, 0.1)', border: '1px solid rgba(242, 85, 34, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: 'var(--accent-orange, #f25522)' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h2 style={{ color: '#ffffff', fontFamily: 'var(--font-heading)', fontSize: 24, marginBottom: 8 }}>Assessment Notice</h2>
           <p className={styles.emptySubtitle}>{error}</p>
-          <div style={{ marginTop: 20 }}>
-            <Link href="/dashboard/assessments" className={styles.btnPrimary}>
-              Back to Assessments
+          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'center', gap: 12 }}>
+            <button onClick={() => window.location.reload()} className={styles.btnSecondary} style={{ maxWidth: 160 }}>
+              Retry Attempt
+            </button>
+            <Link href="/dashboard/assessments" className={styles.btnPrimary} style={{ maxWidth: 200 }}>
+              Back to Catalog
             </Link>
           </div>
         </div>
@@ -390,7 +400,7 @@ export default function AssessmentPlayerPage() {
       <div className={styles.container}>
         <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <Link href="/dashboard/assessments" style={{ color: '#818cf8', fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <Link href="/dashboard/assessments" style={{ color: 'var(--accent-orange, #f25522)', fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontWeight: 600 }}>
               ← Back to Assessments Catalog
             </Link>
             <h1 className={styles.title}>{attempt.assessment_title} — Performance Summary</h1>
@@ -450,7 +460,7 @@ export default function AssessmentPlayerPage() {
               <div key={resp.id} style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontWeight: 700, color: '#6366f1' }}>Q{idx + 1}.</span>
+                    <span style={{ fontWeight: 700, color: 'var(--accent-orange, #f25522)' }}>Q{idx + 1}.</span>
                     <span style={{ fontWeight: 600, color: '#ffffff' }}>{snap.title || resp.question_title}</span>
                     <span className={styles.qTypeTag}>{resp.question_type}</span>
                   </div>
@@ -467,12 +477,12 @@ export default function AssessmentPlayerPage() {
                 </div>
 
                 {/* Response preview */}
-                <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: 12, borderRadius: 8, fontSize: 13, color: '#e2e8f0', marginBottom: 10 }}>
-                  <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 4, textTransform: 'uppercase' }}>Your Response</div>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: 12, borderRadius: 8, fontSize: 13, color: '#e2e8f0', marginBottom: 10 }}>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: 11, marginBottom: 4, textTransform: 'uppercase' }}>Your Response</div>
                   {resp.response_data ? (
                     typeof resp.response_data === 'object' ? (
                       resp.response_data.url ? (
-                        <a href={resp.response_data.url} target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', textDecoration: 'underline' }}>
+                        <a href={resp.response_data.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-orange, #f25522)', textDecoration: 'underline' }}>
                           Uploaded File: {resp.response_data.filename}
                         </a>
                       ) : (
@@ -490,7 +500,7 @@ export default function AssessmentPlayerPage() {
 
                 {/* Feedback */}
                 {resp.evaluator_feedback && (
-                  <div style={{ fontSize: 13, color: isCorrect ? '#34d399' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontSize: 13, color: isCorrect ? '#34d399' : 'var(--accent-orange, #f25522)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="16" x2="12" y2="12" />
@@ -535,7 +545,7 @@ export default function AssessmentPlayerPage() {
       {/* Proctoring Warning Modal */}
       {proctorWarning && (
         <div className={styles.proctorModal}>
-          <div className={styles.proctorCard}>
+          <div className={styles.proctorCard} style={{ borderColor: 'rgba(242, 85, 34, 0.4)' }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" style={{ margin: '0 auto' }}>
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
@@ -879,8 +889,8 @@ export default function AssessmentPlayerPage() {
                 };
 
                 return (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(30, 41, 59, 0.6)', padding: '10px 16px', borderRadius: 8 }}>
-                    <span style={{ fontWeight: 700, color: '#6366f1', width: 24 }}>{idx + 1}.</span>
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255, 255, 255, 0.02)', padding: '10px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--accent-orange, #f25522)', width: 24 }}>{idx + 1}.</span>
                     <span style={{ flex: 1, fontSize: 14 }}>{item}</span>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button
@@ -918,7 +928,7 @@ export default function AssessmentPlayerPage() {
                 className={styles.textareaInput}
                 rows={4}
               />
-              <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)', textAlign: 'right', marginTop: 6 }}>
                 {(currentVal || '').length} characters
               </div>
             </div>
@@ -928,8 +938,8 @@ export default function AssessmentPlayerPage() {
           {currentQ.question_type === 'essay' && (
             <div style={{ marginBottom: 24 }}>
               {currentQ.rubrics?.length > 0 && (
-                <div style={{ background: 'rgba(30, 41, 59, 0.4)', padding: '12px 16px', borderRadius: 8, marginBottom: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#818cf8', textTransform: 'uppercase', marginBottom: 6 }}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '12px 16px', borderRadius: 8, marginBottom: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-orange, #f25522)', textTransform: 'uppercase', marginBottom: 6 }}>
                     Grading Rubrics
                   </div>
                   {currentQ.rubrics.map((r, rIdx) => (
@@ -1083,8 +1093,8 @@ export default function AssessmentPlayerPage() {
           {/* 13. File Upload */}
           {currentQ.question_type === 'file_upload' && (
             <div style={{ marginBottom: 24 }}>
-              <div style={{ border: '2px dashed rgba(255, 255, 255, 0.15)', borderRadius: 12, padding: '30px 20px', textAlign: 'center', background: 'rgba(30, 41, 59, 0.3)' }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
+              <div style={{ border: '2px dashed rgba(255, 255, 255, 0.15)', borderRadius: 12, padding: '30px 20px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)' }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange, #f25522)" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />

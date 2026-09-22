@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authenticateStudent } from '../../actions';
-import SocialAuthModal from '../SocialAuthModal';
 import styles from '../auth.module.css';
 
 export default function SignInPage() {
@@ -16,25 +15,16 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [redirectTo, setRedirectTo] = useState('/dashboard');
 
-  // Social Auth Modal state
-  const [socialModalOpen, setSocialModalOpen] = useState(false);
-  const [socialProvider, setSocialProvider] = useState('google');
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const target = params.get('redirectTo');
       const urlError = params.get('error');
-      const sandboxProvider = params.get('oauth_sandbox');
 
-      if (target || urlError || sandboxProvider) {
+      if (target || urlError) {
         queueMicrotask(() => {
           if (target) setRedirectTo(target);
           if (urlError) setError(decodeURIComponent(urlError));
-          if (sandboxProvider) {
-            setSocialProvider(sandboxProvider);
-            setSocialModalOpen(true);
-          }
         });
       }
     }
@@ -46,7 +36,7 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const res = await authenticateStudent(email.trim(), password);
+      const res = await authenticateStudent(email, password);
 
       if (res && res.success !== false && (res.student || res.email)) {
         const student = res.student || res;
@@ -86,9 +76,10 @@ export default function SignInPage() {
     }
   };
 
-  const openSocialAuth = (provider) => {
-    setSocialProvider(provider);
-    setSocialModalOpen(true);
+  const handleLiveOAuth = (provider) => {
+    setError('');
+    const targetRoute = provider === 'google' ? '/api/auth/google' : '/api/auth/github';
+    window.location.href = `${targetRoute}?returnTo=${encodeURIComponent(redirectTo)}`;
   };
 
   return (
@@ -161,15 +152,14 @@ export default function SignInPage() {
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
                     </svg>
                   ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
                     </svg>
                   )}
                 </button>
@@ -178,10 +168,10 @@ export default function SignInPage() {
           </div>
 
           {/* Remember / Forgot */}
-          <div className={styles.row}>
-            <label className={styles.checkLabel}>
-              <input type="checkbox" className={styles.checkbox} />
-              Remember me
+          <div className={styles.optionsRow}>
+            <label className={styles.checkboxLabel}>
+              <input type="checkbox" className={styles.checkbox} defaultChecked />
+              <span>Remember me</span>
             </label>
             <Link href="/auth/forgot-password" className={styles.forgotLink}>
               Forgot password?
@@ -189,12 +179,24 @@ export default function SignInPage() {
           </div>
 
           {/* Submit */}
-          <button type="submit" className={styles.submitBtn} disabled={loading}>
-            {loading ? 'Signing In...' : 'Sign In'}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
+          <button
+            type="submit"
+            className={styles.submitBtn}
+            disabled={loading}
+          >
+            {loading ? (
+              <span className={styles.btnContent}>
+                <span className={styles.spinner} />
+                Signing in...
+              </span>
+            ) : (
+              <span className={styles.btnContent}>
+                Sign In
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </span>
+            )}
           </button>
         </form>
 
@@ -208,7 +210,7 @@ export default function SignInPage() {
           <button
             type="button"
             className={styles.socialBtn}
-            onClick={() => openSocialAuth('google')}
+            onClick={() => handleLiveOAuth('google')}
             title="Sign in with Google"
           >
             <svg viewBox="0 0 24 24" fill="none">
@@ -223,7 +225,7 @@ export default function SignInPage() {
           <button
             type="button"
             className={styles.socialBtn}
-            onClick={() => openSocialAuth('github')}
+            onClick={() => handleLiveOAuth('github')}
             title="Sign in with GitHub"
           >
             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -239,14 +241,6 @@ export default function SignInPage() {
           <Link href="/auth/signup">Create an account</Link>
         </p>
       </div>
-
-      {/* Social Auth Sandbox Modal */}
-      <SocialAuthModal
-        isOpen={socialModalOpen}
-        provider={socialProvider}
-        onClose={() => setSocialModalOpen(false)}
-        redirectTo={redirectTo}
-      />
     </div>
   );
 }

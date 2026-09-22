@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { registerStudentAccount } from '../../actions';
-import SocialAuthModal from '../SocialAuthModal';
 import styles from '../auth.module.css';
 
 function getStrength(pw) {
@@ -29,10 +28,6 @@ export default function SignUpPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Social Auth Modal state
-  const [socialModalOpen, setSocialModalOpen] = useState(false);
-  const [socialProvider, setSocialProvider] = useState('google');
-
   const strength = useMemo(() => getStrength(password), [password]);
 
   const handleSignUp = async (e) => {
@@ -45,68 +40,72 @@ export default function SignUpPage() {
     }
 
     if (password.length < 8) {
-      setError('Password must contain at least 8 characters.');
+      setError('Password must be at least 8 characters long.');
       return;
     }
 
     setLoading(true);
 
     try {
-      const name = `${firstName.trim()} ${lastName.trim()}`;
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
       const res = await registerStudentAccount(
-        name,
+        fullName,
         email.trim().toLowerCase(),
         password,
         mobile.trim(),
-        'Not specified yet',
+        'Atelier Student',
         '2026'
       );
 
-      if (!res || res.success === false || (!res.student && !res.email)) {
-        setError(res?.error || 'Unable to create your account. Please try again.');
-        return;
+      if (res && res.success !== false && (res.student || res.email)) {
+        const student = res.student || res;
+        localStorage.setItem('loggedInStudentEmail', student.email);
+        localStorage.setItem('studentProfile', JSON.stringify({
+          name: student.name,
+          email: student.email,
+          phone: student.phone || mobile || '',
+          college: student.college || 'Atelier Student',
+          gradYear: student.gradYear || '2026',
+          bio: student.bio || 'Aspiring Full Stack Engineer and AI enthusiast.',
+          github: student.github || '',
+          linkedin: student.linkedin || '',
+          portfolio: student.portfolio || '',
+          skills: student.skills || ['HTML', 'CSS', 'JavaScript'],
+          avatar: student.avatar || null,
+          enrolledCourses: student.enrolledCourses || []
+        }));
+
+        window.dispatchEvent(new Event('profileChanged'));
+        window.dispatchEvent(new Event('courseChanged'));
+
+        router.push('/dashboard/onboarding');
+      } else {
+        setError(res?.error || 'Unable to register your account. Please try again or sign in.');
       }
-
-      const student = res.student || res;
-
-      // Set logged-in session email
-      localStorage.setItem('loggedInStudentEmail', student.email);
-      localStorage.setItem('studentProfile', JSON.stringify({
-        name: student.name,
-        email: student.email,
-        phone: student.phone || '',
-        college: student.college || 'Not specified yet',
-        gradYear: student.gradYear || '2026',
-        bio: 'Initialized workspace student.',
-        github: '',
-        linkedin: '',
-        portfolio: '',
-        skills: ['HTML', 'CSS', 'JavaScript'],
-        avatar: student.avatar || null,
-        enrolledCourses: student.enrolledCourses || []
-      }));
-
-      // Trigger updates
-      window.dispatchEvent(new Event('profileChanged'));
-      window.dispatchEvent(new Event('courseChanged'));
-
-      // Route to welcome onboarding board
-      router.push('/dashboard/onboarding');
     } catch (err) {
       const msg = err?.message || '';
       if (msg.includes('Server Components render') || msg.includes('digest')) {
-        setError('Unable to create account. An account with this email may already exist.');
+        setError('An account with this email may already exist. Please sign in instead.');
       } else {
-        setError(msg || 'Unable to create your account. Please try again.');
+        setError(msg || 'Failed to complete registration. Please try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const openSocialAuth = (provider) => {
-    setSocialProvider(provider);
-    setSocialModalOpen(true);
+  const handleLiveOAuth = (provider) => {
+    setError('');
+    const targetRoute = provider === 'google' ? '/api/auth/google' : '/api/auth/github';
+    window.location.href = `${targetRoute}?returnTo=/dashboard/onboarding`;
+  };
+
+  const barClass = (index) => {
+    if (strength.score < index) return styles.bar;
+    if (strength.score <= 1) return `${styles.bar} ${styles.barWeak}`;
+    if (strength.score === 2) return `${styles.bar} ${styles.barFair}`;
+    if (strength.score === 3) return `${styles.bar} ${styles.barGood}`;
+    return `${styles.bar} ${styles.barStrong}`;
   };
 
   return (
@@ -117,11 +116,10 @@ export default function SignUpPage() {
 
       {/* Form card */}
       <div className={styles.card}>
-        <div className={styles.badge}>START BUILDING</div>
+        <div className={styles.badge}>NEW BUILDER REGISTRATION</div>
         <h1 className={styles.heading}>Create your account</h1>
         <p className={styles.subtext}>
-          Already have an account?{' '}
-          <Link href="/auth/signin">Sign in</Link>
+          Join the elite cohort of engineers building real products.
         </p>
 
         <form onSubmit={handleSignUp}>
@@ -137,34 +135,35 @@ export default function SignUpPage() {
           )}
 
           <div className={styles.fieldGroup}>
-            {/* First & Last Name */}
-            <div className={styles.nameRow}>
+            {/* Name row */}
+            <div className={styles.row}>
               <div className={styles.field}>
-                <label className={styles.label} htmlFor="signup-first">
+                <label className={styles.label} htmlFor="signup-fn">
                   First Name
                 </label>
                 <input
-                  id="signup-first"
+                  id="signup-fn"
                   className={styles.input}
                   type="text"
                   required
-                  placeholder="Jane"
+                  placeholder="Alex"
                   autoComplete="given-name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   disabled={loading}
                 />
               </div>
+
               <div className={styles.field}>
-                <label className={styles.label} htmlFor="signup-last">
+                <label className={styles.label} htmlFor="signup-ln">
                   Last Name
                 </label>
                 <input
-                  id="signup-last"
+                  id="signup-ln"
                   className={styles.input}
                   type="text"
                   required
-                  placeholder="Doe"
+                  placeholder="Rivera"
                   autoComplete="family-name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -191,16 +190,15 @@ export default function SignUpPage() {
               />
             </div>
 
-            {/* Mobile Number */}
+            {/* Mobile */}
             <div className={styles.field}>
               <label className={styles.label} htmlFor="signup-mobile">
-                Mobile Number
+                Phone Number (Optional)
               </label>
               <input
                 id="signup-mobile"
                 className={styles.input}
                 type="tel"
-                required
                 placeholder="+91 98765 43210"
                 autoComplete="tel"
                 value={mobile}
@@ -233,47 +231,55 @@ export default function SignUpPage() {
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
                     </svg>
                   ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
                     </svg>
                   )}
                 </button>
               </div>
 
-              {/* Strength meter */}
+              {/* Password strength bar */}
               {password && (
-                <>
-                  <div className={styles.strengthBar}>
-                    {[1, 2, 3, 4].map((i) => {
-                      let cls = styles.strengthSegment;
-                      if (strength.score >= i) {
-                        if (strength.score <= 1) cls += ` ${styles.active}`;
-                        else if (strength.score <= 2) cls += ` ${styles.medium}`;
-                        else cls += ` ${styles.strong}`;
-                      }
-                      return <div key={i} className={cls} />;
-                    })}
+                <div className={styles.strengthWrapper}>
+                  <div className={styles.strengthBars}>
+                    <div className={barClass(1)} />
+                    <div className={barClass(2)} />
+                    <div className={barClass(3)} />
+                    <div className={barClass(4)} />
                   </div>
-                  <p className={styles.strengthLabel}>{strength.label}</p>
-                </>
+                  {strength.label && (
+                    <span className={styles.strengthText}>{strength.label}</span>
+                  )}
+                </div>
               )}
             </div>
           </div>
 
           {/* Submit */}
-          <button type="submit" className={styles.submitBtn} disabled={loading}>
-            {loading ? 'Creating Account...' : 'Create Account'}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
+          <button
+            type="submit"
+            className={styles.submitBtn}
+            disabled={loading}
+          >
+            {loading ? (
+              <span className={styles.btnContent}>
+                <span className={styles.spinner} />
+                Creating account...
+              </span>
+            ) : (
+              <span className={styles.btnContent}>
+                Get Started
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </span>
+            )}
           </button>
         </form>
 
@@ -287,7 +293,7 @@ export default function SignUpPage() {
           <button
             type="button"
             className={styles.socialBtn}
-            onClick={() => openSocialAuth('google')}
+            onClick={() => handleLiveOAuth('google')}
             title="Sign up with Google"
           >
             <svg viewBox="0 0 24 24" fill="none">
@@ -302,7 +308,7 @@ export default function SignUpPage() {
           <button
             type="button"
             className={styles.socialBtn}
-            onClick={() => openSocialAuth('github')}
+            onClick={() => handleLiveOAuth('github')}
             title="Sign up with GitHub"
           >
             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -323,14 +329,6 @@ export default function SignUpPage() {
           <Link href="/auth/signin">Sign in</Link>
         </p>
       </div>
-
-      {/* Social Auth Sandbox Modal */}
-      <SocialAuthModal
-        isOpen={socialModalOpen}
-        provider={socialProvider}
-        onClose={() => setSocialModalOpen(false)}
-        redirectTo="/dashboard/onboarding"
-      />
     </div>
   );
 }

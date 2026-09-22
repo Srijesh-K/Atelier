@@ -58,6 +58,14 @@ export default function JoinFacultyPage() {
     setFormData((prev) => ({ ...prev, roleApplied: roleId }));
   };
 
+  const handleExperienceSelect = (exp) => {
+    setFormData((prev) => ({ ...prev, experienceYears: exp }));
+  };
+
+  const handleAvailabilitySelect = (avail) => {
+    setFormData((prev) => ({ ...prev, availability: avail }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.expertise.trim()) {
@@ -122,6 +130,7 @@ export default function JoinFacultyPage() {
             {/* Hero Header */}
             <div className={styles.header}>
               <div className={styles.badge}>
+                <span className={styles.badgeDot} />
                 FACULTY & FELLOWSHIP ADMISSIONS
               </div>
               <h1 className={styles.title}>
@@ -133,7 +142,7 @@ export default function JoinFacultyPage() {
               </p>
             </div>
 
-            {/* Metric Highlights */}
+            {/* Metric Highlights Banner */}
             <div className={styles.metricsBar}>
               <div className={styles.metricItem}>
                 <span className={styles.metricNumber}>500+</span>
@@ -141,7 +150,7 @@ export default function JoinFacultyPage() {
               </div>
               <div className={styles.metricItem}>
                 <span className={styles.metricNumber}>100%</span>
-                <span className={styles.metricLabel}>Production-First Sprints</span>
+                <span className={styles.metricLabel}>Production Sprints</span>
               </div>
               <div className={styles.metricItem}>
                 <span className={styles.metricNumber}>24 Hr</span>
@@ -165,7 +174,7 @@ export default function JoinFacultyPage() {
                 <div className={styles.bentoCard}>
                   <div className={styles.bentoIcon}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   </div>
                   <h3 className={styles.bentoTitle}>Vetted, Passionate Builders</h3>
@@ -178,8 +187,8 @@ export default function JoinFacultyPage() {
                 <div className={styles.bentoCard}>
                   <div className={styles.bentoIcon}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="16 18 22 12 16 6"></polyline>
-                      <polyline points="8 6 2 12 8 18"></polyline>
+                      <polyline points="16 18 22 12 16 6" />
+                      <polyline points="8 6 2 12 8 18" />
                     </svg>
                   </div>
                   <h3 className={styles.bentoTitle}>Curriculum Autonomy</h3>
@@ -192,8 +201,8 @@ export default function JoinFacultyPage() {
                 <div className={styles.bentoCard}>
                   <div className={styles.bentoIcon}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                      <line x1="12" y1="1" x2="12" y2="23" />
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
                   </div>
                   <h3 className={styles.bentoTitle}>Competitive Honorarium</h3>
@@ -204,7 +213,7 @@ export default function JoinFacultyPage() {
               </div>
             </div>
 
-            {/* Fellowship Tracks */}
+            {/* Fellowship Tracks Section */}
             <div className={styles.tracksSection}>
               <div className={styles.sectionHeader}>
                 <h2 className={styles.sectionHeading}>Choose Your Teaching Track</h2>
@@ -212,24 +221,25 @@ export default function JoinFacultyPage() {
               </div>
 
               <div className={styles.tracksGrid}>
-                {roles.map((r) => (
-                  <div 
-                    key={r.id} 
-                    className={styles.trackCard}
-                    onClick={() => handleRoleSelect(r.id)}
-                    style={{ 
-                      cursor: 'pointer',
-                      borderColor: formData.roleApplied === r.id ? 'var(--accent-orange)' : undefined,
-                      backgroundColor: formData.roleApplied === r.id ? 'rgba(242, 85, 34, 0.05)' : undefined
-                    }}
-                  >
-                    <div>
-                      <span className={styles.trackTag}>Track</span>
-                      <h4 className={styles.trackName} style={{ marginTop: '0.4rem' }}>{r.label}</h4>
+                {roles.map((r) => {
+                  const isSelected = formData.roleApplied === r.id;
+                  return (
+                    <div 
+                      key={r.id} 
+                      className={`${styles.trackCard} ${isSelected ? styles.trackCardActive : ''}`}
+                      onClick={() => handleRoleSelect(r.id)}
+                    >
+                      <div>
+                        <div className={styles.trackTagRow}>
+                          <span className={styles.trackTag}>Track</span>
+                          <span className={styles.trackIndicator} />
+                        </div>
+                        <h4 className={styles.trackName}>{r.label}</h4>
+                      </div>
+                      <p className={styles.trackDesc}>{r.desc}</p>
                     </div>
-                    <p className={styles.trackDesc}>{r.desc}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -240,7 +250,7 @@ export default function JoinFacultyPage() {
                   <div className={styles.successCard}>
                     <div className={styles.successIcon}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
+                        <polyline points="20 6 9 17 4 12" />
                       </svg>
                     </div>
                     <h2 className={styles.successTitle}>Application Submitted</h2>
@@ -267,11 +277,21 @@ export default function JoinFacultyPage() {
                     <form onSubmit={handleSubmit} className={styles.form}>
                       {errorMsg && (
                         <div className={styles.errorMessage}>
-                          {errorMsg}
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                          <span>{errorMsg}</span>
                         </div>
                       )}
 
-                      {/* Name & Email */}
+                      {/* Section 1: Identity & Contact */}
+                      <div className={styles.fieldSectionHeader}>
+                        <span className={styles.fieldSectionIndex}>1</span>
+                        <span className={styles.fieldSectionTitle}>Identity & Contact</span>
+                      </div>
+
                       <div className={styles.formRow}>
                         <div className={styles.formGroup}>
                           <label className={styles.label}>Full Name *</label>
@@ -300,33 +320,42 @@ export default function JoinFacultyPage() {
                         </div>
                       </div>
 
-                      {/* Phone & Experience */}
-                      <div className={styles.formRow}>
-                        <div className={styles.formGroup}>
-                          <label className={styles.label}>WhatsApp / Phone Number *</label>
-                          <input
-                            type="tel"
-                            name="phone"
-                            value={formData.phone}
-                            onChange={handleChange}
-                            placeholder="+91 98765 43210"
-                            className={styles.input}
-                            required
-                          />
-                        </div>
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>WhatsApp / Phone Number *</label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          placeholder="+91 98765 43210"
+                          className={styles.input}
+                          required
+                        />
+                      </div>
 
-                        <div className={styles.formGroup}>
-                          <label className={styles.label}>Years of Experience</label>
-                          <select
-                            name="experienceYears"
-                            value={formData.experienceYears}
-                            onChange={handleChange}
-                            className={styles.select}
-                          >
-                            {experienceOptions.map((exp) => (
-                              <option key={exp} value={exp}>{exp}</option>
-                            ))}
-                          </select>
+                      {/* Section 2: Experience & Domain */}
+                      <div className={styles.fieldSectionHeader}>
+                        <span className={styles.fieldSectionIndex}>2</span>
+                        <span className={styles.fieldSectionTitle}>Experience & Domain</span>
+                      </div>
+
+                      {/* Experience Level Pills */}
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Years of Experience</label>
+                        <div className={styles.pillSelectorGrid}>
+                          {experienceOptions.map((exp) => {
+                            const isSelected = formData.experienceYears === exp;
+                            return (
+                              <div
+                                key={exp}
+                                onClick={() => handleExperienceSelect(exp)}
+                                className={`${styles.selectorPill} ${isSelected ? styles.selectorPillActive : ''}`}
+                              >
+                                <span className={styles.selectorRadioDot} />
+                                <span className={styles.selectorLabel}>{exp}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -339,7 +368,7 @@ export default function JoinFacultyPage() {
                             name="currentCompany"
                             value={formData.currentCompany}
                             onChange={handleChange}
-                            placeholder="e.g. Senior SDE at Razorpay / Founder at Stealth"
+                            placeholder="e.g. Senior SDE at Razorpay / Founder"
                             className={styles.input}
                           />
                         </div>
@@ -358,7 +387,12 @@ export default function JoinFacultyPage() {
                         </div>
                       </div>
 
-                      {/* LinkedIn & GitHub / Portfolio */}
+                      {/* Section 3: Digital Presence & Profiles */}
+                      <div className={styles.fieldSectionHeader}>
+                        <span className={styles.fieldSectionIndex}>3</span>
+                        <span className={styles.fieldSectionTitle}>Digital Presence</span>
+                      </div>
+
                       <div className={styles.formRow}>
                         <div className={styles.formGroup}>
                           <label className={styles.label}>LinkedIn Profile URL *</label>
@@ -386,36 +420,55 @@ export default function JoinFacultyPage() {
                         </div>
                       </div>
 
-                      {/* Role Applied Selector */}
+                      {/* Section 4: Teaching Track & Availability */}
+                      <div className={styles.fieldSectionHeader}>
+                        <span className={styles.fieldSectionIndex}>4</span>
+                        <span className={styles.fieldSectionTitle}>Engagement Model</span>
+                      </div>
+
                       <div className={styles.formGroup}>
-                        <label className={styles.label}>Fellowship Track Applied For</label>
-                        <div className={styles.radioCardsGrid}>
-                          {roles.map((r) => (
-                            <div
-                              key={r.id}
-                              onClick={() => handleRoleSelect(r.id)}
-                              className={`${styles.radioCard} ${formData.roleApplied === r.id ? styles.radioCardActive : ''}`}
-                            >
-                              <span className={styles.radioDot} />
-                              <span className={styles.radioLabel}>{r.label}</span>
-                            </div>
-                          ))}
+                        <label className={styles.label}>Selected Fellowship Track</label>
+                        <div className={styles.pillSelectorGridCols2}>
+                          {roles.map((r) => {
+                            const isSelected = formData.roleApplied === r.id;
+                            return (
+                              <div
+                                key={r.id}
+                                onClick={() => handleRoleSelect(r.id)}
+                                className={`${styles.selectorPill} ${isSelected ? styles.selectorPillActive : ''}`}
+                              >
+                                <span className={styles.selectorRadioDot} />
+                                <span className={styles.selectorLabel}>{r.label}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      {/* Availability */}
+                      {/* Availability Pills */}
                       <div className={styles.formGroup}>
                         <label className={styles.label}>Preferred Availability</label>
-                        <select
-                          name="availability"
-                          value={formData.availability}
-                          onChange={handleChange}
-                          className={styles.select}
-                        >
-                          {availabilityOptions.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
+                        <div className={styles.pillSelectorGridCols2}>
+                          {availabilityOptions.map((opt) => {
+                            const isSelected = formData.availability === opt;
+                            return (
+                              <div
+                                key={opt}
+                                onClick={() => handleAvailabilitySelect(opt)}
+                                className={`${styles.selectorPill} ${isSelected ? styles.selectorPillActive : ''}`}
+                              >
+                                <span className={styles.selectorRadioDot} />
+                                <span className={styles.selectorLabel}>{opt}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Section 5: Pedagogical Vision */}
+                      <div className={styles.fieldSectionHeader}>
+                        <span className={styles.fieldSectionIndex}>5</span>
+                        <span className={styles.fieldSectionTitle}>Pedagogical Vision</span>
                       </div>
 
                       {/* Bio */}
@@ -449,13 +502,13 @@ export default function JoinFacultyPage() {
                         className={styles.submitBtn}
                       >
                         {isSubmitting ? (
-                          <span>Submitting Faculty Dossier...</span>
+                          <span>Submitting Faculty Application...</span>
                         ) : (
                           <>
-                            Submit Faculty Application
+                            <span>Submit Faculty Application</span>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="5" y1="12" x2="19" y2="12"></line>
-                              <polyline points="12 5 19 12 12 19"></polyline>
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                              <polyline points="12 5 19 12 12 19" />
                             </svg>
                           </>
                         )}

@@ -1,5 +1,26 @@
 import { NextResponse } from 'next/server';
 import { authenticateOAuthStudent } from '../../../../actions';
+import fs from 'fs';
+import path from 'path';
+
+function getGitHubCredentials() {
+  let clientId = process.env.GITHUB_CLIENT_ID;
+  let clientSecret = process.env.GITHUB_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    try {
+      const keysPath = path.join(process.cwd(), 'github-auth-keys.json');
+      if (fs.existsSync(keysPath)) {
+        const raw = fs.readFileSync(keysPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (!clientId) clientId = parsed.clientID || parsed.client_id;
+        if (!clientSecret) clientSecret = parsed.clientSecret || parsed.client_secret;
+      }
+    } catch (e) {
+      console.error('Failed to read github-auth-keys.json in callback:', e);
+    }
+  }
+  return { clientId, clientSecret };
+}
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
@@ -27,8 +48,11 @@ export async function GET(request) {
   }
 
   try {
-    const clientId = process.env.GITHUB_CLIENT_ID;
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+    const { clientId, clientSecret } = getGitHubCredentials();
+
+    if (!clientId || !clientSecret) {
+      throw new Error('GitHub OAuth credentials not configured on the server.');
+    }
 
     // Exchange code for access token
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
@@ -69,7 +93,7 @@ export async function GET(request) {
 
     let userEmail = userData.email;
 
-    // If email is private, fetch user's emails list
+    // If email is private, fetch user's verified emails
     if (!userEmail) {
       const emailResponse = await fetch('https://api.github.com/user/emails', {
         headers: {
@@ -92,12 +116,18 @@ export async function GET(request) {
     }
 
     // Authenticate or register student via OAuth
-    const student = await authenticateOAuthStudent({
+    const authResult = await authenticateOAuthStudent({
       name: userData.name || userData.login || 'GitHub User',
       email: userEmail,
       avatar: userData.avatar_url || null,
       provider: 'github',
     });
+
+    if (!authResult || authResult.success === false) {
+      throw new Error(authResult?.error || 'Failed to link GitHub account.');
+    }
+
+    const student = authResult.student || authResult;
 
     // Render client sync bridge
     const profileJson = JSON.stringify(student).replace(/</g, '\\u003c');
