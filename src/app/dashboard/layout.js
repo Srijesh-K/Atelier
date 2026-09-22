@@ -163,20 +163,9 @@ export default function DashboardLayout({ children }) {
     };
   }, []);
 
-  // Auth check loading state
-  if (!isMounted || checkingAuth) {
-    return (
-      <div className={styles.authLoaderWrapper} data-lenis-prevent>
-        <div className={styles.authLoaderCard}>
-          <div className={styles.authSpinner} />
-          <h2 className={styles.authLoaderTitle}>Loading Dashboard</h2>
-          <p className={styles.authLoaderText}>Setting up your workspace...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Map database courses to selector layout format with full defensive guards
+  // NOTE: These derivations and the useEffect below MUST be placed before any early return
+  // to satisfy the Rules of Hooks (hooks must always be called in the same order every render).
   const enrolledIds = Array.isArray(enrolledCourses) ? enrolledCourses.map(Number) : [];
   const courses = (Array.isArray(dbCourses) ? dbCourses : [])
     .filter((c) => c && enrolledIds.includes(Number(c.id)))
@@ -199,6 +188,19 @@ export default function DashboardLayout({ children }) {
       localStorage.setItem('activeCourseId', activeCourse.id.toString());
     }
   }, [activeCourse, activeCourseId]);
+
+  // Auth check loading state
+  if (!isMounted || checkingAuth) {
+    return (
+      <div className={styles.authLoaderWrapper} data-lenis-prevent>
+        <div className={styles.authLoaderCard}>
+          <div className={styles.authSpinner} />
+          <h2 className={styles.authLoaderTitle}>Loading Dashboard</h2>
+          <p className={styles.authLoaderText}>Setting up your workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleCourseChange = (id) => {
     setActiveCourseId(id);
