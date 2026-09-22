@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { query } from './db-sql';
+import { query } from './db-sql.js';
 
 const AUTH_SECRET = process.env.SESSION_SECRET || 'atelier-mentor-jwt-signing-secret-2026';
 

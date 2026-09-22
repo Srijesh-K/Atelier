@@ -171,7 +171,8 @@ export default function MaterialsPage({ activeCourseId = 1, enrolledCourses = []
           {coursesList.map((c) => {
             const count = materials.filter((m) => m.courseId === c.id).length;
             const isSelected = selectedCohortFilter === String(c.id);
-            const title = c.title.includes(':') ? c.title.split(':')[0] : c.title;
+            const rawTitle = c?.title || `Cohort #${c.id}`;
+            const title = rawTitle.includes(':') ? rawTitle.split(':')[0].trim() : rawTitle;
             return (
               <button
                 key={c.id}
@@ -188,10 +189,9 @@ export default function MaterialsPage({ activeCourseId = 1, enrolledCourses = []
 
       <div className={styles.materialsGrid}>
         {displayedFolders.map((folder) => {
-          const matchedCourse = coursesList.find((c) => c.id === folder.courseId);
-          const courseBadgeTitle = matchedCourse
-            ? (matchedCourse.title.includes(':') ? matchedCourse.title.split(':')[0] : matchedCourse.title)
-            : `Track #${folder.courseId}`;
+          const matchedCourse = coursesList.find((c) => c && Number(c.id) === Number(folder.courseId));
+          const rawBadgeTitle = matchedCourse?.title || `Track #${folder.courseId}`;
+          const courseBadgeTitle = rawBadgeTitle.includes(':') ? rawBadgeTitle.split(':')[0].trim() : rawBadgeTitle;
 
           return (
             <div key={folder.id} className={styles.materialFolderCard}>

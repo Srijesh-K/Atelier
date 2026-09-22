@@ -230,7 +230,8 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
           {enrolledCourseObjs.map((c) => {
             const trackSessions = sessions.filter((s) => (s.course_id || s.courseId) === c.id);
             const isTrackLive = trackSessions.some((s) => s.status === 'live');
-            const cleanTitle = c.title.includes(':') ? c.title.split(':')[0] : c.title;
+            const rawTitle = c?.title || `Cohort #${c.id}`;
+            const cleanTitle = rawTitle.includes(':') ? rawTitle.split(':')[0].trim() : rawTitle;
             const isSelected = cohortFilter === String(c.id);
             return (
               <button

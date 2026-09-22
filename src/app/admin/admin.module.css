@@ -604,6 +604,117 @@
   color: #5dade2;
 }
 
+/* ─── Assessment & Form Dialog Styles ─── */
+.categoryBadge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.profileFormGroup, .formGroup {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.25rem;
+}
+
+.formScrollBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: 1.5rem;
+  max-height: 68vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.formScrollBody::-webkit-scrollbar {
+  width: 6px;
+}
+.formScrollBody::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+.formScrollBody::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+.formScrollBody::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-orange, #f25522);
+}
+
+.formLabel {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+.formInput {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.formInput:focus {
+  border-color: var(--accent-orange, #f25522);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 2px rgba(242, 85, 34, 0.2);
+}
+
+.formTextarea {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  outline: none;
+  box-sizing: border-box;
+  min-height: 85px;
+  resize: vertical;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.formTextarea:focus {
+  border-color: var(--accent-orange, #f25522);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 2px rgba(242, 85, 34, 0.2);
+}
+
+.ghostBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.6rem 1.15rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ghostBtn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
 /* Responsive Overrides */
 @media (max-width: 768px) {
   .adminHeader {

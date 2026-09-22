@@ -101,8 +101,9 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
     localStorage.setItem('activeCourseId', courseId.toString());
     setActiveNode(2);
     window.dispatchEvent(new Event('courseChanged'));
-    const matched = allCourses.find((c) => c.id === courseId);
-    const title = matched ? (matched.title.includes(':') ? matched.title.split(':')[0] : matched.title) : `Cohort #${courseId}`;
+    const matched = allCourses.find((c) => c && Number(c.id) === Number(courseId));
+    const rawTitle = matched?.title || `Cohort #${courseId}`;
+    const title = rawTitle.includes(':') ? rawTitle.split(':')[0].trim() : rawTitle;
     showToast(`Switched to ${title} workspace`);
   };
 
@@ -111,10 +112,12 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
     setTimeout(() => setToastMessage(''), 3500);
   };
 
-  const activeCourseObj = allCourses.find((c) => c.id === currentCourseId);
-  const activeCourseTitle = activeCourseObj 
-    ? (activeCourseObj.title.includes(':') ? activeCourseObj.title.split(':')[0] : activeCourseObj.title)
+  const activeCourseObj = allCourses.find((c) => c && Number(c.id) === Number(currentCourseId));
+  const rawActiveTitle = activeCourseObj?.title || '';
+  const activeCourseTitle = rawActiveTitle
+    ? (rawActiveTitle.includes(':') ? rawActiveTitle.split(':')[0].trim() : rawActiveTitle)
     : (currentCourseId === 2 ? 'System Design' : 'Full-Stack Web');
+  const courseTitleLower = rawActiveTitle.toLowerCase();
 
   // Curriculum node tree details based on selected course
   const nodes = currentCourseId === 2 ? [
@@ -123,13 +126,13 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
     { id: 3, label: 'Caching (Redis/Memcached)', x: 150, y: 205, status: 'locked' },
     { id: 4, label: 'Message Queues (Kafka)', x: 350, y: 205, status: 'locked' },
     { id: 5, label: 'Microservices Mesh', x: 250, y: 295, status: 'locked' }
-  ] : (activeCourseObj && (activeCourseObj.title.toLowerCase().includes('devops') || activeCourseObj.title.toLowerCase().includes('cloud')) ? [
+  ] : (courseTitleLower.includes('devops') || courseTitleLower.includes('cloud')) ? [
     { id: 1, label: 'Containerization (Docker)', x: 250, y: 35, status: 'completed' },
     { id: 2, label: 'CI/CD Pipelines (GitHub)', x: 250, y: 115, status: 'active' },
     { id: 3, label: 'Kubernetes Clusters', x: 150, y: 205, status: 'locked' },
     { id: 4, label: 'Infrastructure as Code', x: 350, y: 205, status: 'locked' },
     { id: 5, label: 'Observability & Metrics', x: 250, y: 295, status: 'locked' }
-  ] : (activeCourseObj && (activeCourseObj.title.toLowerCase().includes('ai') || activeCourseObj.title.toLowerCase().includes('python') || activeCourseObj.title.toLowerCase().includes('data')) ? [
+  ] : (courseTitleLower.includes('ai') || courseTitleLower.includes('python') || courseTitleLower.includes('data')) ? [
     { id: 1, label: 'Python & NumPy Foundations', x: 250, y: 35, status: 'completed' },
     { id: 2, label: 'Data Pipelines & Pandas', x: 250, y: 115, status: 'active' },
     { id: 3, label: 'Machine Learning Models', x: 150, y: 205, status: 'locked' },
@@ -141,7 +144,7 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
     { id: 3, label: 'Database Schemes', x: 150, y: 205, status: 'locked' },
     { id: 4, label: 'API Development', x: 350, y: 205, status: 'locked' },
     { id: 5, label: 'System Design Root', x: 250, y: 295, status: 'locked' }
-  ]));
+  ];
 
   const getCodeSnippet = () => {
     if (currentCourseId === 2) {
@@ -174,7 +177,7 @@ function getShardForUser(userId) {
           return `// Lesson Locked
 // Complete previous topics to view this code.`;
       }
-    } else if (activeCourseObj && (activeCourseObj.title.toLowerCase().includes('devops') || activeCourseObj.title.toLowerCase().includes('cloud'))) {
+    } else if (courseTitleLower.includes('devops') || courseTitleLower.includes('cloud')) {
       switch (activeNode) {
         case 1:
           return `# Multi-Stage Production Dockerfile
@@ -246,7 +249,7 @@ function lockedNode() {
     if (currentCourseId === 2) {
       return activeNode === 1 ? 'nginx/nginx.conf' : 'sharding/router.js';
     }
-    if (activeCourseObj && (activeCourseObj.title.toLowerCase().includes('devops') || activeCourseObj.title.toLowerCase().includes('cloud'))) {
+    if (courseTitleLower.includes('devops') || courseTitleLower.includes('cloud')) {
       return activeNode === 1 ? 'docker/Dockerfile' : '.github/workflows/deploy.yml';
     }
     return 'workspace/sandbox/index.js';
@@ -391,11 +394,10 @@ function lockedNode() {
           </div>
           <div className={styles.cohortPillsRow}>
             {enrolledList.map((cId) => {
-              const matched = allCourses.find((c) => c.id === cId);
-              const pillTitle = matched
-                ? (matched.title.includes(':') ? matched.title.split(':')[0] : matched.title)
-                : `Cohort #${cId}`;
-              const isSelected = cId === currentCourseId;
+              const matched = allCourses.find((c) => c && Number(c.id) === Number(cId));
+              const rawTitle = matched?.title || `Cohort #${cId}`;
+              const pillTitle = rawTitle.includes(':') ? rawTitle.split(':')[0].trim() : rawTitle;
+              const isSelected = Number(cId) === Number(currentCourseId);
               return (
                 <button
                   key={cId}

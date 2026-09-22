@@ -176,14 +176,19 @@ export default function DashboardLayout({ children }) {
     );
   }
 
-  // Map database courses to selector layout format
-  const courses = dbCourses
-    .filter((c) => enrolledCourses.includes(c.id))
-    .map((c) => ({
-      id: c.id,
-      name: c.title.includes(':') ? c.title.split(':')[0] : c.title,
-      desc: c.description.slice(0, 60) + '...'
-    }));
+  // Map database courses to selector layout format with full defensive guards
+  const enrolledIds = Array.isArray(enrolledCourses) ? enrolledCourses.map(Number) : [];
+  const courses = (Array.isArray(dbCourses) ? dbCourses : [])
+    .filter((c) => c && enrolledIds.includes(Number(c.id)))
+    .map((c) => {
+      const rawTitle = typeof c.title === 'string' ? c.title : (c.title ? String(c.title) : `Cohort #${c.id}`);
+      const rawDesc = typeof c.description === 'string' ? c.description : (c.description ? String(c.description) : 'Curriculum overview and track.');
+      return {
+        id: c.id,
+        name: rawTitle.includes(':') ? rawTitle.split(':')[0].trim() : rawTitle,
+        desc: rawDesc.length > 60 ? rawDesc.slice(0, 60) + '...' : rawDesc
+      };
+    });
 
   const activeCourse = courses.find((c) => c.id === activeCourseId) || courses[0] || null;
 
@@ -482,12 +487,7 @@ export default function DashboardLayout({ children }) {
           </div>
         </header>
 
-        {React.Children.map(children, child => {
-          if (React.isValidElement(child)) {
-            return React.cloneElement(child, { activeCourseId, enrolledCourses });
-          }
-          return child;
-        })}
+        {children}
       </div>
     </div>
   );

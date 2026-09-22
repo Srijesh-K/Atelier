@@ -12,8 +12,8 @@ export default function SmoothScroll({ children }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Disable Lenis on dashboard, admin, and onboarding routes so native scrolling works cleanly
-    const isDashboardOrAdmin = pathname?.startsWith('/dashboard') || pathname?.startsWith('/admin');
+    // Disable Lenis on dashboard, admin, mentor, and onboarding routes so native scrolling works cleanly
+    const isDashboardOrAdmin = pathname?.startsWith('/dashboard') || pathname?.startsWith('/admin') || pathname?.startsWith('/mentor');
     if (isDashboardOrAdmin) {
       if (lenisRef.current) {
         lenisRef.current.destroy();

@@ -63,9 +63,9 @@ export default function MentorLayout({ children }) {
   }
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-lenis-prevent="true">
       {/* Sidebar */}
-      <aside className={styles.sidebar}>
+      <aside className={styles.sidebar} data-lenis-prevent="true">
         <div className={styles.sidebarHeader}>
           <img src="/logo.png" alt="Atelier" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
           <div>
@@ -102,7 +102,8 @@ export default function MentorLayout({ children }) {
           <div className={styles.sidebarLabel}>Assigned Cohorts</div>
           {courses.map((course) => {
             const isActive = pathname === `/mentor/courses/${course.id}`;
-            const shortTitle = course.title.includes(':') ? course.title.split(':')[0] : course.title;
+            const rawTitle = course?.title || `Cohort #${course.id}`;
+            const shortTitle = rawTitle.includes(':') ? rawTitle.split(':')[0] : rawTitle;
 
             return (
               <Link
@@ -156,7 +157,7 @@ export default function MentorLayout({ children }) {
       </aside>
 
       {/* Main Workspace Area */}
-      <main className={styles.main}>
+      <main className={styles.main} data-lenis-prevent="true">
         {children}
       </main>
     </div>
