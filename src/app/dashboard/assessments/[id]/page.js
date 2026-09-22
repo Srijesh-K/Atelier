@@ -50,6 +50,8 @@ export default function AssessmentPlayerPage() {
   const pipVideoRef = useRef(null);
   const canvasRef = useRef(null);
   const toastTimeoutRef = useRef(null);
+  const faceDetectorRef = useRef(null);
+  const faceDetectorReadyRef = useRef(false);
 
   // Player State
   const [attemptId, setAttemptId] = useState(null);
@@ -246,79 +248,110 @@ export default function AssessmentPlayerPage() {
     };
   }, [mediaStream]);
 
+  // Initialize MediaPipe FaceDetector once when player starts
+  useEffect(() => {
+    if (viewMode !== 'player' || !mediaStream) return;
+    if (faceDetectorRef.current) return; // already initialized
+
+    let cancelled = false;
+
+    const initFaceDetector = async () => {
+      try {
+        const vision = await import('@mediapipe/tasks-vision');
+        const { FaceDetector, FilesetResolver } = vision;
+
+        const filesetResolver = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+        );
+
+        const detector = await FaceDetector.createFromOptions(filesetResolver, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+            delegate: 'GPU'
+          },
+          runningMode: 'IMAGE',
+          minDetectionConfidence: 0.5,
+          minSuppressionThreshold: 0.3
+        });
+
+        if (!cancelled) {
+          faceDetectorRef.current = detector;
+          faceDetectorReadyRef.current = true;
+          console.log('[Proctor] MediaPipe FaceDetector initialized successfully.');
+        }
+      } catch (err) {
+        console.warn('[Proctor] MediaPipe FaceDetector init failed, face checks disabled:', err);
+        faceDetectorReadyRef.current = false;
+      }
+    };
+
+    initFaceDetector();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, mediaStream]);
+
   // Real-Time Face Presence & Integrity Proctoring Loop
   useEffect(() => {
     if (viewMode !== 'player' || !mediaStream) return;
 
-    let detector = null;
-    if (typeof window !== 'undefined' && 'FaceDetector' in window) {
-      try {
-        detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 5 });
-      } catch (e) {
-        detector = null;
-      }
+    // Create an offscreen canvas for frame capture (reused across ticks)
+    if (!canvasRef.current && typeof document !== 'undefined') {
+      canvasRef.current = document.createElement('canvas');
     }
 
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       const video = pipVideoRef.current;
       if (!video || video.readyState < 2) return;
+      if (!faceDetectorReadyRef.current || !faceDetectorRef.current) return;
 
       try {
-        if (detector) {
-          const faces = await detector.detect(video);
-          if (faces.length === 0) {
-            setFaceStatus('no_face');
-            triggerToast('Warning: Face not detected in camera frame! Keep your face visible.');
-            if (studentEmail && attemptId) {
-              recordStudentProctoringAction(studentEmail, attemptId, 'face_out_of_frame', { timestamp: Date.now() });
-            }
-          } else if (faces.length > 1) {
-            setFaceStatus('multiple_faces');
-            triggerToast(`Violation: Multiple individuals detected (${faces.length}) in camera frame!`);
-            if (studentEmail && attemptId) {
-              recordStudentProctoringAction(studentEmail, attemptId, 'multiple_faces', { count: faces.length });
-            }
-          } else {
-            setFaceStatus('ok');
+        // Capture a frame from the video onto a canvas for reliable cross-browser detection
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 240;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const result = faceDetectorRef.current.detect(canvas);
+        const faceCount = result?.detections?.length ?? 0;
+
+        if (faceCount === 0) {
+          setFaceStatus('no_face');
+          triggerToast('⚠ Face not detected in camera frame! Keep your face clearly visible.');
+          if (studentEmail && attemptId) {
+            recordStudentProctoringAction(studentEmail, attemptId, 'face_out_of_frame', { timestamp: Date.now() });
+          }
+        } else if (faceCount > 1) {
+          setFaceStatus('multiple_faces');
+          triggerToast(`🚨 Multiple individuals detected (${faceCount}) in camera frame! Only the candidate should be visible.`);
+          if (studentEmail && attemptId) {
+            recordStudentProctoringAction(studentEmail, attemptId, 'multiple_faces', { count: faceCount, timestamp: Date.now() });
           }
         } else {
-          // Canvas luminance fallback to verify camera is unobscured and active
-          if (!canvasRef.current && typeof document !== 'undefined') {
-            canvasRef.current = document.createElement('canvas');
-          }
-          const canvas = canvasRef.current;
-          if (canvas) {
-            canvas.width = 64;
-            canvas.height = 48;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (ctx) {
-              ctx.drawImage(video, 0, 0, 64, 48);
-              const imgData = ctx.getImageData(0, 0, 64, 48);
-              const d = imgData.data;
-              let brightnessSum = 0;
-              for (let i = 0; i < d.length; i += 4) {
-                brightnessSum += (d[i] + d[i + 1] + d[i + 2]) / 3;
-              }
-              const avg = brightnessSum / (d.length / 4);
-              if (avg < 10 || avg > 248) {
-                setFaceStatus('no_face');
-                triggerToast('Camera appears covered or poorly lit. Please ensure face is visible.');
-                if (studentEmail && attemptId) {
-                  recordStudentProctoringAction(studentEmail, attemptId, 'camera_obscured', { avgBrightness: avg });
-                }
-              } else {
-                setFaceStatus('ok');
-              }
-            }
-          }
+          setFaceStatus('ok');
         }
       } catch (err) {
-        // Frame analysis tick error; skip silently
+        // Detection tick error; skip silently
       }
-    }, 3500);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [viewMode, mediaStream, studentEmail, attemptId, triggerToast]);
+
+  // Cleanup MediaPipe detector on unmount
+  useEffect(() => {
+    return () => {
+      if (faceDetectorRef.current) {
+        try { faceDetectorRef.current.close(); } catch (e) {}
+        faceDetectorRef.current = null;
+        faceDetectorReadyRef.current = false;
+      }
+    };
+  }, []);
 
   // Anti-Cheat Restrictions & Fullscreen Detection
   useEffect(() => {
