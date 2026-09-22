@@ -8,7 +8,8 @@ import {
   getMaterials, saveMaterial, deleteMaterial,
   getCallbacks, resolveCallback, deleteCallback,
   getLecturers, saveLecturer, deleteLecturer,
-  getTransactions, deleteTransaction
+  getTransactions, deleteTransaction,
+  verifyAdminClearance, validateAdminSession
 } from '../actions';
 import styles from './admin.module.css';
 
@@ -16,6 +17,7 @@ export default function AdminConsole() {
   const [authorized, setAuthorized] = useState(false);
   const [securityKey, setSecurityKey] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Active Entity Tab: 'users' | 'courses' | 'live' | 'materials' | 'callbacks' | 'lecturers' | 'payments'
   const [activeTab, setActiveTab] = useState('users');
@@ -42,12 +44,28 @@ export default function AdminConsole() {
 
   // Check sessionStorage for admin clearances
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isClear = sessionStorage.getItem('adminCleared');
-      if (isClear === 'true') {
-        setAuthorized(true);
+    async function checkAdminAuth() {
+      if (typeof window !== 'undefined') {
+        const token = sessionStorage.getItem('adminSessionToken');
+        if (token) {
+          try {
+            const res = await validateAdminSession(token);
+            if (res && res.valid) {
+              setAuthorized(true);
+              return;
+            }
+          } catch (e) {
+            console.warn("Admin session validation failed:", e);
+          }
+        }
+        // Fallback check
+        const isClear = sessionStorage.getItem('adminCleared');
+        if (isClear === 'true') {
+          setAuthorized(true);
+        }
       }
     }
+    checkAdminAuth();
   }, []);
 
   const loadData = async () => {
@@ -69,23 +87,43 @@ export default function AdminConsole() {
     return () => window.removeEventListener('courseChanged', loadData);
   }, [authorized]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const envKey = process.env.NEXT_PUBLIC_MASTER_SECURITY_KEY;
-    const envPass = process.env.NEXT_PUBLIC_CLEARANCE_PASSWORD;
-    if ((envKey && securityKey === envKey) || (envPass && securityKey === envPass)) {
-      setAuthorized(true);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('adminCleared', 'true');
+    setLoginError('');
+    setIsLoggingIn(true);
+    try {
+      const res = await verifyAdminClearance(securityKey.trim());
+      if (res && res.success && res.token) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('adminSessionToken', res.token);
+          sessionStorage.setItem('adminCleared', 'true');
+        }
+        setAuthorized(true);
+      } else {
+        setLoginError(res?.error || 'Clearance denied: Invalid Security Key credentials.');
       }
-    } else {
-      setLoginError('Clearance denied: Invalid Security Key credentials.');
+    } catch (err) {
+      console.error("Admin login error:", err);
+      // Fallback in case of network issue
+      const envKey = process.env.NEXT_PUBLIC_MASTER_SECURITY_KEY;
+      const envPass = process.env.NEXT_PUBLIC_CLEARANCE_PASSWORD;
+      if ((envKey && securityKey === envKey) || (envPass && securityKey === envPass)) {
+        setAuthorized(true);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('adminCleared', 'true');
+        }
+      } else {
+        setLoginError('Clearance denied: Invalid Security Key credentials.');
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
   const handleLogout = () => {
     setAuthorized(false);
     if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('adminSessionToken');
       sessionStorage.removeItem('adminCleared');
     }
   };
@@ -348,12 +386,15 @@ export default function AdminConsole() {
               type="password" 
               placeholder="ENTER SECURITY KEY" 
               required
+              disabled={isLoggingIn}
               className={styles.gateInput}
               value={securityKey}
               onChange={(e) => setSecurityKey(e.target.value)}
             />
             {loginError && <p style={{ color: '#ff4d4d', fontSize: '0.75rem', marginBottom: '1rem', textAlign: 'center' }}>{loginError}</p>}
-            <button type="submit" className={styles.gateBtn}>Authorize CLEARANCE</button>
+            <button type="submit" className={styles.gateBtn} disabled={isLoggingIn}>
+              {isLoggingIn ? 'Verifying clearance...' : 'Authorize CLEARANCE'}
+            </button>
           </form>
         </div>
       </div>
@@ -778,7 +819,8 @@ export default function AdminConsole() {
               <button className={styles.modalClose} onClick={() => setShowModal(false)}>✕</button>
             </div>
 
-            <form onSubmit={handleFormSubmit} className={styles.modalForm}>
+            <form onSubmit={handleFormSubmit} className={styles.modalFormContainer}>
+              <div className={styles.modalFormBody}>
               
               {/* TAB INPUTS: USERS */}
               {activeTab === 'users' && (
@@ -1102,6 +1144,8 @@ export default function AdminConsole() {
                   )}
                 </>
               )}
+
+              </div>
 
               <div className={styles.modalFooter}>
                 <button type="button" className={styles.actionBtn} style={{ color: '#ffffff', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)' }} onClick={() => setShowModal(false)}>Cancel</button>

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CheckoutModal from '@/components/CheckoutModal';
-import { getCourseById, getLecturers, getMaterials, getStudents, getSchedule } from '../../actions';
+import { getCourseById, getLecturers, getMaterials, getStudentProfileByEmail, getSchedule } from '../../actions';
 import styles from './course-detail.module.css';
 
 // ── Tech icon map (SVG paths rendered inline, no external deps) ──
@@ -201,8 +201,7 @@ export default function CourseDetailPage() {
 
         const email = localStorage.getItem('loggedInStudentEmail');
         if (email) {
-          const studentsList = await getStudents();
-          const activeStudent = studentsList.find(s => s.email.toLowerCase() === email.toLowerCase());
+          const activeStudent = await getStudentProfileByEmail(email);
           if (activeStudent) {
             setStudent(activeStudent);
             setIsEnrolled((activeStudent.enrolledCourses || []).includes(courseId));
@@ -245,8 +244,7 @@ export default function CourseDetailPage() {
     setIsEnrolled(true);
     setShowCheckout(false);
     if (student) {
-      const studentsList = await getStudents();
-      const updatedStudent = studentsList.find(s => s.id === student.id);
+      const updatedStudent = await getStudentProfileByEmail(student.email);
       if (updatedStudent) {
         localStorage.setItem('studentProfile', JSON.stringify({
           name: updatedStudent.name,

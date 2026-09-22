@@ -11,6 +11,7 @@ export default function OnboardingPage() {
   const [experienceLevel, setExperienceLevel] = useState('intermediate');
   const [primaryGoal, setPrimaryGoal] = useState('job');
   const [studentName, setStudentName] = useState('Student');
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -59,9 +60,39 @@ export default function OnboardingPage() {
   ];
 
   const goals = [
-    { id: 'job', icon: '💼', title: 'Land a Developer Job / Internship' },
-    { id: 'projects', icon: '🚀', title: 'Build & Ship Portfolio Projects' },
-    { id: 'skills', icon: '🧠', title: 'Deepen Architecture & System Design' }
+    {
+      id: 'job',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        </svg>
+      ),
+      title: 'Land a Developer Job / Internship'
+    },
+    {
+      id: 'projects',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+          <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+        </svg>
+      ),
+      title: 'Build & Ship Portfolio Projects'
+    },
+    {
+      id: 'skills',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/>
+          <polyline points="2 12 12 17 22 12"/>
+        </svg>
+      ),
+      title: 'Deepen Architecture & System Design'
+    }
   ];
 
   const activeTrackObj = tracks.find((t) => t.id === selectedTrack) || tracks[0];
@@ -69,6 +100,7 @@ export default function OnboardingPage() {
   const activeGoalObj = goals.find((g) => g.id === primaryGoal) || goals[0];
 
   const handleFinish = () => {
+    setFinishing(true);
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('studentProfile');
       let profile = stored ? JSON.parse(stored) : {};
@@ -79,7 +111,7 @@ export default function OnboardingPage() {
       localStorage.setItem('studentProfile', JSON.stringify(profile));
       window.dispatchEvent(new Event('profileChanged'));
     }
-    router.push('/dashboard');
+    router.replace('/dashboard');
   };
 
   return (
@@ -190,7 +222,11 @@ export default function OnboardingPage() {
                         <span style={{ fontWeight: '700', fontSize: '0.92rem', color: isActive ? 'var(--accent-orange)' : '#ffffff' }}>
                           {lvl.title}
                         </span>
-                        {isActive && <span style={{ color: 'var(--accent-orange)', fontSize: '0.9rem' }}>✓</span>}
+                        {isActive && (
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-orange)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
                       </div>
                       <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', margin: '0.2rem 0 0 0', lineHeight: '1.4' }}>
                         {lvl.subtitle}
@@ -216,13 +252,19 @@ export default function OnboardingPage() {
                       onClick={() => setPrimaryGoal(g.id)}
                       style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                        <span style={{ fontSize: '1.1rem' }}>{g.icon}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', color: isActive ? 'var(--accent-orange)' : 'rgba(255,255,255,0.7)' }}>
+                          {g.icon}
+                        </span>
                         <span style={{ fontSize: '0.88rem', fontWeight: '600', color: isActive ? 'var(--accent-orange)' : '#ffffff' }}>
                           {g.title}
                         </span>
                       </div>
-                      {isActive && <span style={{ color: 'var(--accent-orange)', fontSize: '0.85rem' }}>✓</span>}
+                      {isActive && (
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-orange)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
                     </div>
                   );
                 })}
@@ -263,10 +305,11 @@ export default function OnboardingPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.5rem',
               margin: '0 auto 1.25rem'
             }}>
-              ✓
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#30d158" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             </div>
 
             <h2 className={styles.onboardStepTitle} style={{ marginBottom: '0.5rem' }}>
@@ -310,12 +353,15 @@ export default function OnboardingPage() {
               <button
                 className={styles.onboardBtn}
                 onClick={handleFinish}
+                disabled={finishing}
                 style={{ flex: 1, padding: '0.95rem 1.5rem', justifyContent: 'center' }}
               >
-                Open Dashboard
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
+                {finishing ? 'Opening Workspace...' : 'Open Dashboard'}
+                {!finishing && (
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>

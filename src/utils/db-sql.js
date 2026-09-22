@@ -19,35 +19,66 @@ const DB_CONFIG = {
   database: process.env.DB_NAME || 'atelier',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  connectTimeout: 10000,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000
 };
 
 let pool = null;
 let initialized = false;
+let initPromise = null;
 
 async function getPool() {
   if (pool) return pool;
-
-  // First, create the database if it doesn't exist
-  const tempConn = await mysql.createConnection({
-    host: DB_CONFIG.host,
-    port: DB_CONFIG.port,
-    user: DB_CONFIG.user,
-    password: DB_CONFIG.password
-  });
-  await tempConn.execute(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\``);
-  await tempConn.end();
-
-  // Now create the pool targeting that database
   pool = mysql.createPool(DB_CONFIG);
   return pool;
 }
 
 async function initDb() {
   if (initialized) return;
+  if (initPromise) return initPromise;
 
-  const p = await getPool();
+  initPromise = (async () => {
+    const p = await getPool();
 
+    // Fast-path: if tables already exist, skip running 40+ DDL migration statements
+    try {
+      const [tables] = await p.execute("SHOW TABLES LIKE 'atelier_student_progress'");
+      if (tables && tables.length > 0) {
+        initialized = true;
+        return;
+      }
+    } catch (err) {
+      if (err.code === 'ER_BAD_DB_ERROR') {
+        try {
+          const tempConn = await mysql.createConnection({
+            host: DB_CONFIG.host,
+            port: DB_CONFIG.port,
+            user: DB_CONFIG.user,
+            password: DB_CONFIG.password
+          });
+          await tempConn.execute(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\``);
+          await tempConn.end();
+        } catch (dbErr) {
+          console.warn("Could not create database:", dbErr.message);
+        }
+      }
+    }
+
+    await runFullSchemaMigration(p);
+    initialized = true;
+  })();
+
+  try {
+    await initPromise;
+  } catch (err) {
+    initPromise = null;
+    throw err;
+  }
+}
+
+async function runFullSchemaMigration(p) {
   // Create tables
   await p.execute(`
     CREATE TABLE IF NOT EXISTS atelier_lecturers (

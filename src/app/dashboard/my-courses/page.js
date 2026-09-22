@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getStudents, getCourses, getStudentCourseProgress } from '../../actions';
+import { getStudentProfileByEmail, getCourses, getStudentCourseProgress } from '../../actions';
 import styles from '../dashboard.module.css';
 
 export default function MyCoursesPage() {
@@ -15,26 +15,40 @@ export default function MyCoursesPage() {
   useEffect(() => {
     const loadCourses = async () => {
       const email = localStorage.getItem('loggedInStudentEmail');
-      if (!email) return;
-      const studentsList = await getStudents();
-      const student = studentsList.find((s) => s.email.toLowerCase() === email.toLowerCase());
-      const enrolledIds = student ? student.enrolledCourses || [] : [];
-
-      const allCourses = await getCourses();
-      const filtered = allCourses.filter((c) => enrolledIds.includes(c.id));
-      setCoursesList(filtered);
-
-      // Compute mathematical progress for each enrolled course
-      if (student && student.id) {
-        const pMap = {};
-        for (const c of filtered) {
-          const stats = await getStudentCourseProgress(student.id, c.id);
-          pMap[c.id] = stats;
-        }
-        setProgressMap(pMap);
+      if (!email) {
+        setLoading(false);
+        return;
       }
 
-      setLoading(false);
+      try {
+        const [student, allCourses] = await Promise.all([
+          getStudentProfileByEmail(email),
+          getCourses()
+        ]);
+
+        const enrolledIds = student ? student.enrolledCourses || [] : [];
+        const filtered = allCourses.filter((c) => enrolledIds.includes(c.id));
+        setCoursesList(filtered);
+
+        // Compute mathematical progress in parallel for each enrolled course
+        if (student && student.id && filtered.length > 0) {
+          const progressResults = await Promise.all(
+            filtered.map(async (c) => ({
+              id: c.id,
+              stats: await getStudentCourseProgress(student.id, c.id)
+            }))
+          );
+          const pMap = {};
+          for (const item of progressResults) {
+            pMap[item.id] = item.stats;
+          }
+          setProgressMap(pMap);
+        }
+      } catch (err) {
+        console.error('Error loading enrolled courses:', err);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadCourses();

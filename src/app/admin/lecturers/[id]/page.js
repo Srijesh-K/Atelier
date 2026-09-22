@@ -18,8 +18,8 @@ export default function LecturerDetailsAdmin() {
   // Check auth
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const isClear = sessionStorage.getItem('adminCleared');
-      if (isClear === 'true') {
+      const isClear = sessionStorage.getItem('adminCleared') === 'true' || Boolean(sessionStorage.getItem('adminSessionToken'));
+      if (isClear) {
         setAuthorized(true);
       }
     }

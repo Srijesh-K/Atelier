@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { getStudents, getCourses, recordStudentDailyStreak } from '../actions';
+import { getStudentProfileByEmail, getCourses, recordStudentDailyStreak } from '../actions';
 import InitialsAvatar from '@/components/InitialsAvatar';
 import styles from './dashboard.module.css';
 
@@ -62,7 +62,7 @@ export default function DashboardLayout({ children }) {
         setUserName(parsed.name || 'Student');
         setUserAvatar(parsed.avatar || null);
         setStreak(parsed.streak || 1);
-        setEnrolledCourses(parsed.enrolledCourses || [1]);
+        setEnrolledCourses(parsed.enrolledCourses || []);
       } catch (e) {}
     }
 
@@ -86,14 +86,13 @@ export default function DashboardLayout({ children }) {
           setStreak(streakRes.streak);
         }
 
-        const studentsList = await getStudents();
-        const student = studentsList.find((s) => s.email.toLowerCase() === currentEmail.toLowerCase());
+        const student = await getStudentProfileByEmail(currentEmail);
 
         if (student) {
           setUserName(student.name);
           setUserAvatar(student.avatar || null);
           setStreak(student.streak || streakRes.streak || 1);
-          setEnrolledCourses(student.enrolledCourses || [1]);
+          setEnrolledCourses(student.enrolledCourses || []);
           // Sync cache
           localStorage.setItem('studentProfile', JSON.stringify({
             name: student.name,
@@ -109,7 +108,7 @@ export default function DashboardLayout({ children }) {
             avatar: student.avatar || null,
             skills: student.skills || [],
             streak: student.streak || streakRes.streak || 1,
-            enrolledCourses: student.enrolledCourses || [1]
+            enrolledCourses: student.enrolledCourses || []
           }));
         } else {
           localStorage.removeItem('loggedInStudentEmail');
@@ -152,7 +151,7 @@ export default function DashboardLayout({ children }) {
       window.removeEventListener('courseChanged', onCourseChange);
       window.removeEventListener('profileChanged', onProfileChange);
     };
-  }, [pathname]);
+  }, []);
 
   // Auth check loading state
   if (!isMounted || checkingAuth) {
@@ -176,7 +175,7 @@ export default function DashboardLayout({ children }) {
       desc: c.description.slice(0, 60) + '...'
     }));
 
-  const activeCourse = courses.find((c) => c.id === activeCourseId) || courses[0] || { id: 1, name: 'Cohort 3.0', desc: 'No active course' };
+  const activeCourse = courses.find((c) => c.id === activeCourseId) || courses[0] || null;
 
   const handleCourseChange = (id) => {
     setActiveCourseId(id);
@@ -364,29 +363,43 @@ export default function DashboardLayout({ children }) {
             </h1>
             {pathname !== '/dashboard/my-courses' && (
               <div className={styles.customDropdownWrapper} ref={dropdownRef}>
-                <button 
-                  className={styles.dropdownToggle}
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  aria-haspopup="listbox"
-                  aria-expanded={dropdownOpen}
-                >
-                  <span className={styles.dropdownActiveDot} />
-                  <div className={styles.dropdownToggleText}>
-                    <span className={styles.dropdownLabel}>Active Workspace</span>
-                    <span className={styles.dropdownValue}>{activeCourse.name}</span>
-                  </div>
-                  <svg 
-                    className={`${styles.dropdownChevron} ${dropdownOpen ? styles.dropdownChevronOpen : ''}`} 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2.5"
+                {courses.length > 0 ? (
+                  <button 
+                    className={styles.dropdownToggle}
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    aria-haspopup="listbox"
+                    aria-expanded={dropdownOpen}
                   >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
+                    <span className={styles.dropdownActiveDot} />
+                    <div className={styles.dropdownToggleText}>
+                      <span className={styles.dropdownLabel}>Active Workspace</span>
+                      <span className={styles.dropdownValue}>{activeCourse ? activeCourse.name : 'Select Cohort'}</span>
+                    </div>
+                    <svg 
+                      className={`${styles.dropdownChevron} ${dropdownOpen ? styles.dropdownChevronOpen : ''}`} 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2.5"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                ) : (
+                  <Link 
+                    href="/dashboard/explore"
+                    className={styles.dropdownToggle}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)' }} />
+                    <div className={styles.dropdownToggleText}>
+                      <span className={styles.dropdownLabel}>No Active Enrollment</span>
+                      <span className={styles.dropdownValue} style={{ color: 'var(--accent-orange)' }}>Browse Catalog →</span>
+                    </div>
+                  </Link>
+                )}
 
-                {dropdownOpen && (
+                {dropdownOpen && courses.length > 0 && (
                   <div className={styles.dropdownMenu} role="listbox">
                     <div className={styles.dropdownMenuHeader}>Switch Cohort Workspace</div>
                     {courses.map((c) => {
@@ -434,7 +447,7 @@ export default function DashboardLayout({ children }) {
 
         {React.Children.map(children, child => {
           if (React.isValidElement(child)) {
-            return React.cloneElement(child, { activeCourseId });
+            return React.cloneElement(child, { activeCourseId, enrolledCourses });
           }
           return child;
         })}

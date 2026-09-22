@@ -44,9 +44,16 @@ export default function ForgotPasswordPage() {
           setDemoCode(res.code);
         }
         setStep(2);
+      } else {
+        setError(res?.error || "We couldn't process this request. Please check the email address and try again.");
       }
     } catch (err) {
-      setError(err.message || "We couldn't process this request. Please check the email address and try again.");
+      const msg = err?.message || '';
+      if (msg.includes('Server Components render') || msg.includes('digest')) {
+        setError("No account found with this email address. Please check your spelling or sign up.");
+      } else {
+        setError(msg || "We couldn't process this request. Please check the email address and try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -78,9 +85,16 @@ export default function ForgotPasswordPage() {
       const res = await verifyAndResetPassword(email.trim(), code.trim(), password);
       if (res && res.success) {
         setStep(3);
+      } else {
+        setError(res?.error || 'Invalid or expired verification code. Please try again.');
       }
     } catch (err) {
-      setError(err.message || 'Invalid or expired verification code. Please try again.');
+      const msg = err?.message || '';
+      if (msg.includes('Server Components render') || msg.includes('digest')) {
+        setError('Invalid or expired verification code. Please try again.');
+      } else {
+        setError(msg || 'Invalid or expired verification code. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

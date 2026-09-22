@@ -1,16 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getStudents, saveCallback } from '../actions';
+import Link from 'next/link';
+import { getStudentProfileByEmail, saveCallback } from '../actions';
 import styles from './dashboard.module.css';
 
-export default function StudentDashboard({ activeCourseId = 1 }) {
+export default function StudentDashboard({ activeCourseId = 1, enrolledCourses = [] }) {
   const [activeNode, setActiveNode] = useState(2); // Node 2 is active by default
   const [showDrawer, setShowDrawer] = useState(false);
   const [streak, setStreak] = useState(1);
   const [studentName, setStudentName] = useState('Student Builder');
   const [toastMessage, setToastMessage] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
+  const [enrolledList, setEnrolledList] = useState(enrolledCourses);
   
   // Form input states
   const [hotlineTopic, setHotlineTopic] = useState('');
@@ -22,17 +24,30 @@ export default function StudentDashboard({ activeCourseId = 1 }) {
     setActiveNode(2);
   }, [activeCourseId]);
 
-  // Sync profile details
+  // Sync profile details with instant local cache + background check
   useEffect(() => {
+    const cached = localStorage.getItem('studentProfile');
+    if (cached) {
+      try {
+        const p = JSON.parse(cached);
+        if (p.name) setStudentName(p.name);
+        if (p.streak !== undefined) setStreak(p.streak);
+        if (p.phone) setHotlinePhone(p.phone);
+        if (Array.isArray(p.enrolledCourses)) setEnrolledList(p.enrolledCourses);
+      } catch (e) {}
+    }
+
     const syncProfile = async () => {
       const email = localStorage.getItem('loggedInStudentEmail');
       if (!email) return;
-      const studentsList = await getStudents();
-      const student = studentsList.find((s) => s.email.toLowerCase() === email.toLowerCase());
+      const student = await getStudentProfileByEmail(email);
       if (student) {
         setStreak(student.streak || 0);
         setStudentName(student.name);
         setHotlinePhone(student.phone || '');
+        if (Array.isArray(student.enrolledCourses)) {
+          setEnrolledList(student.enrolledCourses);
+        }
       }
     };
     syncProfile();
@@ -159,6 +174,72 @@ function lockedNode() {
       setSubmittingCallback(false);
     }
   };
+
+  if (enrolledList.length === 0) {
+    return (
+      <div className={styles.bentoContainer} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '65vh' }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '16px',
+          padding: '3.5rem 2rem',
+          textAlign: 'center',
+          maxWidth: '620px',
+          width: '100%',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+        }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: 'rgba(242, 85, 34, 0.1)',
+            border: '1px solid rgba(242, 85, 34, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.5rem',
+            color: 'var(--accent-orange)'
+          }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.65rem', fontWeight: '800', color: '#ffffff', marginBottom: '0.75rem' }}>
+            Welcome to Your Workspace, {studentName}!
+          </h2>
+          <p style={{ color: 'rgba(255, 255, 255, 0.55)', fontSize: '0.92rem', maxWidth: '480px', margin: '0 auto 2rem', lineHeight: '1.6' }}>
+            You haven&apos;t enrolled in any cohort yet. Browse our course catalog to select a cohort, unlock your interactive roadmap, and start building.
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <Link href="/dashboard/explore" className={styles.onboardBtn} style={{ textDecoration: 'none', display: 'inline-flex', width: 'auto', padding: '0.85rem 1.85rem' }}>
+              Explore Cohort Catalog
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </Link>
+            <Link href="/courses" style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '0.85rem 1.5rem',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '8px',
+              color: '#ffffff',
+              textDecoration: 'none',
+              fontSize: '0.88rem',
+              fontWeight: '600'
+            }}>
+              View Syllabi
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.bentoContainer}>

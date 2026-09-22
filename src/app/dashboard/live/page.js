@@ -12,14 +12,28 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
   const [student, setStudent] = useState(null);
   const [activeInAppRoom, setActiveInAppRoom] = useState(null);
 
+  const [enrolledCount, setEnrolledCount] = useState(null);
+
   const loadLiveData = async () => {
     try {
       // Get student identity
       const profileStr = localStorage.getItem('studentProfile');
+      let enrolledCourses = [];
       if (profileStr) {
         try {
-          setStudent(JSON.parse(profileStr));
+          const parsed = JSON.parse(profileStr);
+          setStudent(parsed);
+          if (Array.isArray(parsed.enrolledCourses)) {
+            enrolledCourses = parsed.enrolledCourses;
+          }
         } catch (e) {}
+      }
+      setEnrolledCount(enrolledCourses.length);
+
+      if (enrolledCourses.length === 0) {
+        setSessions([]);
+        setLoading(false);
+        return;
       }
 
       const storedCourseId = localStorage.getItem('activeCourseId');
@@ -82,6 +96,43 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
       return dateStr;
     }
   };
+
+  if (!loading && enrolledCount === 0) {
+    return (
+      <div className={styles.pageWrapper}>
+        <h2 className={styles.headerTitle}>Live Sessions & Cohort Syncs</h2>
+        <p className={styles.headerSubtitle}>
+          Join real-time lectures, live code reviews, and office hours with your mentors.
+        </p>
+        <div style={{ padding: '3.5rem 2rem', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '12px', textAlign: 'center', background: 'rgba(255,255,255,0.01)', marginTop: '2rem' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(242, 85, 34, 0.08)', border: '1px solid rgba(242, 85, 34, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', color: 'var(--accent-orange)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="23 7 16 12 23 17 23 7" />
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+            </svg>
+          </div>
+          <h3 style={{ fontFamily: 'var(--font-heading)', color: '#ffffff', fontSize: '1.15rem', marginBottom: '0.5rem' }}>No Active Cohort Enrollment</h3>
+          <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '1.75rem', fontSize: '0.88rem', maxWidth: '440px', margin: '0 auto 1.75rem' }}>
+            Live interactive lectures and mentor syncs are available to students enrolled in a cohort track.
+          </p>
+          <a href="/dashboard/explore" style={{
+            background: 'var(--accent-orange, #f25522)',
+            color: '#ffffff',
+            padding: '0.85rem 2rem',
+            borderRadius: '8px',
+            textDecoration: 'none',
+            fontSize: '0.88rem',
+            fontWeight: '700',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            Explore Cohort Catalog &rarr;
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.pageWrapper}>

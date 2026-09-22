@@ -25,13 +25,15 @@ import styles from '../../mentor.module.css';
 export default function MentorCourseWorkspacePage() {
   const params = useParams();
   const router = useRouter();
-  const courseId = parseInt(params.id, 10);
+  const rawId = params?.id;
+  const courseId = rawId ? parseInt(rawId, 10) : null;
 
   const [mentor, setMentor] = useState(null);
   const [course, setCourse] = useState(null);
   const [authorized, setAuthorized] = useState(false);
   const [activeTab, setActiveTab] = useState('students'); // 'students' | 'live' | 'syllabus' | 'materials'
   const [loading, setLoading] = useState(true);
+  const [submittingSchedule, setSubmittingSchedule] = useState(false);
 
   // Tab 1: Students
   const [students, setStudents] = useState([]);
@@ -66,6 +68,10 @@ export default function MentorCourseWorkspacePage() {
 
   // Load Mentor and Authorize Course Access
   useEffect(() => {
+    if (!courseId || isNaN(courseId)) {
+      return;
+    }
+
     const profileStr = localStorage.getItem('mentorProfile');
     if (!profileStr) {
       router.push('/mentor/login');
@@ -77,7 +83,8 @@ export default function MentorCourseWorkspacePage() {
       setMentor(parsedMentor);
 
       getMentorCourses(parsedMentor.id).then(async (assigned) => {
-        const hasAccess = (assigned || []).some((c) => c.id === courseId);
+        const isAdmin = parsedMentor.role === 'admin';
+        const hasAccess = isAdmin || (assigned || []).some((c) => c.id === courseId);
         if (!hasAccess) {
           setAuthorized(false);
           setLoading(false);
@@ -89,10 +96,13 @@ export default function MentorCourseWorkspacePage() {
         // Fetch course details
         const allCourses = await getCourses();
         const currentCourse = allCourses.find((c) => c.id === courseId);
-        setCourse(currentCourse);
+        setCourse(currentCourse || null);
 
         // Initial data fetch
         await reloadTabData(parsedMentor.id, activeTab);
+      }).catch((err) => {
+        console.error("Authorization check failed:", err);
+        setAuthorized(false);
       }).finally(() => setLoading(false));
     } catch (e) {
       console.error(e);
@@ -102,21 +112,26 @@ export default function MentorCourseWorkspacePage() {
 
   // Tab-specific data reload
   const reloadTabData = async (mentorId, tab) => {
-    if (!mentorId) return;
+    if (!mentorId || !courseId) return;
 
-    if (tab === 'students') {
-      const data = await getCourseEnrolledStudents(mentorId, courseId);
-      setStudents(data || []);
-    } else if (tab === 'live') {
-      const data = await getLiveSessions(courseId);
-      setSessions(data || []);
-    } else if (tab === 'syllabus') {
-      const data = await getCourseSyllabus(courseId);
-      setSyllabus(data || []);
-    } else if (tab === 'materials') {
-      const allMaterials = await getMaterials();
-      const courseMats = (allMaterials || []).filter((m) => m.courseId === courseId);
-      setMaterials(courseMats);
+    try {
+      if (tab === 'students') {
+        const data = await getCourseEnrolledStudents(mentorId, courseId);
+        const list = Array.isArray(data) ? data : (data?.students || []);
+        setStudents(list);
+      } else if (tab === 'live') {
+        const data = await getLiveSessions(courseId);
+        setSessions(Array.isArray(data) ? data : []);
+      } else if (tab === 'syllabus') {
+        const data = await getCourseSyllabus(courseId);
+        setSyllabus(Array.isArray(data) ? data : []);
+      } else if (tab === 'materials') {
+        const allMaterials = await getMaterials();
+        const courseMats = (allMaterials || []).filter((m) => m.courseId === courseId);
+        setMaterials(courseMats);
+      }
+    } catch (tabErr) {
+      console.error(`Error loading ${tab} data:`, tabErr);
     }
   };
 
@@ -130,14 +145,22 @@ export default function MentorCourseWorkspacePage() {
   // ─── LIVE CLASS ACTIONS ───
   const handleScheduleSubmit = async (e) => {
     e.preventDefault();
-    if (!mentor) return;
+    if (!mentor) {
+      alert('Please log in as mentor.');
+      return;
+    }
+    if (!courseId) {
+      alert('Invalid cohort course identifier.');
+      return;
+    }
 
     try {
+      setSubmittingSchedule(true);
       const meetingLinkToUse = roomType === 'embedded'
         ? `https://meet.jit.si/atelier-live-cohort-${courseId}-${Date.now().toString(36)}`
         : scheduleForm.meetingLink;
 
-      await createLiveSession({
+      const res = await createLiveSession({
         mentorId: mentor.id,
         courseId,
         title: scheduleForm.title,
@@ -146,12 +169,18 @@ export default function MentorCourseWorkspacePage() {
         scheduledAt: scheduleForm.scheduledAt
       });
 
-      setShowScheduleModal(false);
-      setScheduleForm({ title: '', description: '', meetingLink: '', scheduledAt: '' });
-      setRoomType('embedded');
-      await reloadTabData(mentor.id, 'live');
+      if (res && res.success) {
+        setShowScheduleModal(false);
+        setScheduleForm({ title: '', description: '', meetingLink: '', scheduledAt: '' });
+        setRoomType('embedded');
+        await reloadTabData(mentor.id, 'live');
+        alert('Live class scheduled successfully!');
+      }
     } catch (err) {
-      alert('Error scheduling class: ' + err.message);
+      console.error(err);
+      alert('Error scheduling class: ' + (err.message || 'Server error'));
+    } finally {
+      setSubmittingSchedule(false);
     }
   };
 
@@ -1005,8 +1034,8 @@ export default function MentorCourseWorkspacePage() {
                 <button type="button" className={styles.secondaryBtn} onClick={() => setShowScheduleModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className={styles.primaryBtn} style={{ width: 'auto' }}>
-                  Save Schedule
+                <button type="submit" disabled={submittingSchedule} className={styles.primaryBtn} style={{ width: 'auto' }}>
+                  {submittingSchedule ? 'Scheduling Live Class...' : 'Save Schedule'}
                 </button>
               </div>
             </form>

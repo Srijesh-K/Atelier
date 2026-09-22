@@ -53,7 +53,7 @@ export default function SignUpPage() {
 
     try {
       const name = `${firstName.trim()} ${lastName.trim()}`;
-      const student = await registerStudentAccount(
+      const res = await registerStudentAccount(
         name,
         email.trim().toLowerCase(),
         password,
@@ -61,6 +61,13 @@ export default function SignUpPage() {
         'Not specified yet',
         '2026'
       );
+
+      if (!res || res.success === false || (!res.student && !res.email)) {
+        setError(res?.error || 'Unable to create your account. Please try again.');
+        return;
+      }
+
+      const student = res.student || res;
 
       // Set logged-in session email
       localStorage.setItem('loggedInStudentEmail', student.email);
@@ -86,7 +93,12 @@ export default function SignUpPage() {
       // Route to welcome onboarding board
       router.push('/dashboard/onboarding');
     } catch (err) {
-      setError(err.message || 'Unable to create your account. Please try again.');
+      const msg = err?.message || '';
+      if (msg.includes('Server Components render') || msg.includes('digest')) {
+        setError('Unable to create account. An account with this email may already exist.');
+      } else {
+        setError(msg || 'Unable to create your account. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

@@ -51,12 +51,14 @@ export default function SocialAuthModal({ isOpen, provider, onClose, redirectTo 
     setError('');
 
     try {
-      const student = await authenticateOAuthStudent({
+      const res = await authenticateOAuthStudent({
         name: account.name,
         email: account.email,
         avatar: account.avatar || null,
         provider: provider || 'google'
       });
+
+      const student = res?.student || (res?.email && res?.success !== false ? res : null);
 
       if (student) {
         localStorage.setItem('loggedInStudentEmail', student.email);
@@ -79,6 +81,9 @@ export default function SocialAuthModal({ isOpen, provider, onClose, redirectTo 
         window.dispatchEvent(new Event('courseChanged'));
 
         router.push(redirectTo);
+      } else {
+        setError(res?.error || `Failed to sign in with ${providerTitle}.`);
+        setLoading(false);
       }
     } catch (err) {
       setError(err.message || `Failed to sign in with ${providerTitle}.`);

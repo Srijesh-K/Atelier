@@ -6,6 +6,15 @@ const nextConfig = {
   turbopack: {
     root: path.resolve('.'),
   },
+  async redirects() {
+    return [
+      {
+        source: '/mentor/course/:id',
+        destination: '/mentor/courses/:id',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

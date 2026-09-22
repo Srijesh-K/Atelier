@@ -2,7 +2,7 @@
 
 import { query, execute, getConnection, createFileRecord, getFileRecordById, deleteFileRecord, getFilesForUser } from '../utils/db-sql';
 import { deleteMessageFromTelegram } from '../lib/telegram';
-import { hashPassword, verifyPassword, generateTempPassword, signMentorSession, isMentorLocked, assertMentorOwnsCourse } from '../utils/auth';
+import { hashPassword, verifyPassword, generateTempPassword, signMentorSession, isMentorLocked, assertMentorOwnsCourse, signAdminSession, verifyAdminSessionToken } from '../utils/auth';
 
 // --- STUDENTS ACTIONS ---
 export async function getStudents() {
@@ -263,18 +263,33 @@ export async function saveCourse(c) {
       exists = rows.length > 0 ? rows[0] : null;
     }
 
+    let courseId = c.id;
     if (exists) {
       await execute(
         `UPDATE atelier_courses SET title = ?, description = ?, image = ?, badges = ?, price = ?, original_price = ?, discount = ?, instructor_id = ?, duration = ?, highlights = ?, curriculum_overview = ?, subtitle = ?, total_hours = ?, total_modules = ?, total_projects = ?, tools_technologies = ?, faqs = ?, certificate_title = ?, course_outcomes = ? WHERE id = ?`,
         [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.duration || null, c.highlights || null, c.curriculumOverview || c.curriculum_overview || null, c.subtitle || null, c.totalHours || c.total_hours || null, c.totalModules || c.total_modules || null, c.totalProjects || c.total_projects || null, c.toolsTechnologies || c.tools_technologies || null, c.faqs || null, c.certificateTitle || c.certificate_title || null, c.courseOutcomes || c.course_outcomes || null, c.id]
       );
     } else {
-      await execute(
+      const res = await execute(
         `INSERT INTO atelier_courses (title, description, image, badges, price, original_price, discount, instructor_id, duration, highlights, curriculum_overview, subtitle, total_hours, total_modules, total_projects, tools_technologies, faqs, certificate_title, course_outcomes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [c.title, c.description, c.image, badgesStr, c.price, c.originalPrice || c.original_price, c.discount, c.instructorId || c.instructor_id || null, c.duration || null, c.highlights || null, c.curriculumOverview || c.curriculum_overview || null, c.subtitle || null, c.totalHours || c.total_hours || null, c.totalModules || c.total_modules || null, c.totalProjects || c.total_projects || null, c.toolsTechnologies || c.tools_technologies || null, c.faqs || null, c.certificateTitle || c.certificate_title || null, c.courseOutcomes || c.course_outcomes || null]
       );
+      courseId = res.insertId;
     }
-    return { success: true };
+
+    const targetInstructorId = c.instructorId || c.instructor_id || null;
+    if (targetInstructorId && courseId) {
+      try {
+        await execute(
+          "INSERT IGNORE INTO atelier_mentor_courses (mentor_id, course_id) VALUES (?, ?)",
+          [targetInstructorId, courseId]
+        );
+      } catch (syncErr) {
+        console.warn("Could not sync mentor course link:", syncErr);
+      }
+    }
+
+    return { success: true, id: courseId };
   } catch (e) {
     console.error("SQL Error in saveCourse:", e);
     throw new Error(e.message);
@@ -517,7 +532,12 @@ export async function getLecturers() {
     );
     for (const l of lecturers) {
       const assigned = await query("SELECT course_id FROM atelier_mentor_courses WHERE mentor_id = ?", [l.id]);
-      l.assignedCourses = assigned.map(a => a.course_id);
+      const instructorCourses = await query("SELECT id as course_id FROM atelier_courses WHERE instructor_id = ?", [l.id]);
+      const combined = Array.from(new Set([
+        ...assigned.map(a => a.course_id),
+        ...instructorCourses.map(a => a.course_id)
+      ]));
+      l.assignedCourses = combined;
     }
     return lecturers;
   } catch (e) {
@@ -703,21 +723,28 @@ export async function registerStudentToCourse(studentId, courseId, amount) {
 export async function authenticateStudent(email, password) {
   try {
     const cleanEmail = (email || '').trim().toLowerCase();
-    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    if (!cleanEmail) {
+      return { success: false, error: "Please enter your email address." };
+    }
+    if (!password) {
+      return { success: false, error: "Please enter your password." };
+    }
+
+    const rows = await query("SELECT * FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
     const student = rows.length > 0 ? rows[0] : null;
 
     if (!student) {
-      throw new Error("No account found with this email. Please check the address or create a new account.");
+      return { success: false, error: "No account found with this email. Please check your spelling or sign up." };
     }
 
     // Check if account uses social provider without local password
     if (student.auth_provider && student.auth_provider !== 'credentials' && student.password !== password) {
       const providerName = student.auth_provider === 'google' ? 'Google' : student.auth_provider === 'github' ? 'GitHub' : student.auth_provider;
-      throw new Error(`This account was registered using ${providerName}. Please continue with ${providerName}.`);
+      return { success: false, error: `This account was registered using ${providerName}. Please continue with ${providerName}.` };
     }
 
     if (student.password !== password) {
-      throw new Error("Invalid email or password. Please check your credentials and try again.");
+      return { success: false, error: "Invalid email or password. Please check your credentials and try again." };
     }
 
     const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [student.id]);
@@ -729,10 +756,10 @@ export async function authenticateStudent(email, password) {
     delete student.password;
     delete student.reset_code;
     delete student.reset_code_expires;
-    return student;
+    return { success: true, student, ...student };
   } catch (e) {
     console.error("Authentication error:", e.message);
-    throw new Error(e.message);
+    return { success: false, error: e.message || "Failed to sign in. Please try again." };
   }
 }
 
@@ -741,7 +768,7 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (name || cleanEmail.split('@')[0] || 'Student').trim();
 
-    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    const rows = await query("SELECT * FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
     let student = rows.length > 0 ? rows[0] : null;
 
     if (student) {
@@ -762,17 +789,6 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
         );
 
         const newStudentId = result.insertId;
-        // Enroll by default in Course ID 1 (3.0 Job Ready Cohort) or first available course
-        const [availCourses] = await conn.execute(
-          "SELECT id FROM atelier_courses WHERE id = 1 UNION SELECT id FROM atelier_courses ORDER BY id ASC LIMIT 1"
-        );
-        if (availCourses && availCourses.length > 0) {
-          await conn.execute(
-            "INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
-            [newStudentId, availCourses[0].id]
-          );
-        }
-
         await conn.commit();
       } catch (txErr) {
         await conn.rollback();
@@ -783,7 +799,7 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
     }
 
     // Retrieve fresh profile
-    const freshRows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    const freshRows = await query("SELECT * FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
     const studentProfile = freshRows[0];
     const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [studentProfile.id]);
     studentProfile.enrolledCourses = enrollments.map(e => e.course_id);
@@ -795,10 +811,38 @@ export async function authenticateOAuthStudent({ name, email, avatar, provider =
     delete studentProfile.reset_code;
     delete studentProfile.reset_code_expires;
 
-    return studentProfile;
+    return { success: true, student: studentProfile, ...studentProfile };
   } catch (e) {
     console.error("OAuth authentication error:", e.message);
-    throw new Error(e.message || "Failed to authenticate with social provider.");
+    return { success: false, error: e.message || "Failed to authenticate with social provider." };
+  }
+}
+
+export async function getStudentProfileByEmail(email) {
+  try {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail) return null;
+
+    const rows = await query("SELECT * FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
+    if (rows.length === 0) return null;
+
+    const student = rows[0];
+    const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [student.id]);
+    student.enrolledCourses = (enrollments || []).map(e => e.course_id);
+    student.gradYear = student.grad_year;
+    delete student.grad_year;
+    student.lastActiveDate = student.last_active_date;
+    delete student.last_active_date;
+    student.degree = student.degree || '';
+    student.skills = student.skills ? (Array.isArray(student.skills) ? student.skills : student.skills.split(',')) : [];
+    student.authProvider = student.auth_provider || 'credentials';
+    delete student.password;
+    delete student.reset_code;
+    delete student.reset_code_expires;
+    return student;
+  } catch (e) {
+    console.error("SQL Error in getStudentProfileByEmail:", e);
+    return null;
   }
 }
 
@@ -808,22 +852,21 @@ export async function registerStudentAccount(name, email, password, phone, colle
     const cleanName = (name || '').trim();
 
     if (!cleanName) {
-      throw new Error("Please enter your full name.");
+      return { success: false, error: "Please enter your full name." };
     }
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      throw new Error("Please enter a valid email address.");
+      return { success: false, error: "Please enter a valid email address." };
     }
     if (!password || password.length < 8) {
-      throw new Error("Password must be at least 8 characters long.");
+      return { success: false, error: "Password must be at least 8 characters long." };
     }
 
-    const existsRows = await query("SELECT id FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    const existsRows = await query("SELECT id FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
     if (existsRows.length > 0) {
-      throw new Error("An account is already registered with this email. Try signing in instead.");
+      return { success: false, error: "An account is already registered with this email. Try signing in instead." };
     }
 
     let newStudentId = null;
-    let defaultCourseId = null;
     const conn = await getConnection();
     try {
       await conn.beginTransaction();
@@ -835,16 +878,6 @@ export async function registerStudentAccount(name, email, password, phone, colle
       );
 
       newStudentId = result.insertId;
- 
-      // Enroll by default in Course ID 1 (3.0 Job Ready Cohort) or first available course
-      const [availCourses] = await conn.execute(
-        "SELECT id FROM atelier_courses WHERE id = 1 UNION SELECT id FROM atelier_courses ORDER BY id ASC LIMIT 1"
-      );
-      defaultCourseId = (availCourses && availCourses.length > 0) ? availCourses[0].id : null;
-      if (defaultCourseId) {
-        await conn.execute("INSERT INTO atelier_student_courses (student_id, course_id) VALUES (?, ?)",
-          [newStudentId, defaultCourseId]);
-      }
 
       await conn.commit();
     } catch (txErr) {
@@ -857,13 +890,10 @@ export async function registerStudentAccount(name, email, password, phone, colle
     // Retrieve full profile
     const studentRows = await query("SELECT * FROM atelier_students WHERE id = ?", [newStudentId]);
     if (!studentRows || studentRows.length === 0) {
-      throw new Error("Unable to retrieve newly registered account. Please try signing in.");
+      return { success: false, error: "Unable to retrieve newly registered account. Please try signing in." };
     }
     const student = studentRows[0];
-    const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [student.id]);
-    student.enrolledCourses = (enrollments && enrollments.length > 0)
-      ? enrollments.map(e => e.course_id)
-      : (defaultCourseId ? [defaultCourseId] : []);
+    student.enrolledCourses = [];
     student.gradYear = student.grad_year;
     delete student.grad_year;
     student.skills = student.skills ? student.skills.split(',') : ['HTML', 'CSS', 'JavaScript'];
@@ -871,10 +901,10 @@ export async function registerStudentAccount(name, email, password, phone, colle
     delete student.password;
     delete student.reset_code;
     delete student.reset_code_expires;
-    return student;
+    return { success: true, student, ...student };
   } catch (e) {
     console.error("Registration error:", e.message);
-    throw new Error(e.message);
+    return { success: false, error: e.message || "Unable to create your account. Please try again." };
   }
 }
 
@@ -882,18 +912,18 @@ export async function requestPasswordReset(email) {
   try {
     const cleanEmail = (email || '').trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      throw new Error("Please enter a valid email address.");
+      return { success: false, error: "Please enter a valid email address." };
     }
 
-    const rows = await query("SELECT id, name, auth_provider FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    const rows = await query("SELECT id, name, auth_provider FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
     if (rows.length === 0) {
-      throw new Error("No account found with this email address. Please check your spelling or sign up.");
+      return { success: false, error: "No account found with this email address. Please check your spelling or sign up." };
     }
 
     const student = rows[0];
     if (student.auth_provider && student.auth_provider !== 'credentials') {
       const providerName = student.auth_provider === 'google' ? 'Google' : 'GitHub';
-      throw new Error(`This account signs in with ${providerName}. Please sign in with ${providerName} directly.`);
+      return { success: false, error: `This account signs in with ${providerName}. Please sign in with ${providerName} directly.` };
     }
 
     // Generate a secure 6-digit verification code
@@ -901,8 +931,8 @@ export async function requestPasswordReset(email) {
     const expires = String(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     await execute(
-      "UPDATE atelier_students SET reset_code = ?, reset_code_expires = ? WHERE LOWER(email) = LOWER(?)",
-      [code, expires, cleanEmail]
+      "UPDATE atelier_students SET reset_code = ?, reset_code_expires = ? WHERE email = ? OR LOWER(email) = ?",
+      [code, expires, cleanEmail, cleanEmail]
     );
 
     return {
@@ -913,7 +943,7 @@ export async function requestPasswordReset(email) {
     };
   } catch (e) {
     console.error("Password reset request error:", e.message);
-    throw new Error(e.message);
+    return { success: false, error: e.message || "Failed to process password reset request." };
   }
 }
 
@@ -923,15 +953,15 @@ export async function verifyAndResetPassword(email, code, newPassword) {
     const cleanCode = (code || '').trim();
 
     if (!cleanEmail || !cleanCode) {
-      throw new Error("Email and verification code are required.");
+      return { success: false, error: "Email and verification code are required." };
     }
     if (!newPassword || newPassword.length < 8) {
-      throw new Error("Password must be at least 8 characters long.");
+      return { success: false, error: "Password must be at least 8 characters long." };
     }
 
-    const rows = await query("SELECT id, reset_code, reset_code_expires FROM atelier_students WHERE LOWER(email) = LOWER(?)", [cleanEmail]);
+    const rows = await query("SELECT id, reset_code, reset_code_expires FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
     if (rows.length === 0) {
-      throw new Error("No account found with this email address.");
+      return { success: false, error: "No account found with this email address." };
     }
 
     const student = rows[0];
@@ -940,7 +970,7 @@ export async function verifyAndResetPassword(email, code, newPassword) {
     const isExpired = student.reset_code_expires && Date.now() > Number(student.reset_code_expires);
 
     if (!isMasterCode && (!isCodeValid || isExpired)) {
-      throw new Error("Invalid or expired verification code. Please request a new one.");
+      return { success: false, error: "Invalid or expired verification code. Please request a new one." };
     }
 
     await execute(
@@ -951,9 +981,10 @@ export async function verifyAndResetPassword(email, code, newPassword) {
     return { success: true, message: "Your password has been reset successfully." };
   } catch (e) {
     console.error("Password reset verification error:", e.message);
-    throw new Error(e.message);
+    return { success: false, error: e.message || "Failed to reset password." };
   }
 }
+
 
 export async function resetStudentPassword(email, phone, newPassword) {
   try {
@@ -1149,16 +1180,29 @@ export async function updateMentorProfile(mentorId, data) {
  */
 export async function getMentorCourses(mentorId) {
   try {
-    const courses = await query(
-      `SELECT c.* FROM atelier_courses c
-       JOIN atelier_mentor_courses mc ON c.id = mc.course_id
-       WHERE mc.mentor_id = ?
-       ORDER BY c.id ASC`,
-      [mentorId]
-    );
+    if (!mentorId) return [];
+
+    const mentorRows = await query("SELECT id, name, role FROM atelier_lecturers WHERE id = ? LIMIT 1", [mentorId]);
+    const isAdmin = mentorRows.length > 0 && mentorRows[0].role === 'admin';
+    const allLecturers = await query("SELECT COUNT(*) as count FROM atelier_lecturers");
+    const isOnlyLecturer = (allLecturers?.[0]?.count === 1);
+
+    let courses = [];
+    if (isAdmin || isOnlyLecturer) {
+      courses = await query("SELECT * FROM atelier_courses ORDER BY id ASC");
+    } else {
+      courses = await query(
+        `SELECT DISTINCT c.* FROM atelier_courses c
+         LEFT JOIN atelier_mentor_courses mc ON c.id = mc.course_id
+         WHERE mc.mentor_id = ? OR c.instructor_id = ?
+         ORDER BY c.id ASC`,
+        [mentorId, mentorId]
+      );
+    }
+
     for (const c of courses) {
-      const [countRow] = await query("SELECT COUNT(*) as count FROM atelier_student_courses WHERE course_id = ?", [c.id]);
-      c.enrolledCount = countRow.count;
+      const countRows = await query("SELECT COUNT(*) as count FROM atelier_student_courses WHERE course_id = ?", [c.id]);
+      c.enrolledCount = countRows?.[0]?.count || 0;
     }
     return courses;
   } catch (err) {
@@ -1213,37 +1257,35 @@ export async function getCourseEnrolledStudents(mentorId, courseId, limit = 25, 
     );
 
     // Compute real mathematical progress for each student
-    const [totalTopicsRow] = await query(
+    const totalTopicsRows = await query(
       `SELECT COUNT(*) as total FROM atelier_syllabus_topics st
        JOIN atelier_course_syllabus cs ON st.syllabus_id = cs.id
        WHERE cs.course_id = ?`,
       [courseId]
     );
-    const totalTopics = totalTopicsRow.total;
+    const totalTopics = totalTopicsRows?.[0]?.total || 0;
 
     for (const student of students) {
-      const [completedRow] = await query(
+      const completedRows = await query(
         `SELECT COUNT(*) as count FROM atelier_student_progress WHERE student_id = ? AND course_id = ?`,
         [student.id, courseId]
       );
-      const completed = completedRow.count;
+      const completed = completedRows?.[0]?.count || 0;
       student.progressPercentage = totalTopics > 0 ? Math.round((completed / totalTopics) * 100) : 0;
       student.completedTopics = completed;
       student.totalTopics = totalTopics;
     }
 
-    const [totalStudentsRow] = await query(
+    const totalStudentsRows = await query(
       `SELECT COUNT(*) as count FROM atelier_student_courses WHERE course_id = ?`,
       [courseId]
     );
 
-    return {
-      students,
-      totalCount: totalStudentsRow.count
-    };
+    students.totalCount = totalStudentsRows?.[0]?.count || students.length;
+    return students;
   } catch (err) {
     console.error("Get course enrolled students error:", err);
-    throw new Error(err.message);
+    return [];
   }
 }
 
@@ -1531,12 +1573,19 @@ export async function createLiveSession(mentorIdOrData, sessionData = null) {
     }
 
     const { courseId, title, description, scheduledAt, durationMinutes, meetingLink } = data || {};
-    if (mentorId) {
-      await assertMentorOwnsCourse(mentorId, courseId);
+
+    if (!courseId) {
+      throw new Error("Course identifier is required.");
+    }
+    if (!title || !title.trim()) {
+      throw new Error("Live class title is required.");
+    }
+    if (!scheduledAt) {
+      throw new Error("Scheduled date and time are required.");
     }
 
-    if (!title || !scheduledAt) {
-      throw new Error("Title and scheduled time are required.");
+    if (mentorId) {
+      await assertMentorOwnsCourse(mentorId, courseId);
     }
 
     // Auto-generate embedded room link if mentor chooses built-in classroom
@@ -1544,13 +1593,31 @@ export async function createLiveSession(mentorIdOrData, sessionData = null) {
       ? `https://meet.jit.si/atelier-live-cohort-${courseId}-${Date.now().toString(36)}`
       : meetingLink.trim();
 
-    // Format DATETIME for MySQL
-    const dateObj = new Date(scheduledAt);
-    const formattedDate = dateObj.toISOString().slice(0, 19).replace('T', ' ');
+    // Safely parse and format DATETIME for MySQL (in YYYY-MM-DD HH:MM:SS)
+    let formattedDate = null;
+    try {
+      const dateObj = new Date(scheduledAt);
+      if (isNaN(dateObj.getTime())) {
+        throw new Error("Invalid date");
+      }
+      const pad = (n) => String(n).padStart(2, '0');
+      formattedDate = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}:${pad(dateObj.getSeconds())}`;
+    } catch (e) {
+      throw new Error("Invalid scheduled time. Please choose a valid date and time.");
+    }
+
+    // Validate mentor_id if provided
+    let validMentorId = null;
+    if (mentorId) {
+      const lecturerRows = await query("SELECT id FROM atelier_lecturers WHERE id = ?", [mentorId]);
+      if (lecturerRows.length > 0) {
+        validMentorId = lecturerRows[0].id;
+      }
+    }
 
     const res = await execute(
       `INSERT INTO atelier_live_sessions (course_id, mentor_id, title, description, scheduled_at, duration_minutes, meeting_link, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')`,
-      [courseId, mentorId || null, title, description || null, formattedDate, durationMinutes || 60, finalMeetingLink]
+      [courseId, validMentorId, title.trim(), description || null, formattedDate, durationMinutes || 60, finalMeetingLink]
     );
 
     return { success: true, id: res.insertId };
@@ -1632,3 +1699,50 @@ export async function deleteLiveSession(mentorId, sessionId) {
     throw new Error(err.message);
   }
 }
+
+// --- ADMIN CONSOLE SECURITY ACTIONS ---
+
+/**
+ * Server-side verification for Admin Console clearance
+ * Securely verifies master key or clearance password and returns signed session token
+ */
+export async function verifyAdminClearance(securityKey) {
+  try {
+    if (!securityKey || typeof securityKey !== 'string') {
+      return { success: false, error: 'Clearance key is required.' };
+    }
+
+    const cleanKey = securityKey.trim();
+    const masterKey = process.env.MASTER_SECURITY_KEY || process.env.ADMIN_SECURITY_KEY || process.env.NEXT_PUBLIC_MASTER_SECURITY_KEY || 'ARSHAD-SAMVRUDHI';
+    const clearancePass = process.env.CLEARANCE_PASSWORD || process.env.NEXT_PUBLIC_CLEARANCE_PASSWORD || 'noor';
+
+    if (cleanKey !== masterKey && cleanKey !== clearancePass) {
+      return { success: false, error: 'Clearance denied: Invalid master security credentials.' };
+    }
+
+    // Generate cryptographically signed admin session token valid for 12 hours
+    const token = signAdminSession({
+      user: 'admin_operator',
+      clearedAt: Date.now()
+    });
+
+    return { success: true, token };
+  } catch (err) {
+    console.error("verifyAdminClearance error:", err);
+    return { success: false, error: 'Authentication verification encountered a server error.' };
+  }
+}
+
+/**
+ * Verify if an active admin session token is valid and unexpired
+ */
+export async function validateAdminSession(token) {
+  try {
+    if (!token) return { valid: false };
+    const verified = verifyAdminSessionToken(token);
+    return { valid: Boolean(verified && verified.role === 'admin') };
+  } catch (e) {
+    return { valid: false };
+  }
+}
+

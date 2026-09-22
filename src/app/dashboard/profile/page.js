@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { getStudents, updateStudentProfile, updateStudentAvatar } from '../../actions';
+import { getStudentProfileByEmail, updateStudentProfile, updateStudentAvatar } from '../../actions';
 import InitialsAvatar from '@/components/InitialsAvatar';
 import styles from '../dashboard.module.css';
 
@@ -26,16 +26,40 @@ export default function ProfilePage() {
   const [statusMessage, setStatusMessage] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [streak, setStreak] = useState(1);
-  const [enrolledCount, setEnrolledCount] = useState(1);
+  const [enrolledCount, setEnrolledCount] = useState(0);
   const [newSkillInput, setNewSkillInput] = useState('');
 
-  // Load from database on mount
+  // Hydrate instantly from cache & load from database on mount
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem('studentProfile');
+      if (cached) {
+        const student = JSON.parse(cached);
+        const profileObj = {
+          name: student.name || '',
+          email: student.email || '',
+          phone: student.phone || '',
+          college: student.college && !student.college.includes('Not specified') ? student.college : '',
+          degree: student.degree || '',
+          gradYear: student.gradYear || '2026',
+          bio: student.bio && !student.bio.includes('Initialized workspace') ? student.bio : '',
+          github: student.github || '',
+          linkedin: student.linkedin || '',
+          portfolio: student.portfolio || '',
+          avatar: student.avatar || null,
+          skills: student.skills && student.skills.length > 0 ? student.skills : ['React', 'Next.js', 'Node.js']
+        };
+        setProfile(profileObj);
+        setFormData(profileObj);
+        setStreak(student.streak || 1);
+        setEnrolledCount(Array.isArray(student.enrolledCourses) ? student.enrolledCourses.length : 0);
+      }
+    } catch (e) {}
+
     const loadProfile = async () => {
       const email = localStorage.getItem('loggedInStudentEmail');
       if (!email) return;
-      const studentsList = await getStudents();
-      const student = studentsList.find((s) => s.email.toLowerCase() === email.toLowerCase());
+      const student = await getStudentProfileByEmail(email);
 
       if (student) {
         const profileObj = {
@@ -55,7 +79,7 @@ export default function ProfilePage() {
         setProfile(profileObj);
         setFormData(profileObj);
         setStreak(student.streak || 1);
-        setEnrolledCount((student.enrolledCourses || []).length || 1);
+        setEnrolledCount(Array.isArray(student.enrolledCourses) ? student.enrolledCourses.length : 0);
       }
     };
     
@@ -100,10 +124,19 @@ export default function ProfilePage() {
       }
 
       const avatarUrl = data.file.url;
-      const studentsList = await getStudents();
-      const student = studentsList.find((s) => s.email.toLowerCase() === (email || '').toLowerCase());
+      const student = await getStudentProfileByEmail(email);
       if (student) {
         await updateStudentAvatar(student.id, avatarUrl);
+      }
+
+      // Update cached session profile avatar immediately
+      const cached = localStorage.getItem('studentProfile');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          parsed.avatar = avatarUrl;
+          localStorage.setItem('studentProfile', JSON.stringify(parsed));
+        } catch (e) {}
       }
 
       setProfile(prev => ({ ...prev, avatar: avatarUrl }));
@@ -171,8 +204,7 @@ export default function ProfilePage() {
     try {
       const email = localStorage.getItem('loggedInStudentEmail');
       if (!email) return;
-      const studentsList = await getStudents();
-      const student = studentsList.find((s) => s.email.toLowerCase() === email.toLowerCase());
+      const student = await getStudentProfileByEmail(email);
       
       if (student) {
         await updateStudentProfile(
@@ -200,7 +232,7 @@ export default function ProfilePage() {
           ...parsed,
           ...formData,
           streak: student.streak || streak || 1,
-          enrolledCourses: student.enrolledCourses || [1]
+          enrolledCourses: student.enrolledCourses || []
         }));
 
         // Keep loggedInStudentEmail synced in case email changes

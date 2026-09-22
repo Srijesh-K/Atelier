@@ -24,19 +24,18 @@ export default function SignInPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const target = params.get('redirectTo');
-      if (target) {
-        setRedirectTo(target);
-      }
-
       const urlError = params.get('error');
-      if (urlError) {
-        setError(decodeURIComponent(urlError));
-      }
-
       const sandboxProvider = params.get('oauth_sandbox');
-      if (sandboxProvider) {
-        setSocialProvider(sandboxProvider);
-        setSocialModalOpen(true);
+
+      if (target || urlError || sandboxProvider) {
+        queueMicrotask(() => {
+          if (target) setRedirectTo(target);
+          if (urlError) setError(decodeURIComponent(urlError));
+          if (sandboxProvider) {
+            setSocialProvider(sandboxProvider);
+            setSocialModalOpen(true);
+          }
+        });
       }
     }
   }, []);
@@ -47,9 +46,10 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const student = await authenticateStudent(email.trim(), password);
+      const res = await authenticateStudent(email.trim(), password);
 
-      if (student) {
+      if (res && res.success !== false && (res.student || res.email)) {
+        const student = res.student || res;
         localStorage.setItem('loggedInStudentEmail', student.email);
         localStorage.setItem('studentProfile', JSON.stringify({
           name: student.name,
@@ -72,10 +72,15 @@ export default function SignInPage() {
         
         router.push(redirectTo);
       } else {
-        setError('Invalid email or password. Please check your credentials and try again.');
+        setError(res?.error || 'No account found with this email, or invalid credentials. Please check and try again.');
       }
     } catch (err) {
-      setError(err.message || 'Unable to sign in. Please check your connection and try again.');
+      const msg = err?.message || '';
+      if (msg.includes('Server Components render') || msg.includes('digest')) {
+        setError('No account found with this email, or invalid credentials. Please check and try again.');
+      } else {
+        setError(msg || 'Unable to sign in. Please check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStudents, getCourses, registerStudentToCourse } from '../../actions';
+import { getStudentProfileByEmail, getCourses, registerStudentToCourse } from '../../actions';
 import styles from './explore.module.css';
 
 export default function DashboardExplorePage() {
@@ -14,16 +14,22 @@ export default function DashboardExplorePage() {
 
   const loadData = async () => {
     const email = localStorage.getItem('loggedInStudentEmail');
-    if (!email) return;
-    const studentsList = await getStudents();
-    const student = studentsList.find((s) => s.email.toLowerCase() === email.toLowerCase());
+    if (!email) {
+      const allCourses = await getCourses();
+      setCoursesList(allCourses);
+      return;
+    }
+
+    const [student, allCourses] = await Promise.all([
+      getStudentProfileByEmail(email),
+      getCourses()
+    ]);
     
     if (student) {
       setActiveStudent(student);
       setEnrolledIds(student.enrolledCourses || []);
     }
 
-    const allCourses = await getCourses();
     setCoursesList(allCourses);
   };
 
