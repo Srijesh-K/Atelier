@@ -427,7 +427,7 @@ export default function MentorCourseWorkspacePage() {
       {activeBroadcastSession && (
         <div style={{ marginBottom: '2.5rem' }}>
           <LiveClassroom
-            roomName={activeBroadcastSession.meeting_link}
+            roomName={activeBroadcastSession.meeting_link || activeBroadcastSession.meetingLink}
             user={{ name: mentor?.name || 'Mentor', email: mentor?.email }}
             isMentor={true}
             title={activeBroadcastSession.title}

@@ -37,7 +37,10 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
       }
 
       const storedCourseId = localStorage.getItem('activeCourseId');
-      const courseIdToUse = storedCourseId ? parseInt(storedCourseId, 10) : activeCourseId;
+      let courseIdToUse = storedCourseId ? parseInt(storedCourseId, 10) : activeCourseId;
+      if (enrolledCourses.length > 0 && !enrolledCourses.includes(courseIdToUse)) {
+        courseIdToUse = enrolledCourses[0];
+      }
 
       // Get courses to resolve active cohort title
       const courses = await getCourses();
@@ -72,12 +75,49 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
   // Filter sessions by status
   const currentLiveSession = sessions.find((s) => s.status === 'live');
   const scheduledSessions = sessions.filter((s) => s.status === 'scheduled');
-  const completedSessions = sessions.filter((s) => s.status === 'completed' || s.recording_url);
+  const completedSessions = sessions.filter((s) => s.status === 'completed' || s.recording_url || s.recordingUrl);
 
   // Helper: check if session is an embedded room
   const isEmbeddedSession = (link) => {
-    if (!link) return false;
-    return link.includes('meet.jit.si') || link.includes('atelier-live') || link.startsWith('embedded:');
+    if (!link) return true;
+    const clean = String(link).toLowerCase().trim();
+    if (clean.includes('zoom.us') || clean.includes('meet.google.com') || clean.includes('teams.microsoft.com') || clean.includes('youtube.com') || clean.includes('webex.com')) {
+      return false;
+    }
+    return clean.includes('meet.jit.si') || clean.includes('atelier') || clean.startsWith('embedded:') || !clean.includes('http');
+  };
+
+  // Helper: safely resolve full URL
+  const resolveMeetingUrl = (link, courseId = null) => {
+    if (!link) return `https://meet.jit.si/atelier-cohort-${courseId || activeCourseId}-live`;
+    let clean = String(link).trim();
+    if (clean.startsWith('embedded:')) {
+      clean = clean.replace('embedded:', '');
+    }
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return clean;
+    }
+    if (clean.includes('.') && !clean.startsWith('atelier-')) {
+      return `https://${clean}`;
+    }
+    return `https://meet.jit.si/${clean.replace(/[^a-zA-Z0-9-_]/g, '-')}`;
+  };
+
+  // Dedicated Join Handler
+  const handleJoinClass = (session) => {
+    if (!session) return;
+    const link = session.meeting_link || session.meetingLink || '';
+    if (isEmbeddedSession(link)) {
+      setActiveInAppRoom(session);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else {
+      const targetUrl = resolveMeetingUrl(link, session.course_id || session.courseId);
+      if (typeof window !== 'undefined') {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      }
+    }
   };
 
   // Format date helper
@@ -145,7 +185,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
       {activeInAppRoom && (
         <div style={{ marginBottom: '2.5rem' }}>
           <LiveClassroom
-            roomName={activeInAppRoom.meeting_link}
+            roomName={activeInAppRoom.meeting_link || activeInAppRoom.meetingLink}
             user={{ name: student?.name || 'Student', email: student?.email }}
             isMentor={false}
             title={activeInAppRoom.title}
@@ -175,7 +215,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
               </p>
             )}
             <div className={styles.bannerMeta}>
-              <span>Mentor: {currentLiveSession.mentor_name || 'Assigned Instructor'}</span>
+              <span>Mentor: {currentLiveSession.mentor_name || currentLiveSession.mentorName || 'Assigned Instructor'}</span>
               <span>•</span>
               <span>{courseTitle}</span>
               <span>•</span>
@@ -183,32 +223,26 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {isEmbeddedSession(currentLiveSession.meeting_link) ? (
-              <button
-                className={styles.joinBtn}
-                onClick={() => setActiveInAppRoom(currentLiveSession)}
-              >
-                Join Live Classroom
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polygon points="23 7 16 12 23 17 23 7" />
-                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                </svg>
-              </button>
-            ) : (
-              <a
-                href={currentLiveSession.meeting_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.joinBtn}
-              >
-                Join Live Class
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polygon points="23 7 16 12 23 17 23 7" />
-                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                </svg>
-              </a>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            <button
+              className={styles.joinBtn}
+              onClick={() => handleJoinClass(currentLiveSession)}
+            >
+              Join Live Classroom
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polygon points="23 7 16 12 23 17 23 7" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+            </button>
+            <a
+              href={resolveMeetingUrl(currentLiveSession.meeting_link || currentLiveSession.meetingLink, currentLiveSession.course_id || currentLiveSession.courseId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${styles.joinBtn} ${styles.joinBtnSecondary}`}
+              style={{ fontSize: '0.8rem', padding: '0.55rem 1rem' }}
+            >
+              Open in Separate Tab &nearr;
+            </a>
           </div>
         </div>
       ) : !activeInAppRoom && scheduledSessions.length > 0 ? (
@@ -220,7 +254,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
                 Next Scheduled Session
               </span>
               <span style={{ fontSize: '0.8rem', color: '#007aff', fontWeight: '700' }}>
-                {formatSessionTime(scheduledSessions[0].scheduled_at)}
+                {formatSessionTime(scheduledSessions[0].scheduled_at || scheduledSessions[0].scheduledAt)}
               </span>
             </div>
             <h3 className={styles.bannerTitle}>{scheduledSessions[0].title}</h3>
@@ -230,26 +264,29 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
               </p>
             )}
             <div className={styles.bannerMeta}>
-              <span>Mentor: {scheduledSessions[0].mentor_name || 'Assigned Instructor'}</span>
+              <span>Mentor: {scheduledSessions[0].mentor_name || scheduledSessions[0].mentorName || 'Assigned Instructor'}</span>
               <span>•</span>
               <span>{courseTitle}</span>
             </div>
           </div>
 
-          {scheduledSessions[0].meeting_link ? (
-            <a
-              href={scheduledSessions[0].meeting_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${styles.joinBtn} ${styles.joinBtnSecondary}`}
-            >
-              Session Room
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
-            </a>
+          {(scheduledSessions[0].meeting_link || scheduledSessions[0].meetingLink) ? (
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                className={styles.joinBtn}
+                onClick={() => handleJoinClass(scheduledSessions[0])}
+              >
+                Join Classroom
+              </button>
+              <a
+                href={resolveMeetingUrl(scheduledSessions[0].meeting_link || scheduledSessions[0].meetingLink, scheduledSessions[0].course_id || scheduledSessions[0].courseId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${styles.joinBtn} ${styles.joinBtnSecondary}`}
+              >
+                Open in Tab &nearr;
+              </a>
+            </div>
           ) : null}
         </div>
       ) : (
@@ -281,7 +318,7 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
                   <div className={styles.sessionTop}>
                     <div className={styles.sessionTitle}>{session.title}</div>
                     <span className={styles.sessionTimeBadge}>
-                      {formatSessionTime(session.scheduled_at)}
+                      {formatSessionTime(session.scheduled_at || session.scheduledAt)}
                     </span>
                   </div>
 
@@ -291,24 +328,41 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
                     </p>
                   )}
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div className={styles.sessionMentor}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
-                      {session.mentor_name || 'Mentor'}
+                      {session.mentor_name || session.mentorName || 'Mentor'}
                     </div>
 
-                    {session.meeting_link && (
-                      <a
-                        href={session.meeting_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: '0.78rem', color: 'var(--accent-orange)', fontWeight: '700', textDecoration: 'none' }}
-                      >
-                        Room Link &rarr;
-                      </a>
+                    {(session.meeting_link || session.meetingLink) && (
+                      <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+                        <button
+                          onClick={() => handleJoinClass(session)}
+                          style={{
+                            background: 'rgba(242, 85, 34, 0.1)',
+                            border: '1px solid rgba(242, 85, 34, 0.3)',
+                            color: 'var(--accent-orange)',
+                            fontSize: '0.75rem',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          Join In-App
+                        </button>
+                        <a
+                          href={resolveMeetingUrl(session.meeting_link || session.meetingLink, session.course_id || session.courseId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}
+                        >
+                          Direct Link &nearr;
+                        </a>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -337,13 +391,13 @@ export default function LiveClassesPage({ activeCourseId = 1 }) {
                   <div className={styles.replayInfo}>
                     <div className={styles.replayTitle}>{rec.title}</div>
                     <div className={styles.replayDate}>
-                      {formatSessionTime(rec.scheduled_at)} • {rec.mentor_name || 'Mentor'}
+                      {formatSessionTime(rec.scheduled_at || rec.scheduledAt)} • {rec.mentor_name || rec.mentorName || 'Mentor'}
                     </div>
                   </div>
 
-                  {rec.recording_url ? (
+                  {(rec.recording_url || rec.recordingUrl) ? (
                     <a
-                      href={rec.recording_url}
+                      href={rec.recording_url || rec.recordingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={styles.watchBtn}

@@ -1523,7 +1523,7 @@ export async function getLiveSessions(courseId = null) {
              c.title as courseTitle
       FROM atelier_live_sessions ls
       LEFT JOIN atelier_lecturers l ON ls.mentor_id = l.id
-      JOIN atelier_courses c ON ls.course_id = c.id
+      LEFT JOIN atelier_courses c ON ls.course_id = c.id
     `;
     const params = [];
 
@@ -1536,24 +1536,52 @@ export async function getLiveSessions(courseId = null) {
     sql += ` ORDER BY CASE WHEN ls.status = 'live' THEN 0 WHEN ls.status = 'scheduled' THEN 1 ELSE 2 END, ls.scheduled_at ASC`;
 
     const rows = await query(sql, params);
-    return rows.map(r => ({
-      id: r.id,
-      courseId: r.course_id,
-      courseTitle: r.courseTitle,
-      mentorId: r.mentor_id,
-      mentorName: r.mentorName || 'Course Instructor',
-      mentorAvatar: r.mentorAvatar || null,
-      mentorExpertise: r.mentorExpertise || '',
-      title: r.title,
-      description: r.description,
-      scheduledAt: r.scheduled_at ? new Date(r.scheduled_at).toISOString() : null,
-      durationMinutes: r.duration_minutes || 60,
-      meetingLink: r.meeting_link,
-      status: r.status,
-      recordingUrl: r.recording_url,
-      startedAt: r.started_at,
-      endedAt: r.ended_at
-    }));
+    return rows.map(r => {
+      const rawMeetingLink = (r.meeting_link || '').trim();
+      let meetingLink = rawMeetingLink;
+      if (!meetingLink) {
+        meetingLink = `https://meet.jit.si/atelier-cohort-${r.course_id}-live`;
+      } else if (!meetingLink.startsWith('http://') && !meetingLink.startsWith('https://') && !meetingLink.startsWith('embedded:')) {
+        if (meetingLink.includes('.') && !meetingLink.startsWith('atelier-')) {
+          meetingLink = `https://${meetingLink}`;
+        } else {
+          meetingLink = `https://meet.jit.si/${meetingLink.replace(/[^a-zA-Z0-9-_]/g, '-')}`;
+        }
+      }
+
+      const scheduledAtIso = r.scheduled_at ? new Date(r.scheduled_at).toISOString() : null;
+
+      return {
+        id: r.id,
+        courseId: r.course_id,
+        courseTitle: r.courseTitle || 'Cohort Course',
+        mentorId: r.mentor_id,
+        mentorName: r.mentorName || 'Course Instructor',
+        mentorAvatar: r.mentorAvatar || null,
+        mentorExpertise: r.mentorExpertise || '',
+        title: r.title,
+        description: r.description,
+        scheduledAt: scheduledAtIso,
+        durationMinutes: r.duration_minutes || 60,
+        meetingLink: meetingLink,
+        status: r.status,
+        recordingUrl: r.recording_url || null,
+        startedAt: r.started_at,
+        endedAt: r.ended_at,
+        // DUAL COMPATIBILITY: snake_case aliases so both frontends work without error
+        course_id: r.course_id,
+        course_title: r.courseTitle || 'Cohort Course',
+        mentor_name: r.mentorName || 'Course Instructor',
+        mentor_avatar: r.mentorAvatar || null,
+        mentor_expertise: r.mentorExpertise || '',
+        meeting_link: meetingLink,
+        scheduled_at: scheduledAtIso,
+        duration_minutes: r.duration_minutes || 60,
+        recording_url: r.recording_url || null,
+        started_at: r.started_at,
+        ended_at: r.ended_at
+      };
+    });
   } catch (err) {
     console.error("Get live sessions error:", err);
     return [];

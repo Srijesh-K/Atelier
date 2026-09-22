@@ -28,7 +28,26 @@ export default function LiveClassroom({
     .replace(/^embedded:/i, '')
     .replace(/[^a-zA-Z0-9-_]/g, '-');
 
+  const isExternalUrl = (() => {
+    if (!roomName) return false;
+    const lower = String(roomName).toLowerCase().trim();
+    return lower.includes('zoom.us') || lower.includes('meet.google.com') || lower.includes('teams.microsoft.com') || lower.includes('youtube.com') || lower.includes('webex.com');
+  })();
+
+  const directMeetingUrl = (() => {
+    if (!roomName) return `https://meet.jit.si/${cleanRoomName}`;
+    const clean = String(roomName).trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
+    if (clean.includes('.') && !clean.startsWith('atelier-')) return `https://${clean}`;
+    return `https://meet.jit.si/${cleanRoomName}`;
+  })();
+
   useEffect(() => {
+    if (isExternalUrl) {
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     // Dynamically load Jitsi Meet script if not yet present
@@ -238,6 +257,33 @@ export default function LiveClassroom({
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <a
+            href={directMeetingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#ffffff',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '6px',
+              fontSize: '0.78rem',
+              fontWeight: '700',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Open meeting directly in a separate browser tab"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            Open in Tab
+          </a>
+
           <button
             onClick={toggleFullscreen}
             style={{
@@ -285,39 +331,7 @@ export default function LiveClassroom({
 
       {/* Embedded Video Area */}
       <div style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
-        {loading && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: '#040406',
-              zIndex: 10,
-              color: 'rgba(255,255,255,0.7)',
-              gap: '1rem'
-            }}
-          >
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                border: '3px solid rgba(242, 85, 34, 0.2)',
-                borderTopColor: 'var(--accent-orange, #f25522)',
-                animation: 'spin 1s linear infinite'
-              }}
-            />
-            <p style={{ fontSize: '0.88rem', margin: 0 }}>
-              Connecting to secure encrypted live classroom...
-            </p>
-            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-          </div>
-        )}
-
-        {error && (
+        {isExternalUrl ? (
           <div
             style={{
               position: 'absolute',
@@ -328,34 +342,158 @@ export default function LiveClassroom({
               justifyContent: 'center',
               background: '#040406',
               padding: '2rem',
-              textAlign: 'center',
-              color: '#ff453a'
+              textAlign: 'center'
             }}
           >
-            <h3 style={{ margin: '0 0 0.5rem 0' }}>Classroom Connection Error</h3>
-            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', maxWidth: '400px', marginBottom: '1.25rem' }}>
-              {error}
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(242, 85, 34, 0.1)', border: '1px solid rgba(242, 85, 34, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', color: 'var(--accent-orange)' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="23 7 16 12 23 17 23 7" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-heading)', color: '#ffffff', fontSize: '1.3rem', marginBottom: '0.5rem' }}>
+              External Video Conference
+            </h3>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '460px', marginBottom: '1.75rem', lineHeight: '1.5' }}>
+              This lecture session is hosted on an external platform. Click the button below to join the live broadcast.
             </p>
-            {onClose && (
-              <button
-                onClick={onClose}
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <a
+                href={directMeetingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'var(--accent-orange, #f25522)',
                   color: '#ffffff',
-                  padding: '0.5rem 1.25rem',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
+                  padding: '0.85rem 2rem',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontSize: '0.92rem',
+                  fontWeight: '800',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 20px rgba(242, 85, 34, 0.4)'
                 }}
               >
-                Return to Dashboard
-              </button>
-            )}
+                Launch Live Meeting &nearr;
+              </a>
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: '#ffffff',
+                    padding: '0.85rem 1.5rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    fontWeight: '700'
+                  }}
+                >
+                  Return to Dashboard
+                </button>
+              )}
+            </div>
           </div>
-        )}
+        ) : (
+          <>
+            {loading && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#040406',
+                  zIndex: 10,
+                  color: 'rgba(255,255,255,0.7)',
+                  gap: '1rem'
+                }}
+              >
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    border: '3px solid rgba(242, 85, 34, 0.2)',
+                    borderTopColor: 'var(--accent-orange, #f25522)',
+                    animation: 'spin 1s linear infinite'
+                  }}
+                />
+                <p style={{ fontSize: '0.88rem', margin: 0 }}>
+                  Connecting to secure encrypted live classroom...
+                </p>
+                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
 
-        {/* Jitsi Meet Mount Point */}
-        <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: '500px' }} />
+            {error && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#040406',
+                  padding: '2rem',
+                  textAlign: 'center',
+                  color: '#ff453a'
+                }}
+              >
+                <h3 style={{ margin: '0 0 0.5rem 0' }}>Classroom Connection Notice</h3>
+                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', maxWidth: '420px', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+                  {error}
+                </p>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <a
+                    href={directMeetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: 'var(--accent-orange, #f25522)',
+                      color: '#ffffff',
+                      padding: '0.65rem 1.4rem',
+                      borderRadius: '6px',
+                      textDecoration: 'none',
+                      fontSize: '0.88rem',
+                      fontWeight: '800',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    Open Meeting in Direct Tab &nearr;
+                  </a>
+                  {onClose && (
+                    <button
+                      onClick={onClose}
+                      style={{
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        color: '#ffffff',
+                        padding: '0.65rem 1.25rem',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.88rem'
+                      }}
+                    >
+                      Return to Dashboard
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Jitsi Meet Mount Point */}
+            <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: '500px' }} />
+          </>
+        )}
       </div>
     </div>
   );
