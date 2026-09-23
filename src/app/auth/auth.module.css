@@ -280,16 +280,46 @@
 }
 
 .submitBtn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
+  background: rgba(242, 85, 34, 0.16);
+  color: rgba(255, 255, 255, 0.35);
   box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: not-allowed;
   transform: none;
+}
+
+.submitBtn:disabled svg {
+  opacity: 0.35;
+  transform: none;
+}
+
+.submitBtn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.submitBtn:disabled:hover svg {
+  transform: none;
+}
+
+.submitBtn.loadingBtn,
+.submitBtn:disabled.loadingBtn {
+  background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%);
+  color: #ffffff;
+  opacity: 0.85;
+  box-shadow: 0 4px 15px rgba(242, 85, 34, 0.25);
+  cursor: wait;
+}
+
+.submitBtn.loadingBtn svg,
+.submitBtn:disabled.loadingBtn svg {
+  opacity: 1;
 }
 
 .submitBtn svg {
   width: 20px;
   height: 20px;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
   flex-shrink: 0;
 }
 

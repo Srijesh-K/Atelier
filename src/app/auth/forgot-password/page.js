@@ -30,6 +30,13 @@ export default function ForgotPasswordPage() {
   const [countdown, setCountdown] = useState(60);
   const timerRef = useRef(null);
 
+  const isEmailValid = email.trim().length > 0 && email.includes('@');
+  const isResetValid =
+    code.trim().length === 6 &&
+    password.length >= 8 &&
+    confirmPassword.length >= 8 &&
+    password === confirmPassword;
+
   const strength = useMemo(() => getStrength(password), [password]);
 
   // Countdown timer for OTP resend
@@ -190,7 +197,11 @@ export default function ForgotPasswordPage() {
                 </div>
               </div>
 
-              <button type="submit" className={styles.submitBtn} disabled={loading}>
+              <button
+                type="submit"
+                className={`${styles.submitBtn} ${loading ? styles.loadingBtn : ''}`}
+                disabled={loading || !isEmailValid}
+              >
                 {loading ? (
                   <span className={styles.btnContent}>
                     <span className={styles.spinner} />
@@ -371,7 +382,11 @@ export default function ForgotPasswordPage() {
                 </div>
               </div>
 
-              <button type="submit" className={styles.submitBtn} disabled={loading}>
+              <button
+                type="submit"
+                className={`${styles.submitBtn} ${loading ? styles.loadingBtn : ''}`}
+                disabled={loading || !isResetValid}
+              >
                 {loading ? (
                   <span className={styles.btnContent}>
                     <span className={styles.spinner} />

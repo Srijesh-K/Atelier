@@ -34,6 +34,15 @@ export default function SignUpPage() {
   const [countdown, setCountdown] = useState(60);
   const timerRef = useRef(null);
 
+  const isSignUpValid =
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    email.includes('@') &&
+    mobile.trim().length > 0 &&
+    password.length >= 8;
+  const isOtpValid = otp.trim().length === 6;
+
   const strength = useMemo(() => getStrength(password), [password]);
 
   // Countdown timer for OTP resend
@@ -357,8 +366,8 @@ export default function SignUpPage() {
               {/* Submit */}
               <button
                 type="submit"
-                className={styles.submitBtn}
-                disabled={loading}
+                className={`${styles.submitBtn} ${loading ? styles.loadingBtn : ''}`}
+                disabled={loading || !isSignUpValid}
               >
                 {loading ? (
                   <span className={styles.btnContent}>
@@ -514,8 +523,8 @@ export default function SignUpPage() {
               {/* Submit button */}
               <button
                 type="submit"
-                className={styles.submitBtn}
-                disabled={loading || otp.length !== 6}
+                className={`${styles.submitBtn} ${loading ? styles.loadingBtn : ''}`}
+                disabled={loading || !isOtpValid}
               >
                 {loading ? (
                   <span className={styles.btnContent}>

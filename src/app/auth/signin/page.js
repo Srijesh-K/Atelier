@@ -22,6 +22,9 @@ export default function SignInPage() {
   const [redirectTo, setRedirectTo] = useState('/dashboard');
   const timerRef = useRef(null);
 
+  const isCredentialsFilled = email.trim().length > 0 && email.includes('@') && password.length > 0;
+  const isOtpFilled = otp.trim().length === 6;
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedEmail = localStorage.getItem('atelier_remember_email');
@@ -276,8 +279,8 @@ export default function SignInPage() {
               {/* Submit */}
               <button
                 type="submit"
-                className={styles.submitBtn}
-                disabled={loading}
+                className={`${styles.submitBtn} ${loading ? styles.loadingBtn : ''}`}
+                disabled={loading || !isCredentialsFilled}
               >
                 {loading ? (
                   <span className={styles.btnContent}>
@@ -428,8 +431,8 @@ export default function SignInPage() {
               {/* Submit button */}
               <button
                 type="submit"
-                className={styles.submitBtn}
-                disabled={loading || otp.length !== 6}
+                className={`${styles.submitBtn} ${loading ? styles.loadingBtn : ''}`}
+                disabled={loading || !isOtpFilled}
               >
                 {loading ? (
                   <span className={styles.btnContent}>
