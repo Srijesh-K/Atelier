@@ -247,73 +247,53 @@
   text-decoration: underline;
 }
 
-/* ─── Primary submit button (Custom Workbench Style) ─── */
+/* ─── Primary submit button (Landing Hero Button Style) ─── */
 .submitBtn {
   width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem;
-  padding: 0.95rem 1.75rem;
-  background: rgba(242, 85, 34, 0.05);
+  gap: 0.75rem;
+  padding: 1rem 2.25rem;
+  background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%);
   color: #ffffff;
-  font-size: 0.9rem;
-  font-weight: 800;
-  border-radius: 4px;
-  border: 1px solid rgba(242, 85, 34, 0.5);
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-radius: 50px;
+  border: none;
+  box-shadow: 0 4px 20px rgba(242, 85, 34, 0.3);
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
-  font-family: var(--font-heading);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: var(--font-body);
   position: relative;
-  overflow: hidden;
+  text-decoration: none;
 }
 
-.submitBtn::before,
-.submitBtn::after {
-  content: '';
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: var(--accent-orange);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  z-index: 5;
-  transition: all 0.25s ease;
-  opacity: 0.5;
+.submitBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(242, 85, 34, 0.5);
 }
 
-.submitBtn::before {
-  top: -2px;
-  left: -2px;
+.submitBtn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(242, 85, 34, 0.3);
 }
 
-.submitBtn::after {
-  bottom: -2px;
-  right: -2px;
-}
-
-.submitBtn:hover {
-  background: rgba(242, 85, 34, 0.15); /* Subtler fill adjustment instead of solid solid flash */
-  border-color: var(--accent-orange); /* Keep it clean orange */
-  box-shadow: none; /* Remove flashy glow */
-  transform: translateY(-1px); /* Subtler lift */
-}
-
-.submitBtn:hover::before,
-.submitBtn:hover::after {
-  opacity: 0.8;
-  background: var(--accent-orange);
-  border-color: #ffffff;
+.submitBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .submitBtn svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   transition: transform 0.3s ease;
+  flex-shrink: 0;
 }
 
-.submitBtn:hover svg {
+.submitBtn:hover:not(:disabled) svg {
   transform: translateX(4px);
 }
 
