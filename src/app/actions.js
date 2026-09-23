@@ -3,6 +3,8 @@
 import { query, execute, getConnection, createFileRecord, getFileRecordById, deleteFileRecord, getFilesForUser } from '../utils/db-sql';
 import { deleteMessageFromTelegram } from '../lib/telegram';
 import { hashPassword, verifyPassword, generateTempPassword, signMentorSession, isMentorLocked, assertMentorOwnsCourse, signAdminSession, verifyAdminSessionToken } from '../utils/auth';
+import { sendEmailOtp, verifyEmailOtp, resendEmailOtp } from '../utils/mojoauth';
+
 
 // --- STUDENTS ACTIONS ---
 export async function getStudents() {
@@ -1070,7 +1072,191 @@ export async function authenticateStudent(email, password) {
   }
 }
 
+/**
+ * Step 1 of Sign In with MojoAuth OTP:
+ * Validates student credentials and dispatches an OTP to student's email
+ */
+export async function initiateStudentLoginWithOtp(email, password) {
+  try {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, error: "Please enter a valid email address." };
+    }
+    if (!password) {
+      return { success: false, error: "Please enter your password." };
+    }
+
+    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = ? LIMIT 1", [cleanEmail]);
+    const student = rows.length > 0 ? rows[0] : null;
+
+    if (!student) {
+      return { success: false, error: "No account found with this email. Please check your spelling or sign up." };
+    }
+
+    // Check if account was created via social OAuth without a custom password
+    const isOauthPlaceholder = student.password && (student.password.startsWith('oauth_') || student.password === 'password');
+    if (isOauthPlaceholder && student.auth_provider && student.auth_provider !== 'credentials') {
+      const providerName = student.auth_provider === 'google' ? 'Google' : student.auth_provider === 'github' ? 'GitHub' : student.auth_provider;
+      return { 
+        success: false, 
+        error: `This account was registered using ${providerName}. Please click "Continue with ${providerName}" above, or use "Forgot password?" to set a password.` 
+      };
+    }
+
+    if (student.password !== password) {
+      return { success: false, error: "Invalid email or password. Please check your credentials and try again." };
+    }
+
+    // Credentials are valid, send OTP via MojoAuth
+    const otpRes = await sendEmailOtp(cleanEmail);
+    if (!otpRes.success) {
+      return { success: false, error: otpRes.error || "Failed to send verification code. Please try again." };
+    }
+
+    return {
+      success: true,
+      stateId: otpRes.state_id,
+      email: cleanEmail,
+      message: "Verification code sent to your email."
+    };
+  } catch (e) {
+    console.error("initiateStudentLoginWithOtp error:", e.message);
+    return { success: false, error: e.message || "Failed to process login request." };
+  }
+}
+
+/**
+ * Step 2 of Sign In with MojoAuth OTP:
+ * Verifies the OTP code and returns the authenticated student profile
+ */
+export async function verifyStudentLoginOtp(email, stateId, otp) {
+  try {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanOtp = (otp || '').trim();
+
+    if (!cleanEmail || !stateId || !cleanOtp) {
+      return { success: false, error: "Email, session ID, and verification code are required." };
+    }
+
+    const verifyRes = await verifyEmailOtp(cleanOtp, stateId);
+    if (!verifyRes.success) {
+      return { success: false, error: verifyRes.error || "Invalid or expired verification code." };
+    }
+
+    // Retrieve student record
+    const rows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = ? LIMIT 1", [cleanEmail]);
+    const student = rows.length > 0 ? rows[0] : null;
+
+    if (!student) {
+      return { success: false, error: "Student record not found." };
+    }
+
+    const enrollments = await query("SELECT course_id FROM atelier_student_courses WHERE student_id = ?", [student.id]);
+    student.enrolledCourses = enrollments.map(e => e.course_id);
+    student.gradYear = student.grad_year;
+    delete student.grad_year;
+    student.skills = student.skills ? (Array.isArray(student.skills) ? student.skills : student.skills.split(',')) : [];
+    student.authProvider = student.auth_provider || 'credentials';
+    delete student.password;
+    delete student.reset_code;
+    delete student.reset_code_expires;
+
+    return { success: true, student, ...student };
+  } catch (e) {
+    console.error("verifyStudentLoginOtp error:", e.message);
+    return { success: false, error: e.message || "Failed to verify code. Please try again." };
+  }
+}
+
+/**
+ * Step 1 of Sign Up with MojoAuth OTP:
+ * Validates registration fields, checks email availability, and dispatches an OTP
+ */
+export async function initiateStudentSignupWithOtp(name, email, password, phone, college, gradYear) {
+  try {
+    const cleanName = (name || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!cleanName) {
+      return { success: false, error: "Please enter your full name." };
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, error: "Please enter a valid email address." };
+    }
+    if (!password || password.length < 8) {
+      return { success: false, error: "Password must be at least 8 characters long." };
+    }
+
+    // Check if user already exists
+    const existsRows = await query("SELECT * FROM atelier_students WHERE LOWER(email) = ? LIMIT 1", [cleanEmail]);
+    if (existsRows.length > 0) {
+      const existing = existsRows[0];
+      const isOauthPlaceholder = existing.password && (existing.password.startsWith('oauth_') || existing.password === 'password');
+      if (!isOauthPlaceholder && existing.auth_provider === 'credentials') {
+        return { success: false, error: "An account is already registered with this email. Try signing in instead." };
+      }
+    }
+
+    // Send OTP via MojoAuth
+    const otpRes = await sendEmailOtp(cleanEmail);
+    if (!otpRes.success) {
+      return { success: false, error: otpRes.error || "Failed to send verification code. Please try again." };
+    }
+
+    return {
+      success: true,
+      stateId: otpRes.state_id,
+      email: cleanEmail,
+      message: "Verification code sent to your email."
+    };
+  } catch (e) {
+    console.error("initiateStudentSignupWithOtp error:", e.message);
+    return { success: false, error: e.message || "Failed to process signup request." };
+  }
+}
+
+/**
+ * Step 2 of Sign Up with MojoAuth OTP:
+ * Verifies the OTP code and completes registration in MySQL database
+ */
+export async function verifyStudentSignupOtp({ name, email, password, phone, college, gradYear, stateId, otp }) {
+  try {
+    const cleanOtp = (otp || '').trim();
+    if (!stateId || !cleanOtp) {
+      return { success: false, error: "Verification code and session ID are required." };
+    }
+
+    const verifyRes = await verifyEmailOtp(cleanOtp, stateId);
+    if (!verifyRes.success) {
+      return { success: false, error: verifyRes.error || "Invalid or expired verification code." };
+    }
+
+    // Register student account in database
+    return await registerStudentAccount(name, email, password, phone, college, gradYear);
+  } catch (e) {
+    console.error("verifyStudentSignupOtp error:", e.message);
+    return { success: false, error: e.message || "Failed to complete signup." };
+  }
+}
+
+/**
+ * Resend OTP via MojoAuth for an active stateId
+ */
+export async function resendStudentOtp(stateId) {
+  try {
+    if (!stateId) {
+      return { success: false, error: "Session expired. Please start again." };
+    }
+    const res = await resendEmailOtp(stateId);
+    return res;
+  } catch (e) {
+    console.error("resendStudentOtp error:", e.message);
+    return { success: false, error: e.message || "Failed to resend code." };
+  }
+}
+
 export async function authenticateOAuthStudent({ name, email, avatar, provider = 'google' }) {
+
   try {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (name || cleanEmail.split('@')[0] || 'Student').trim();
