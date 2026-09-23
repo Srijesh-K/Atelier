@@ -14,7 +14,7 @@ export default function AboutClient() {
   const leadersRef = useRef(null);
 
   const philosophyParagraph =
-    "We believe software engineering is a discipline of craftsmanship, not a spectator sport. Real mastery is never achieved through passive video slides—it is forged in late-night debugging marathons, elegant system design, and battle-testing architectures against production realities. At Atelier, we cultivate craftspeople who don't merely write code, but build enduring systems.";
+    "Software is a craft, not a theory. Build with rigor, think in systems, and engineer what endures.";
 
   const philosophyWords = philosophyParagraph.split(' ');
 
@@ -37,7 +37,7 @@ export default function AboutClient() {
         }
       );
 
-      // 2. Our Philosophy - Pinned Letter-by-Letter Scrub to White Animation
+      // 2. Our Philosophy - Pinned Letter-by-Letter Scrub to Clean Pure White
       if (philosophySectionRef.current) {
         const chars = philosophySectionRef.current.querySelectorAll(`.${styles.charSpan}`);
         
@@ -45,17 +45,16 @@ export default function AboutClient() {
           scrollTrigger: {
             trigger: philosophySectionRef.current,
             start: 'top top',
-            end: '+=1400',
+            end: '+=750',
             pin: true,
-            scrub: 0.8,
+            scrub: 0.6,
             anticipatePin: 1
           }
         });
 
         tl.to(chars, {
           color: '#ffffff',
-          textShadow: '0 0 20px rgba(255, 255, 255, 0.65)',
-          stagger: 0.08,
+          stagger: 0.04,
           ease: 'none'
         });
       }
