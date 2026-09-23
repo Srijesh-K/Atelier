@@ -1,0 +1,1085 @@
+/* ==========================================================
+   ATELIER /about PAGE - PREMIUM EDITORIAL DESIGN
+   ========================================================== */
+
+.pageContainer {
+  position: relative;
+  background-color: #050507;
+  color: #ffffff;
+  overflow-x: clip;
+  min-height: 100vh;
+}
+
+/* Common Section Badge Pill */
+.sectionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 1rem;
+  background: rgba(242, 85, 34, 0.08);
+  border: 1px solid rgba(242, 85, 34, 0.3);
+  border-radius: 9999px;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ff7744;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 0 20px rgba(242, 85, 34, 0.12);
+}
+
+.badgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f25522;
+  box-shadow: 0 0 8px #f25522;
+}
+
+/* ==========================================================
+   1. HERO SECTION
+   ========================================================== */
+.heroSection {
+  position: relative;
+  min-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9rem 1.5rem 5rem;
+  overflow: hidden;
+  text-align: center;
+}
+
+/* Radiant Spotlight & Beam Effect */
+.heroSpotlight {
+  position: absolute;
+  top: -15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 650px;
+  background: radial-gradient(
+    ellipse at top,
+    rgba(242, 85, 34, 0.28) 0%,
+    rgba(242, 85, 34, 0.08) 45%,
+    transparent 70%
+  );
+  filter: blur(50px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Diagonal Light Beams matching reference screenshot */
+.heroBeamLeft {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 600px;
+  background: linear-gradient(180deg, rgba(242, 85, 34, 0.4), transparent);
+  transform: rotate(-35deg);
+  transform-origin: top center;
+  pointer-events: none;
+  opacity: 0.6;
+  filter: blur(1px);
+}
+
+.heroBeamRight {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 600px;
+  background: linear-gradient(180deg, rgba(242, 85, 34, 0.4), transparent);
+  transform: rotate(35deg);
+  transform-origin: top center;
+  pointer-events: none;
+  opacity: 0.6;
+  filter: blur(1px);
+}
+
+/* Subtle Tech Matrix Background Grid */
+.heroGridBg {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.heroTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(2.5rem, 5.5vw, 4.75rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+}
+
+.heroTitleGradient {
+  display: block;
+  background: linear-gradient(135deg, #ffffff 30%, #ff8e61 75%, #f25522 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 35px rgba(242, 85, 34, 0.35));
+}
+
+.heroSubtitle {
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 1.3vw, 1.2rem);
+  line-height: 1.65;
+  color: #a3a3a8;
+  max-width: 680px;
+  margin-bottom: 2.5rem;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.primaryCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 2rem;
+  background: #f25522;
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  box-shadow: 0 4px 24px rgba(242, 85, 34, 0.45);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.primaryCta:hover {
+  transform: translateY(-2px);
+  background: #ff6836;
+  box-shadow: 0 8px 32px rgba(242, 85, 34, 0.65);
+}
+
+.secondaryCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 2rem;
+  background: rgba(18, 18, 22, 0.85);
+  color: #e2e2e5;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.secondaryCta:hover {
+  background: rgba(30, 30, 36, 0.95);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+/* ==========================================================
+   2. LOGOS ROW (COMPANIES / ALUMNI)
+   ========================================================== */
+.logosSection {
+  position: relative;
+  padding: 3rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(8, 8, 10, 0.6);
+  overflow: hidden;
+}
+
+.logosTrack {
+  display: flex;
+  align-items: center;
+  gap: 4rem;
+  width: max-content;
+  animation: logosMarquee 35s linear infinite;
+}
+
+.logosTrack:hover {
+  animation-play-state: paused;
+}
+
+@keyframes logosMarquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.logoItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.45;
+  filter: grayscale(100%);
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.logoItem:hover {
+  opacity: 1;
+  filter: grayscale(0%);
+  transform: scale(1.05);
+}
+
+/* SVG brand logos */
+.logoSvg {
+  height: 28px;
+  width: auto;
+  fill: currentColor;
+  color: #ffffff;
+}
+
+/* ==========================================================
+   3. MISSION STATEMENT & CINEMA SHOWCASE
+   ========================================================== */
+.missionSection {
+  position: relative;
+  padding: 7rem 1.5rem 5rem;
+  background: #050507;
+  text-align: center;
+}
+
+.missionContent {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.missionText {
+  font-family: var(--font-heading);
+  font-size: clamp(1.4rem, 2.7vw, 2.35rem);
+  font-weight: 700;
+  line-height: 1.38;
+  letter-spacing: -0.02em;
+  color: #eaeaea;
+  margin: 1.5rem 0 2rem;
+}
+
+.missionHighlight {
+  color: #ffffff;
+  position: relative;
+  display: inline-block;
+}
+
+.visionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.5rem;
+  background: #f25522;
+  color: #ffffff;
+  border-radius: 9999px;
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 18px rgba(242, 85, 34, 0.4);
+  transition: all 0.3s ease;
+  margin-bottom: 4rem;
+}
+
+.visionButton:hover {
+  transform: translateY(-2px);
+  background: #ff6836;
+  box-shadow: 0 8px 26px rgba(242, 85, 34, 0.6);
+}
+
+/* Cinema Showcase Frame matching reference image */
+.showcaseFrameWrap {
+  max-width: 960px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.showcaseFrameGlow {
+  position: absolute;
+  inset: -15px;
+  background: radial-gradient(
+    circle at center,
+    rgba(242, 85, 34, 0.22) 0%,
+    transparent 65%
+  );
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.showcaseFrame {
+  position: relative;
+  z-index: 1;
+  background: #0d0d11;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 25px 60px -15px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+/* Top Frame Bar with Metallic Glint */
+.showcaseHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(180deg, #1b1b22 0%, #121217 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.windowControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.windowDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #33333d;
+}
+
+.windowDotClose { background: #ff5f56; }
+.windowDotMin { background: #ffbd2e; }
+.windowDotMax { background: #27c93f; }
+
+.frameBrandLockup {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #d1d1d8;
+  text-transform: uppercase;
+}
+
+.frameMiniLogo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.frameNavLinks {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.7rem;
+  color: #8a8a95;
+  font-family: var(--font-heading);
+}
+
+/* Inside Screen Body */
+.showcaseScreen {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #08080b;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.showcaseScreenImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.75;
+  filter: contrast(110%) saturate(110%);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+}
+
+.showcaseFrame:hover .showcaseScreenImage {
+  transform: scale(1.03);
+  opacity: 0.85;
+}
+
+.showcaseScreenOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 14, 0.4) 0%,
+    rgba(10, 10, 14, 0.2) 40%,
+    rgba(10, 10, 14, 0.75) 100%
+  );
+  z-index: 1;
+}
+
+.showcaseScreenContent {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 2rem;
+}
+
+.showcaseTitleGod {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+  line-height: 1.05;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
+}
+
+.showcaseSub God {
+  font-size: 0.85rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: #f25522;
+  font-weight: 700;
+  margin-top: 0.5rem;
+}
+
+/* Glowing Interactive Play Trigger in bottom right */
+.showcasePlayTrigger {
+  position: absolute;
+  bottom: 24px;
+  right: 28px;
+  z-index: 3;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #f25522;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 0 25px #f25522;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.showcasePlayTrigger:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 40px #ff6836;
+}
+
+.showcaseMetaLeft {
+  position: absolute;
+  bottom: 24px;
+  left: 28px;
+  z-index: 3;
+  text-align: left;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+/* ==========================================================
+   4. VISION OF THE BRAND (3 CARDS)
+   ========================================================== */
+.visionSection {
+  position: relative;
+  padding: 6rem 1.5rem;
+  background: #050507;
+  text-align: center;
+}
+
+.visionHeader {
+  max-width: 750px;
+  margin: 0 auto 4rem;
+}
+
+.visionTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 3.5vw, 2.85rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+}
+
+.visionSubtitle {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #92929e;
+}
+
+.visionCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+.visionCard {
+  position: relative;
+  background: #0c0c10;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 2.25rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.visionCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(242, 85, 34, 0.6), transparent);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.visionCard:hover {
+  transform: translateY(-6px);
+  border-color: rgba(242, 85, 34, 0.3);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(242, 85, 34, 0.08);
+}
+
+.visionCard:hover::before {
+  opacity: 1;
+}
+
+.visionCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.visionCardIconBadge {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(242, 85, 34, 0.12);
+  border: 1px solid rgba(242, 85, 34, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f25522;
+}
+
+.visionCardNumber {
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #555562;
+  letter-spacing: 0.05em;
+}
+
+.visionCardTitle {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.85rem;
+  line-height: 1.3;
+}
+
+.visionCardDesc {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #8d8d9b;
+  margin-bottom: 2rem;
+}
+
+.visionCardBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.visionCardLink {
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e1e1e6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.visionCardLink:hover {
+  color: #ff7744;
+}
+
+.arrowCircleBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.visionCard:hover .arrowCircleBtn {
+  border-color: #f25522;
+  background: #f25522;
+  transform: rotate(45deg);
+}
+
+/* ==========================================================
+   5. THE PEOPLE WHO MAKE ATELIER A TEAM (SPLIT)
+   ========================================================== */
+.teamSection {
+  position: relative;
+  padding: 6rem 1.5rem;
+  background: #050507;
+}
+
+.teamAmbientGlow {
+  position: absolute;
+  right: -5%;
+  top: 30%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(242, 85, 34, 0.25) 0%, transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.teamGrid {
+  position: relative;
+  z-index: 1;
+  max-width: 1140px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.teamLeftContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.teamTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+}
+
+.teamTitleHighlight {
+  color: #f25522;
+}
+
+.teamParagraph {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #9c9ca8;
+  margin-bottom: 1.25rem;
+}
+
+.teamStatsPills {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.teamStatItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.teamStatValue {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.teamStatLabel {
+  font-size: 0.75rem;
+  color: #7d7d88;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.teamRightImageWrap {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(242, 85, 34, 0.15);
+}
+
+.teamImage {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.6s ease;
+}
+
+.teamRightImageWrap:hover .teamImage {
+  transform: scale(1.04);
+}
+
+/* ==========================================================
+   6. THE LEADERS BEHIND THE CODE (SIGNATURE TILTED CARDS)
+   ========================================================== */
+.leadersSection {
+  position: relative;
+  padding: 7rem 1.5rem 6rem;
+  background: #050507;
+  text-align: center;
+}
+
+.leadersHeader {
+  max-width: 750px;
+  margin: 0 auto 5rem;
+}
+
+.leadersTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 3.5vw, 2.85rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.75rem;
+}
+
+.leadersSubtitle {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: #8e8e99;
+}
+
+/* Tilted Cards Display Area */
+.tiltedCardsContainer {
+  position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 850px;
+}
+
+/* Ambient glow orb behind leaders */
+.leadersGlowOrb {
+  position: absolute;
+  top: 20%;
+  left: -10%;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(242, 85, 34, 0.22) 0%, transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+/* Individual Tilted Mentor Cards */
+.tiltedCard {
+  position: absolute;
+  width: 320px;
+  height: 380px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #f25522 0%, #bd3d14 60%, #701f05 100%);
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 35px rgba(242, 85, 34, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease, z-index 0.2s ease;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.tiltedCard:hover {
+  transform: rotate(0deg) scale(1.06) translateY(-10px) !important;
+  box-shadow: 
+    0 35px 70px -10px rgba(0, 0, 0, 0.9),
+    0 0 55px rgba(242, 85, 34, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  z-index: 10;
+}
+
+/* Position 1: Top Left */
+.tiltedCard1 {
+  top: 0;
+  left: 5%;
+  transform: rotate(-5deg);
+}
+
+/* Position 2: Middle Right */
+.tiltedCard2 {
+  top: 240px;
+  right: 5%;
+  transform: rotate(6deg);
+}
+
+/* Position 3: Bottom Left */
+.tiltedCard3 {
+  top: 480px;
+  left: 12%;
+  transform: rotate(-4deg);
+}
+
+.tiltedCardImageWrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tiltedCardImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  mix-blend-mode: luminosity;
+  opacity: 0.92;
+  filter: contrast(115%) brightness(95%);
+  transition: transform 0.6s ease;
+}
+
+.tiltedCard:hover .tiltedCardImg {
+  transform: scale(1.05);
+}
+
+.tiltedCardOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(242, 85, 34, 0.25) 0%,
+    transparent 40%,
+    rgba(0, 0, 0, 0.85) 85%,
+    rgba(0, 0, 0, 0.96) 100%
+  );
+  z-index: 1;
+}
+
+.tiltedCardMeta {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem;
+  z-index: 2;
+  text-align: left;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.tiltedCardName {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
+}
+
+.tiltedCardRole {
+  font-size: 0.8rem;
+  color: #ffaa88;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.tiltedCardBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+/* ==========================================================
+   7. GIANT OUTLINE WATERMARK
+   ========================================================== */
+.watermarkSection {
+  position: relative;
+  padding: 4rem 1rem 0;
+  overflow: hidden;
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
+  background: #050507;
+}
+
+.giantOutlineText {
+  font-family: var(--font-heading);
+  font-size: clamp(4.5rem, 15vw, 15rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 0.85;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+  display: block;
+}
+
+/* ==========================================================
+   VIDEO MODAL / SHOWCASE PREVIEW
+   ========================================================== */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(12px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.modalContent {
+  position: relative;
+  width: 100%;
+  max-width: 860px;
+  background: #0d0d12;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95);
+}
+
+.modalCloseBtn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.modalCloseBtn:hover {
+  background: #f25522;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ==========================================================
+   RESPONSIVE BREAKPOINTS
+   ========================================================== */
+@media (max-width: 1024px) {
+  .visionCardsGrid {
+    grid-template-columns: 1fr;
+    max-width: 580px;
+  }
+
+  .teamGrid {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  .tiltedCardsContainer {
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .tiltedCard {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    width: 100%;
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 768px) {
+  .heroSection {
+    padding: 7rem 1rem 4rem;
+  }
+
+  .heroTitle {
+    font-size: 2.25rem;
+  }
+
+  .missionText {
+    font-size: 1.35rem;
+  }
+
+  .teamTitle {
+    font-size: 2rem;
+  }
+
+  .showcasePlayTrigger {
+    width: 44px;
+    height: 44px;
+    bottom: 16px;
+    right: 16px;
+  }
+
+  .showcaseMetaLeft {
+    bottom: 16px;
+    left: 16px;
+  }
+}

@@ -55,6 +55,8 @@ export default function Navbar() {
       const idx = navItems.findIndex((item) => item.href === pathname);
       if (idx !== -1) {
         setActiveIndex(idx);
+      } else {
+        setActiveIndex(-1);
       }
       return;
     }
@@ -106,6 +108,12 @@ export default function Navbar() {
             left: activeEl.offsetLeft,
             width: activeEl.offsetWidth,
             opacity: 1
+          });
+        } else {
+          setIndicatorStyle({
+            left: 0,
+            width: 0,
+            opacity: 0
           });
         }
       }
