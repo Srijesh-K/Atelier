@@ -29,7 +29,6 @@ export default function SignUpPage() {
   const [stateId, setStateId] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
-  const [infoMessage, setInfoMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(60);
@@ -51,11 +50,10 @@ export default function SignUpPage() {
     setCountdown(60);
   };
 
-  // Step 1: Validate registration info and dispatch MojoAuth OTP
+  // Step 1: Validate registration info and dispatch OTP
   const handleInitiateSignUp = async (e) => {
     e.preventDefault();
     setError('');
-    setInfoMessage('');
 
     if (!firstName.trim() || !lastName.trim()) {
       setError('Please provide both your first and last name.');
@@ -87,7 +85,6 @@ export default function SignUpPage() {
         setStep('otp');
         setOtp('');
         startCountdown();
-        setInfoMessage(`We've dispatched a 6-digit verification code to ${cleanEmail}.`);
       } else {
         setError(res?.error || 'Unable to start registration. Please check your details and try again.');
       }
@@ -175,7 +172,6 @@ export default function SignUpPage() {
       if (res && res.success) {
         if (res.state_id) setStateId(res.state_id);
         startCountdown();
-        setInfoMessage('A new verification code has been dispatched to your email.');
       } else {
         setError(res?.error || 'Failed to resend code. Please try again.');
       }
@@ -367,11 +363,11 @@ export default function SignUpPage() {
                 {loading ? (
                   <span className={styles.btnContent}>
                     <span className={styles.spinner} />
-                    Sending OTP...
+                    Creating account...
                   </span>
                 ) : (
                   <span className={styles.btnContent}>
-                    Get Started with Email OTP
+                    Get Started
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
@@ -425,7 +421,7 @@ export default function SignUpPage() {
           <>
             <h1 className={styles.heading}>Verify your email</h1>
             <p className={styles.subtext}>
-              A 6-digit code has been sent to confirm your email and activate your account.
+              Enter the 6-digit code sent to <strong style={{ color: '#ffffff' }}>{email}</strong>. If you don&apos;t see it, be sure to check your spam or junk folder.
             </p>
 
             {/* Email destination indicator */}
@@ -443,22 +439,11 @@ export default function SignUpPage() {
                 onClick={() => {
                   setStep('form');
                   setError('');
-                  setInfoMessage('');
                 }}
               >
                 Change
               </button>
             </div>
-
-            {infoMessage && (
-              <div className={styles.successBanner}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-                <span>{infoMessage}</span>
-              </div>
-            )}
 
             {error && (
               <div className={styles.errorBanner}>
@@ -501,7 +486,7 @@ export default function SignUpPage() {
                       <circle cx="12" cy="12" r="10"/>
                       <polyline points="12 6 12 12 16 14"/>
                     </svg>
-                    Resend code in {countdown}s
+                    Resend in {countdown}s
                   </span>
                 ) : (
                   <button
@@ -510,7 +495,7 @@ export default function SignUpPage() {
                     onClick={handleResend}
                     disabled={resending || loading}
                   >
-                    {resending ? 'Sending...' : 'Resend verification code'}
+                    {resending ? 'Sending...' : 'Resend code'}
                   </button>
                 )}
 
@@ -520,7 +505,6 @@ export default function SignUpPage() {
                   onClick={() => {
                     setStep('form');
                     setError('');
-                    setInfoMessage('');
                   }}
                 >
                   Edit Information
@@ -536,11 +520,11 @@ export default function SignUpPage() {
                 {loading ? (
                   <span className={styles.btnContent}>
                     <span className={styles.spinner} />
-                    Verifying & Registering...
+                    Creating account...
                   </span>
                 ) : (
                   <span className={styles.btnContent}>
-                    Verify & Create Account
+                    Create Account
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>

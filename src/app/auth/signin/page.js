@@ -15,7 +15,6 @@ export default function SignInPage() {
   const [stateId, setStateId] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
-  const [infoMessage, setInfoMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(60);
@@ -51,11 +50,10 @@ export default function SignInPage() {
     setCountdown(60);
   };
 
-  // Step 1: Submit email & password -> Trigger MojoAuth OTP
+  // Step 1: Submit email & password -> Trigger OTP
   const handleInitiateSignIn = async (e) => {
     e.preventDefault();
     setError('');
-    setInfoMessage('');
     setLoading(true);
 
     try {
@@ -66,7 +64,6 @@ export default function SignInPage() {
         setStep('otp');
         setOtp('');
         startCountdown();
-        setInfoMessage(`We've sent a 6-digit verification code to ${res.email}.`);
       } else {
         setError(res?.error || 'No account found with this email, or invalid credentials. Please check and try again.');
       }
@@ -143,7 +140,6 @@ export default function SignInPage() {
       if (res && res.success) {
         if (res.state_id) setStateId(res.state_id);
         startCountdown();
-        setInfoMessage('A new verification code has been dispatched to your email.');
       } else {
         setError(res?.error || 'Failed to resend code. Please request a new code.');
       }
@@ -270,11 +266,11 @@ export default function SignInPage() {
                 {loading ? (
                   <span className={styles.btnContent}>
                     <span className={styles.spinner} />
-                    Sending OTP...
+                    Signing in...
                   </span>
                 ) : (
                   <span className={styles.btnContent}>
-                    Continue with Email OTP
+                    Sign In
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
@@ -323,7 +319,7 @@ export default function SignInPage() {
           <>
             <h1 className={styles.heading}>Enter verification code</h1>
             <p className={styles.subtext}>
-              A 6-digit code has been sent to your email to verify your sign-in.
+              Enter the 6-digit code sent to <strong style={{ color: '#ffffff' }}>{email}</strong>. If you don&apos;t see it, be sure to check your spam or junk folder.
             </p>
 
             {/* Email destination indicator */}
@@ -341,22 +337,11 @@ export default function SignInPage() {
                 onClick={() => {
                   setStep('credentials');
                   setError('');
-                  setInfoMessage('');
                 }}
               >
                 Change
               </button>
             </div>
-
-            {infoMessage && (
-              <div className={styles.successBanner}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-                <span>{infoMessage}</span>
-              </div>
-            )}
 
             {error && (
               <div className={styles.errorBanner}>
@@ -399,7 +384,7 @@ export default function SignInPage() {
                       <circle cx="12" cy="12" r="10"/>
                       <polyline points="12 6 12 12 16 14"/>
                     </svg>
-                    Resend code in {countdown}s
+                    Resend in {countdown}s
                   </span>
                 ) : (
                   <button
@@ -408,7 +393,7 @@ export default function SignInPage() {
                     onClick={handleResend}
                     disabled={resending || loading}
                   >
-                    {resending ? 'Sending...' : 'Resend verification code'}
+                    {resending ? 'Sending...' : 'Resend code'}
                   </button>
                 )}
 
@@ -418,7 +403,6 @@ export default function SignInPage() {
                   onClick={() => {
                     setStep('credentials');
                     setError('');
-                    setInfoMessage('');
                   }}
                 >
                   Back to Sign In
@@ -434,11 +418,11 @@ export default function SignInPage() {
                 {loading ? (
                   <span className={styles.btnContent}>
                     <span className={styles.spinner} />
-                    Verifying OTP...
+                    Signing in...
                   </span>
                 ) : (
                   <span className={styles.btnContent}>
-                    Verify & Sign In
+                    Sign In
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
