@@ -1,20 +1,22 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { gsap } from 'gsap/dist/gsap';
 import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
 import styles from './about.module.css';
 
 export default function AboutClient() {
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
-
   const heroRef = useRef(null);
-  const missionRef = useRef(null);
-  const showcaseRef = useRef(null);
+  const philosophySectionRef = useRef(null);
   const visionRef = useRef(null);
   const teamRef = useRef(null);
   const leadersRef = useRef(null);
+
+  const philosophyParagraph =
+    "We believe software engineering is a discipline of craftsmanship, not a spectator sport. Real mastery is never achieved through passive video slides—it is forged in late-night debugging marathons, elegant system design, and battle-testing architectures against production realities. At Atelier, we cultivate craftspeople who don't merely write code, but build enduring systems.";
+
+  const philosophyWords = philosophyParagraph.split(' ');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -22,9 +24,9 @@ export default function AboutClient() {
     gsap.registerPlugin(ScrollTrigger);
 
     const ctx = gsap.context(() => {
-      // 1. Hero Reveal Animation
+      // 1. Hero Entrance Animation
       gsap.fromTo(
-        heroRef.current.querySelectorAll(`.${styles.sectionBadge}, .${styles.heroTitle}, .${styles.heroSubtitle}, .${styles.heroActions}`),
+        heroRef.current.querySelectorAll(`.${styles.badge}, .${styles.heroTitle}, .${styles.heroSubtitle}, .${styles.heroActions}`),
         { opacity: 0, y: 35 },
         {
           opacity: 1,
@@ -35,47 +37,30 @@ export default function AboutClient() {
         }
       );
 
-      // 2. Mission Statement & Cinema Showcase
-      if (missionRef.current) {
-        gsap.fromTo(
-          missionRef.current.querySelectorAll(`.${styles.sectionBadge}, .${styles.missionText}, .${styles.visionButton}`),
-          { opacity: 0, y: 30 },
-          {
-            scrollTrigger: {
-              trigger: missionRef.current,
-              start: 'top 80%',
-              toggleActions: 'play none none none'
-            },
-            opacity: 1,
-            y: 0,
-            duration: 0.8,
-            stagger: 0.15,
-            ease: 'power2.out'
+      // 2. Our Philosophy - Pinned Letter-by-Letter Scrub to White Animation
+      if (philosophySectionRef.current) {
+        const chars = philosophySectionRef.current.querySelectorAll(`.${styles.charSpan}`);
+        
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: philosophySectionRef.current,
+            start: 'top top',
+            end: '+=1400',
+            pin: true,
+            scrub: 0.8,
+            anticipatePin: 1
           }
-        );
+        });
+
+        tl.to(chars, {
+          color: '#ffffff',
+          textShadow: '0 0 20px rgba(255, 255, 255, 0.65)',
+          stagger: 0.08,
+          ease: 'none'
+        });
       }
 
-      // Cinema Display Frame 3D entrance
-      if (showcaseRef.current) {
-        gsap.fromTo(
-          showcaseRef.current,
-          { opacity: 0, y: 50, scale: 0.94 },
-          {
-            scrollTrigger: {
-              trigger: showcaseRef.current,
-              start: 'top 85%',
-              toggleActions: 'play none none none'
-            },
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 1,
-            ease: 'power3.out'
-          }
-        );
-      }
-
-      // 3. Vision Cards Staggered Reveal
+      // 3. Vision Cards Staggered Entrance
       if (visionRef.current) {
         const cards = visionRef.current.querySelectorAll(`.${styles.visionCard}`);
         gsap.fromTo(
@@ -262,20 +247,17 @@ export default function AboutClient() {
         <div className={styles.heroGridBg} />
 
         <div className={styles.heroContent}>
-          <div className={styles.sectionBadge}>
-            <span className={styles.badgeDot} />
-            WHO WE ARE
-          </div>
+          <div className={styles.badge}>WHO WE ARE</div>
 
           <h1 className={styles.heroTitle}>
-            Where Dreams
-            <span className={styles.heroTitleGradient}>Transform Into Code</span>
+            Where Raw Ambition <br />
+            <span className={styles.outlineBox}>Meets Engineering Craft</span>
           </h1>
 
           <p className={styles.heroSubtitle}>
-            A collective of passionate engineers, builders, and mentors redefining tech education.
-            We bridge the gap between academic theory and enterprise engineering through rigorous,
-            production-grade cohorts.
+            Atelier is an immersive engineering academy established at the KVGCE incubation campus.
+            We bridge the chasm between theoretical education and enterprise craft through rigorous,
+            production-grade cohorts and direct mentor code reviews.
           </p>
 
           <div className={styles.heroActions}>
@@ -288,8 +270,8 @@ export default function AboutClient() {
             </Link>
 
             <a
-              href="#mission"
-              onClick={(e) => scrollToSection(e, 'mission')}
+              href="#philosophy"
+              onClick={(e) => scrollToSection(e, 'philosophy')}
               className={styles.secondaryCta}
             >
               Our Philosophy
@@ -312,102 +294,43 @@ export default function AboutClient() {
       </div>
 
       {/* ==========================================================
-          3. MISSION STATEMENT & CINEMA SHOWCASE
+          3. OUR PHILOSOPHY - PINNED TEXT SCRUB REVEAL ANIMATION
           ========================================================== */}
-      <section id="mission" ref={missionRef} className={styles.missionSection}>
-        <div className={styles.missionContent}>
-          <div className={styles.sectionBadge}>
-            <span className={styles.badgeDot} />
-            OUR MISSION
-          </div>
+      <section id="philosophy" ref={philosophySectionRef} className={styles.philosophySection}>
+        <div className={styles.philosophyAmbientGlow} />
 
-          <p className={styles.missionText}>
-            At <span className={styles.missionHighlight}>Atelier</span>, we believe in thinking big.
-            Our mission is to spark the mindset of engineering excellence in tech education by building
-            a vibrant global network of skilled craftspeople and problem-solvers.
+        <div className={styles.philosophyContainer}>
+          <div className={styles.badge}>OUR PHILOSOPHY</div>
+
+          <p className={styles.philosophyText}>
+            {philosophyWords.map((word, wIdx) => (
+              <span key={wIdx} className={styles.wordSpan}>
+                {word.split('').map((char, cIdx) => (
+                  <span key={cIdx} className={styles.charSpan}>
+                    {char}
+                  </span>
+                ))}
+                <span className={styles.spaceSpan}>&nbsp;</span>
+              </span>
+            ))}
           </p>
 
-          <a
-            href="#vision"
-            onClick={(e) => scrollToSection(e, 'vision')}
-            className={styles.visionButton}
-          >
-            Our Vision ↓
-          </a>
-
-          {/* Cinema Frame Screen Showcase */}
-          <div ref={showcaseRef} className={styles.showcaseFrameWrap}>
-            <div className={styles.showcaseFrameGlow} />
-
-            <div className={styles.showcaseFrame}>
-              {/* Metallic Window Top Bar */}
-              <div className={styles.showcaseHeader}>
-                <div className={styles.windowControls}>
-                  <span className={`${styles.windowDot} ${styles.windowDotClose}`} />
-                  <span className={`${styles.windowDot} ${styles.windowDotMin}`} />
-                  <span className={`${styles.windowDot} ${styles.windowDotMax}`} />
-                </div>
-
-                <div className={styles.frameBrandLockup}>
-                  <img src="/logo.png" alt="Atelier" className={styles.frameMiniLogo} />
-                  <span>ATELIER • CRAFT & CODE</span>
-                </div>
-
-                <div className={styles.frameNavLinks}>
-                  <span>PHILOSOPHY</span>
-                  <span>CURRICULUM</span>
-                  <span>COMMUNITY</span>
-                </div>
-              </div>
-
-              {/* Showcase Body Screen */}
-              <div className={styles.showcaseScreen}>
-                <img
-                  src="/images/hackathons/hackwise-stage.jpg"
-                  alt="Atelier Engineering Craft"
-                  className={styles.showcaseScreenImage}
-                />
-                <div className={styles.showcaseScreenOverlay} />
-
-                <div className={styles.showcaseScreenContent}>
-                  <h2 className={styles.showcaseTitleGod}>THE ART OF CODE</h2>
-                  <p className={styles.showcaseSubGod}>WHERE RIGOR MEETS INVENTIVENESS</p>
-                </div>
-
-                {/* Bottom Left Frame Info */}
-                <div className={styles.showcaseMetaLeft}>
-                  <span>EST. 2024 • SPHERE HIVE</span>
-                </div>
-
-                {/* Interactive Play Button */}
-                <button
-                  onClick={() => setIsVideoModalOpen(true)}
-                  className={styles.showcasePlayTrigger}
-                  aria-label="Watch Atelier Vision Reel"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+          <div className={styles.philosophyHint}>
+            <span className={styles.scrollDot} />
+            <span>Scroll to illuminate philosophy</span>
           </div>
         </div>
       </section>
 
       {/* ==========================================================
-          4. VISION OF THE BRAND (3 CARDS)
+          4. VISION OF THE BRAND (3 PILLAR CARDS)
           ========================================================== */}
       <section id="vision" ref={visionRef} className={styles.visionSection}>
         <div className={styles.visionHeader}>
-          <div className={styles.sectionBadge}>
-            <span className={styles.badgeDot} />
-            OUR PILLARS
-          </div>
-          <h2 className={styles.visionTitle}>Vision Of The Brand</h2>
+          <div className={styles.badge}>THE ATELIER STANDARD</div>
+          <h2 className={styles.visionTitle}>Pillars Of The Atelier Craft</h2>
           <p className={styles.visionSubtitle}>
-            To inspire, mentor, and cultivate the upcoming generation of software artists and distributed
-            systems engineers who build resilient technology for the real world.
+            Three foundational cornerstones that define our methodology, our culture, and our engineering expectations.
           </p>
         </div>
 
@@ -424,14 +347,14 @@ export default function AboutClient() {
                 </div>
                 <span className={styles.visionCardNumber}>01</span>
               </div>
-              <h3 className={styles.visionCardTitle}>Practical Mastery Over Theory</h3>
+              <h3 className={styles.visionCardTitle}>Production-Grade Immersion</h3>
               <p className={styles.visionCardDesc}>
-                We do not teach syntax in a vacuum. Every cohort member designs distributed architectures, writes
-                production-level pull requests, and deploys scalable microservices to the cloud.
+                Say goodbye to toy todo lists. Every cohort fellow develops distributed microservices, writes
+                rigorous test suites, and deploys high-availability systems under genuine cloud constraints.
               </p>
             </div>
             <div className={styles.visionCardBottom}>
-              <Link href="/courses" className={styles.visionCardLink}>Learn More</Link>
+              <Link href="/courses" className={styles.visionCardLink}>Explore Cohorts</Link>
               <div className={styles.arrowCircleBtn}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="7" y1="17" x2="17" y2="7" />
@@ -455,14 +378,14 @@ export default function AboutClient() {
                 </div>
                 <span className={styles.visionCardNumber}>02</span>
               </div>
-              <h3 className={styles.visionCardTitle}>Direct Industry Mentorship</h3>
+              <h3 className={styles.visionCardTitle}>Relentless Code Reviews</h3>
               <p className={styles.visionCardDesc}>
-                Learn directly alongside engineering leaders from top tech companies. 1:1 code reviews,
-                architectural teardowns, and continuous feedback simulate real enterprise sprint dynamics.
+                Learn line-by-line from seasoned industry architects. Pull requests are vetted under real-world
+                enterprise standards for scalability, readability, fault tolerance, and security.
               </p>
             </div>
             <div className={styles.visionCardBottom}>
-              <Link href="/join-faculty" className={styles.visionCardLink}>Learn More</Link>
+              <Link href="/join-faculty" className={styles.visionCardLink}>Meet Faculty</Link>
               <div className={styles.arrowCircleBtn}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="7" y1="17" x2="17" y2="7" />
@@ -484,14 +407,14 @@ export default function AboutClient() {
                 </div>
                 <span className={styles.visionCardNumber}>03</span>
               </div>
-              <h3 className={styles.visionCardTitle}>High-Impact Career Launchpad</h3>
+              <h3 className={styles.visionCardTitle}>The Sphere Hive Launchpad</h3>
               <p className={styles.visionCardDesc}>
-                From our national Hackwise hackathons to our incubation labs and direct hiring referrals,
-                we provide an end-to-end launchpad for engineers aiming for top-tier roles.
+                Headquartered in the KVGCE incubation center and driving national Hackwise hackathons,
+                we connect ambitious student builders directly to startup founders, venture labs, and recruiters.
               </p>
             </div>
             <div className={styles.visionCardBottom}>
-              <Link href="/contact" className={styles.visionCardLink}>Learn More</Link>
+              <Link href="/contact" className={styles.visionCardLink}>Join Network</Link>
               <div className={styles.arrowCircleBtn}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="7" y1="17" x2="17" y2="7" />
@@ -504,48 +427,53 @@ export default function AboutClient() {
       </section>
 
       {/* ==========================================================
-          5. THE PEOPLE WHO MAKE ATELIER A TEAM (SPLIT)
+          5. THE PEOPLE WHO MAKE ATELIER A REALITY (SPLIT)
           ========================================================== */}
       <section ref={teamRef} className={styles.teamSection}>
         <div className={styles.teamAmbientGlow} />
 
         <div className={styles.teamGrid}>
           <div className={styles.teamLeftContent}>
+            <div className={styles.badge}>THE ATELIER COLLECTIVE</div>
+
             <h2 className={styles.teamTitle}>
               The People Who Make <br />
-              <span className={styles.teamTitleHighlight}>Atelier A Team</span>
+              <span className={styles.teamTitleHighlight}>Atelier A Reality</span>
             </h2>
 
             <p className={styles.teamParagraph}>
-              Behind every cohort, line of review feedback, and breakthrough moment is a dedicated collective
-              of engineers, researchers, and educators who believe engineering craft cannot be taught by pre-recorded slides alone.
+              Behind every line of review feedback, late-night sprint, and cohort breakthrough is an earnest collective
+              of engineers, mentors, and community leads united by a shared obsession with builder culture.
             </p>
 
             <p className={styles.teamParagraph}>
-              From late-night debugging marathons in the MBA block labs to war-room hackathons and mock whiteboard gauntlets,
-              our team works hand-in-hand with every student to make mastery inevitable.
+              We reject passive, detached learning. In our campus labs and virtual war-rooms, our team works
+              shoulder-to-shoulder with fellows to solve hard architectural puzzles, crush technical interviews, and ship real products.
             </p>
 
             <div className={styles.teamStatsPills}>
               <div className={styles.teamStatItem}>
-                <span className={styles.teamStatValue}>50+</span>
+                <span className={styles.teamStatValue}>20+</span>
                 <span className={styles.teamStatLabel}>Mentors & Staff</span>
               </div>
               <div className={styles.teamStatItem}>
-                <span className={styles.teamStatValue}>1,500+</span>
+                <span className={styles.teamStatValue}>500+</span>
                 <span className={styles.teamStatLabel}>Engineers Mentored</span>
               </div>
               <div className={styles.teamStatItem}>
-                <span className={styles.teamStatValue}>94%</span>
-                <span className={styles.teamStatLabel}>Placement Success</span>
+                <span className={styles.teamStatValue}>100+</span>
+                <span className={styles.teamStatLabel}>Production Projects</span>
               </div>
             </div>
           </div>
 
           <div className={styles.teamRightImageWrap}>
             <img
-              src="/images/hackathons/hackwise-community.jpg"
-              alt="The Atelier Community & Mentors"
+              src="https://hackaithon.spherehive.in/team-group.jpeg"
+              onError={(e) => {
+                e.currentTarget.src = "/images/team-group.jpeg";
+              }}
+              alt="The Atelier Collective Team Group"
               className={styles.teamImage}
             />
           </div>
@@ -557,35 +485,32 @@ export default function AboutClient() {
           ========================================================== */}
       <section ref={leadersRef} className={styles.leadersSection}>
         <div className={styles.leadersHeader}>
-          <div className={styles.sectionBadge}>
-            <span className={styles.badgeDot} />
-            LEADERSHIP
-          </div>
+          <div className={styles.badge}>LEADERSHIP</div>
           <h2 className={styles.leadersTitle}>The Leaders Behind The Code</h2>
           <p className={styles.leadersSubtitle}>
-            The engineers, instructors, and system architects guiding your journey from foundation to production.
+            The engineering founders and operators stewarding Atelier's vision, curriculum, and community.
           </p>
         </div>
 
         <div className={styles.tiltedCardsContainer}>
           <div className={styles.leadersGlowOrb} />
 
-          {/* Tilted Card 1: Top Left */}
+          {/* Tilted Card 1: Top Left - Muhammad Arshad R A */}
           <div className={`${styles.tiltedCard} ${styles.tiltedCard1}`}>
             <div className={styles.tiltedCardImageWrap}>
               <img
                 src="/images/campus_speaker.png"
-                alt="Mohammed Suhail"
+                alt="Muhammad Arshad R A"
                 className={styles.tiltedCardImg}
               />
               <div className={styles.tiltedCardOverlay} />
             </div>
             <div className={styles.tiltedCardMeta}>
               <div>
-                <h4 className={styles.tiltedCardName}>Mohammed Suhail</h4>
-                <p className={styles.tiltedCardRole}>Founder & Head of Curriculum</p>
+                <h4 className={styles.tiltedCardName}>Muhammad Arshad R A</h4>
+                <p className={styles.tiltedCardRole}>Founder & CEO of Atelier</p>
               </div>
-              <div className={styles.tiltedCardBadge} title="Verified Lead Mentor">
+              <div className={styles.tiltedCardBadge} title="Verified Leader">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
@@ -593,22 +518,22 @@ export default function AboutClient() {
             </div>
           </div>
 
-          {/* Tilted Card 2: Center Right */}
+          {/* Tilted Card 2: Center Right - C K Aashlesh Kumar */}
           <div className={`${styles.tiltedCard} ${styles.tiltedCard2}`}>
             <div className={styles.tiltedCardImageWrap}>
               <img
                 src="/images/course_mentor_30.png"
-                alt="Arshad Muhammad"
+                alt="C K Aashlesh Kumar"
                 className={styles.tiltedCardImg}
               />
               <div className={styles.tiltedCardOverlay} />
             </div>
             <div className={styles.tiltedCardMeta}>
               <div>
-                <h4 className={styles.tiltedCardName}>Arshad Muhammad</h4>
-                <p className={styles.tiltedCardRole}>Co-Founder & Technical Architect</p>
+                <h4 className={styles.tiltedCardName}>C K Aashlesh Kumar</h4>
+                <p className={styles.tiltedCardRole}>CTO of Atelier</p>
               </div>
-              <div className={styles.tiltedCardBadge} title="Verified Lead Mentor">
+              <div className={styles.tiltedCardBadge} title="Verified Leader">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
@@ -616,22 +541,22 @@ export default function AboutClient() {
             </div>
           </div>
 
-          {/* Tilted Card 3: Bottom Left */}
+          {/* Tilted Card 3: Bottom Left - Srijesh K */}
           <div className={`${styles.tiltedCard} ${styles.tiltedCard3}`}>
             <div className={styles.tiltedCardImageWrap}>
               <img
                 src="/images/avatar2.jpg"
-                alt="Akash Verma"
+                alt="Srijesh K"
                 className={styles.tiltedCardImg}
               />
               <div className={styles.tiltedCardOverlay} />
             </div>
             <div className={styles.tiltedCardMeta}>
               <div>
-                <h4 className={styles.tiltedCardName}>Akash Verma</h4>
-                <p className={styles.tiltedCardRole}>Principal Systems Mentor</p>
+                <h4 className={styles.tiltedCardName}>Srijesh K</h4>
+                <p className={styles.tiltedCardRole}>COO of Atelier</p>
               </div>
-              <div className={styles.tiltedCardBadge} title="Verified Lead Mentor">
+              <div className={styles.tiltedCardBadge} title="Verified Leader">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
@@ -640,44 +565,6 @@ export default function AboutClient() {
           </div>
         </div>
       </section>
-
-      {/* ==========================================================
-          7. GIANT OUTLINE WATERMARK
-          ========================================================== */}
-      <section className={styles.watermarkSection}>
-        <span className={styles.giantOutlineText}>
-          ATELIER
-        </span>
-      </section>
-
-      {/* ==========================================================
-          CINEMA SHOWCASE MODAL
-          ========================================================== */}
-      {isVideoModalOpen && (
-        <div className={styles.modalBackdrop} onClick={() => setIsVideoModalOpen(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setIsVideoModalOpen(false)}
-              className={styles.modalCloseBtn}
-              aria-label="Close modal"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden' }}>
-              <iframe
-                src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"
-                title="Atelier Vision Film"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

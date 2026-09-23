@@ -5,25 +5,26 @@ import AboutClient from './AboutClient';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://atelier.spherehive.com';
 
 export const metadata = {
-  title: 'About Us | Where Dreams Transform Into Code — Atelier',
+  title: 'About Atelier | Where Raw Ambition Meets Engineering Craft',
   description:
-    'Discover the vision, craft, and mentors behind Atelier. India’s premier coding school redefining engineering education through production-grade cohorts and 1:1 elite mentorship.',
+    'Discover the story, philosophy, and engineering leadership behind Atelier — India’s premier software craftsmanship academy at the KVGCE incubation campus.',
   keywords: [
     'About Atelier',
     'Atelier Coding School',
     'Sphere Hive Academy',
-    'Tech Education India',
-    'Coding Bootcamp Mentors',
-    'Full Stack Mentors',
-    'KVGCE Tech Incubation'
+    'Software Craftsmanship India',
+    'Engineering Cohorts',
+    'Full Stack Architecture',
+    'KVGCE Tech Incubation',
+    'Hackwise Hackathons'
   ],
   alternates: {
     canonical: `${SITE_URL}/about`,
   },
   openGraph: {
-    title: 'About Us | Where Dreams Transform Into Code — Atelier',
+    title: 'About Atelier | Where Raw Ambition Meets Engineering Craft',
     description:
-      'Discover the vision, craft, and mentors behind Atelier. Bridging raw ambition with enterprise engineering.',
+      'Discover Atelier: bridging raw ambition with production-grade engineering craft through live cohorts and 1:1 mentorship.',
     url: `${SITE_URL}/about`,
     siteName: 'Atelier - A Sphere Hive Academy',
     images: [
@@ -31,7 +32,7 @@ export const metadata = {
         url: `${SITE_URL}/og-banner.png`,
         width: 1200,
         height: 630,
-        alt: 'About Atelier - Where Dreams Transform Into Code',
+        alt: 'About Atelier - Where Raw Ambition Meets Engineering Craft',
       },
     ],
   },

@@ -4,37 +4,26 @@
 
 .pageContainer {
   position: relative;
-  background-color: #050507;
+  background-color: #000000;
   color: #ffffff;
   overflow-x: clip;
   min-height: 100vh;
 }
 
-/* Common Section Badge Pill */
-.sectionBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 1rem;
-  background: rgba(242, 85, 34, 0.08);
-  border: 1px solid rgba(242, 85, 34, 0.3);
-  border-radius: 9999px;
-  font-family: var(--font-heading);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+/* Badge matching Atelier Landing Page (.badge from Hero & Impact) */
+.badge {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-orange, #f25522);
+  letter-spacing: 0.15em;
+  border: 1px solid rgba(242, 85, 34, 0.4);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  font-family: var(--font-body);
   text-transform: uppercase;
-  color: #ff7744;
-  margin-bottom: 1.25rem;
-  box-shadow: 0 0 20px rgba(242, 85, 34, 0.12);
-}
-
-.badgeDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #f25522;
-  box-shadow: 0 0 8px #f25522;
+  background: transparent;
 }
 
 /* ==========================================================
@@ -42,7 +31,7 @@
    ========================================================== */
 .heroSection {
   position: relative;
-  min-height: 90vh;
+  min-height: 85vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -70,7 +59,6 @@
   z-index: 1;
 }
 
-/* Diagonal Light Beams matching reference screenshot */
 .heroBeamLeft {
   position: absolute;
   top: 0;
@@ -99,7 +87,6 @@
   filter: blur(1px);
 }
 
-/* Subtle Tech Matrix Background Grid */
 .heroGridBg {
   position: absolute;
   inset: 0;
@@ -124,81 +111,113 @@
 
 .heroTitle {
   font-family: var(--font-heading);
-  font-size: clamp(2.5rem, 5.5vw, 4.75rem);
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+  font-size: 4rem;
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 2rem;
+  max-width: 950px;
   color: #ffffff;
-  margin-bottom: 1.5rem;
 }
 
-.heroTitleGradient {
-  display: block;
-  background: linear-gradient(135deg, #ffffff 30%, #ff8e61 75%, #f25522 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 35px rgba(242, 85, 34, 0.35));
+.outlineBox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 100px;
+  height: 5rem;
+  border: 1px solid rgba(242, 85, 34, 0.6);
+  border-radius: 4px;
+  background: rgba(242, 85, 34, 0.05);
+  vertical-align: middle;
+  padding: 0 1.5rem;
+  color: #ffffff;
+  font-weight: 300;
+  margin: 0.5rem 0;
+}
+
+/* Corner handles to mimic the landing page design tool look */
+.outlineBox::before,
+.outlineBox::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--accent-orange);
+  border: 1px solid #fff;
+  z-index: 5;
+}
+
+.outlineBox::before {
+  top: -3px;
+  left: -3px;
+}
+
+.outlineBox::after {
+  bottom: -3px;
+  right: -3px;
 }
 
 .heroSubtitle {
   font-family: var(--font-body);
-  font-size: clamp(1rem, 1.3vw, 1.2rem);
-  line-height: 1.65;
-  color: #a3a3a8;
-  max-width: 680px;
-  margin-bottom: 2.5rem;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  max-width: 650px;
+  line-height: 1.6;
+  margin-bottom: 3rem;
+  font-weight: 400;
 }
 
 .heroActions {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
 }
 
 .primaryCta {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.9rem 2rem;
-  background: #f25522;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%);
   color: #ffffff;
-  font-family: var(--font-heading);
-  font-size: 0.95rem;
-  font-weight: 700;
-  border-radius: 9999px;
-  box-shadow: 0 4px 24px rgba(242, 85, 34, 0.45);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1rem 2.25rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 50px;
+  box-shadow: 0 4px 20px rgba(242, 85, 34, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: var(--font-body);
 }
 
 .primaryCta:hover {
   transform: translateY(-2px);
-  background: #ff6836;
-  box-shadow: 0 8px 32px rgba(242, 85, 34, 0.65);
+  box-shadow: 0 6px 25px rgba(242, 85, 34, 0.5);
 }
 
 .secondaryCta {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.9rem 2rem;
+  gap: 0.75rem;
   background: rgba(18, 18, 22, 0.85);
   color: #e2e2e5;
-  font-family: var(--font-heading);
-  font-size: 0.95rem;
+  font-family: var(--font-body);
+  font-size: 1.1rem;
   font-weight: 600;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 1rem 2.25rem;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .secondaryCta:hover {
   background: rgba(30, 30, 36, 0.95);
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
 }
 
@@ -247,7 +266,6 @@
   transform: scale(1.05);
 }
 
-/* SVG brand logos */
 .logoSvg {
   height: 28px;
   width: auto;
@@ -256,248 +274,94 @@
 }
 
 /* ==========================================================
-   3. MISSION STATEMENT & CINEMA SHOWCASE
+   3. OUR PHILOSOPHY - PINNED TEXT SCRUB REVEAL ANIMATION
    ========================================================== */
-.missionSection {
+.philosophySection {
   position: relative;
-  padding: 7rem 1.5rem 5rem;
-  background: #050507;
-  text-align: center;
-}
-
-.missionContent {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.missionText {
-  font-family: var(--font-heading);
-  font-size: clamp(1.4rem, 2.7vw, 2.35rem);
-  font-weight: 700;
-  line-height: 1.38;
-  letter-spacing: -0.02em;
-  color: #eaeaea;
-  margin: 1.5rem 0 2rem;
-}
-
-.missionHighlight {
-  color: #ffffff;
-  position: relative;
-  display: inline-block;
-}
-
-.visionButton {
-  display: inline-flex;
+  min-height: 100vh;
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.65rem 1.5rem;
-  background: #f25522;
-  color: #ffffff;
-  border-radius: 9999px;
-  font-family: var(--font-heading);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  box-shadow: 0 4px 18px rgba(242, 85, 34, 0.4);
-  transition: all 0.3s ease;
-  margin-bottom: 4rem;
+  justify-content: center;
+  padding: 6rem 1.5rem;
+  background-color: #000000;
+  overflow: hidden;
 }
 
-.visionButton:hover {
-  transform: translateY(-2px);
-  background: #ff6836;
-  box-shadow: 0 8px 26px rgba(242, 85, 34, 0.6);
-}
-
-/* Cinema Showcase Frame matching reference image */
-.showcaseFrameWrap {
-  max-width: 960px;
-  margin: 0 auto;
-  position: relative;
-}
-
-.showcaseFrameGlow {
+.philosophyAmbientGlow {
   position: absolute;
-  inset: -15px;
-  background: radial-gradient(
-    circle at center,
-    rgba(242, 85, 34, 0.22) 0%,
-    transparent 65%
-  );
-  filter: blur(40px);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 700px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(242, 85, 34, 0.12) 0%, transparent 70%);
+  filter: blur(100px);
   pointer-events: none;
   z-index: 0;
 }
 
-.showcaseFrame {
+.philosophyContainer {
   position: relative;
   z-index: 1;
-  background: #0d0d11;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 
-    0 25px 60px -15px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  overflow: hidden;
-}
-
-/* Top Frame Bar with Metallic Glint */
-.showcaseHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1.25rem;
-  background: linear-gradient(180deg, #1b1b22 0%, #121217 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.windowControls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.windowDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #33333d;
-}
-
-.windowDotClose { background: #ff5f56; }
-.windowDotMin { background: #ffbd2e; }
-.windowDotMax { background: #27c93f; }
-
-.frameBrandLockup {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-family: var(--font-heading);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: #d1d1d8;
-  text-transform: uppercase;
-}
-
-.frameMiniLogo {
-  width: 16px;
-  height: 16px;
-  object-fit: contain;
-}
-
-.frameNavLinks {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  font-size: 0.7rem;
-  color: #8a8a95;
-  font-family: var(--font-heading);
-}
-
-/* Inside Screen Body */
-.showcaseScreen {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  background: #08080b;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.showcaseScreenImage {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.75;
-  filter: contrast(110%) saturate(110%);
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
-}
-
-.showcaseFrame:hover .showcaseScreenImage {
-  transform: scale(1.03);
-  opacity: 0.85;
-}
-
-.showcaseScreenOverlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 10, 14, 0.4) 0%,
-    rgba(10, 10, 14, 0.2) 40%,
-    rgba(10, 10, 14, 0.75) 100%
-  );
-  z-index: 1;
-}
-
-.showcaseScreenContent {
-  position: relative;
-  z-index: 2;
+  max-width: 1020px;
+  margin: 0 auto;
   text-align: center;
-  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.showcaseTitleGod {
+.philosophyText {
   font-family: var(--font-heading);
-  font-size: clamp(2rem, 5vw, 4rem);
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #ffffff;
-  line-height: 1.05;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
-}
-
-.showcaseSub God {
-  font-size: 0.85rem;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: #f25522;
+  font-size: clamp(1.8rem, 3.8vw, 3.25rem);
   font-weight: 700;
-  margin-top: 0.5rem;
+  line-height: 1.38;
+  letter-spacing: -0.02em;
+  margin: 1.5rem 0 2rem;
+  text-align: center;
+  user-select: none;
 }
 
-/* Glowing Interactive Play Trigger in bottom right */
-.showcasePlayTrigger {
-  position: absolute;
-  bottom: 24px;
-  right: 28px;
-  z-index: 3;
-  width: 52px;
-  height: 52px;
+.wordSpan {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.charSpan {
+  display: inline;
+  color: rgba(255, 255, 255, 0.12);
+  transition: color 0.08s ease, text-shadow 0.08s ease;
+  will-change: color, text-shadow;
+}
+
+.spaceSpan {
+  display: inline;
+}
+
+.philosophyHint {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.scrollDot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #f25522;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  box-shadow: 0 0 25px #f25522;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 8px #f25522;
+  animation: pulse 1.8s infinite;
 }
 
-.showcasePlayTrigger:hover {
-  transform: scale(1.15);
-  box-shadow: 0 0 40px #ff6836;
-}
-
-.showcaseMetaLeft {
-  position: absolute;
-  bottom: 24px;
-  left: 28px;
-  z-index: 3;
-  text-align: left;
-  font-family: var(--font-heading);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.7);
-  text-transform: uppercase;
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
 }
 
 /* ==========================================================
@@ -505,8 +369,8 @@
    ========================================================== */
 .visionSection {
   position: relative;
-  padding: 6rem 1.5rem;
-  background: #050507;
+  padding: 7rem 1.5rem;
+  background: #000000;
   text-align: center;
 }
 
@@ -665,8 +529,8 @@
    ========================================================== */
 .teamSection {
   position: relative;
-  padding: 6rem 1.5rem;
-  background: #050507;
+  padding: 7rem 1.5rem;
+  background: #000000;
 }
 
 .teamAmbientGlow {
@@ -675,7 +539,7 @@
   top: 30%;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(242, 85, 34, 0.25) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(242, 85, 34, 0.22) 0%, transparent 70%);
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
@@ -721,8 +585,9 @@
 
 .teamStatsPills {
   display: flex;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
+  gap: 2rem;
+  margin-top: 1.75rem;
+  flex-wrap: wrap;
 }
 
 .teamStatItem {
@@ -732,16 +597,17 @@
 
 .teamStatValue {
   font-family: var(--font-heading);
-  font-size: 1.75rem;
+  font-size: 1.85rem;
   font-weight: 800;
   color: #ffffff;
 }
 
 .teamStatLabel {
   font-size: 0.75rem;
-  color: #7d7d88;
+  color: #888894;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  margin-top: 0.2rem;
 }
 
 .teamRightImageWrap {
@@ -772,8 +638,8 @@
    ========================================================== */
 .leadersSection {
   position: relative;
-  padding: 7rem 1.5rem 6rem;
-  background: #050507;
+  padding: 7rem 1.5rem 8rem;
+  background: #000000;
   text-align: center;
 }
 
@@ -805,7 +671,6 @@
   min-height: 850px;
 }
 
-/* Ambient glow orb behind leaders */
 .leadersGlowOrb {
   position: absolute;
   top: 20%;
@@ -843,21 +708,18 @@
   z-index: 10;
 }
 
-/* Position 1: Top Left */
 .tiltedCard1 {
   top: 0;
   left: 5%;
   transform: rotate(-5deg);
 }
 
-/* Position 2: Middle Right */
 .tiltedCard2 {
   top: 240px;
   right: 5%;
   transform: rotate(6deg);
 }
 
-/* Position 3: Bottom Left */
 .tiltedCard3 {
   top: 480px;
   left: 12%;
@@ -942,86 +804,6 @@
 }
 
 /* ==========================================================
-   7. GIANT OUTLINE WATERMARK
-   ========================================================== */
-.watermarkSection {
-  position: relative;
-  padding: 4rem 1rem 0;
-  overflow: hidden;
-  text-align: center;
-  user-select: none;
-  pointer-events: none;
-  background: #050507;
-}
-
-.giantOutlineText {
-  font-family: var(--font-heading);
-  font-size: clamp(4.5rem, 15vw, 15rem);
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  line-height: 0.85;
-  color: transparent;
-  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.12);
-  white-space: nowrap;
-  display: block;
-}
-
-/* ==========================================================
-   VIDEO MODAL / SHOWCASE PREVIEW
-   ========================================================== */
-.modalBackdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.88);
-  backdrop-filter: blur(12px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  animation: fadeIn 0.3s ease;
-}
-
-.modalContent {
-  position: relative;
-  width: 100%;
-  max-width: 860px;
-  background: #0d0d12;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95);
-}
-
-.modalCloseBtn {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 10;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s ease;
-}
-
-.modalCloseBtn:hover {
-  background: #f25522;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* ==========================================================
    RESPONSIVE BREAKPOINTS
    ========================================================== */
 @media (max-width: 1024px) {
@@ -1060,26 +842,22 @@
   }
 
   .heroTitle {
-    font-size: 2.25rem;
+    font-size: 2.35rem;
+    line-height: 1.25;
   }
 
-  .missionText {
-    font-size: 1.35rem;
+  .outlineBox {
+    height: 3.5rem;
+    padding: 0 1rem;
+    font-size: 1.85rem;
+    margin: 0.35rem 0;
+  }
+
+  .philosophyText {
+    font-size: 1.55rem;
   }
 
   .teamTitle {
     font-size: 2rem;
-  }
-
-  .showcasePlayTrigger {
-    width: 44px;
-    height: 44px;
-    bottom: 16px;
-    right: 16px;
-  }
-
-  .showcaseMetaLeft {
-    bottom: 16px;
-    left: 16px;
   }
 }
