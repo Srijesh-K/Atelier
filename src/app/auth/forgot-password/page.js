@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { requestPasswordReset, verifyAndResetPassword } from '../../actions';
+import { requestPasswordReset, verifyAndResetPassword, resendPasswordResetOtp } from '../../actions';
 import styles from '../auth.module.css';
 
 function getStrength(pw) {
@@ -18,20 +17,36 @@ function getStrength(pw) {
 }
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const [step, setStep] = useState(1); // 1: request code, 2: verify & reset, 3: success
   const [email, setEmail] = useState('');
+  const [stateId, setStateId] = useState('');
   const [code, setCode] = useState('');
-  const [demoCode, setDemoCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [countdown, setCountdown] = useState(60);
+  const timerRef = useRef(null);
 
   const strength = useMemo(() => getStrength(password), [password]);
 
-  // Step 1: Request 6-digit code
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    if (step === 2 && countdown > 0) {
+      timerRef.current = setTimeout(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearTimeout(timerRef.current);
+  }, [step, countdown]);
+
+  const startCountdown = () => {
+    setCountdown(60);
+  };
+
+  // Step 1: Request 6-digit code via MojoAuth email
   const handleRequestCode = async (e) => {
     e.preventDefault();
     setError('');
@@ -39,33 +54,57 @@ export default function ForgotPasswordPage() {
 
     try {
       const res = await requestPasswordReset(email.trim());
-      if (res && res.success) {
-        if (res.code) {
-          setDemoCode(res.code);
-        }
+      if (res && res.success && res.stateId) {
+        setStateId(res.stateId);
         setStep(2);
+        setCode('');
+        startCountdown();
       } else {
-        setError(res?.error || "We couldn't process this request. Please check the email address and try again.");
+        setError(res?.error || "We couldn't process this request. Please check your email address and try again.");
       }
     } catch (err) {
       const msg = err?.message || '';
       if (msg.includes('Server Components render') || msg.includes('digest')) {
         setError("No account found with this email address. Please check your spelling or sign up.");
       } else {
-        setError(msg || "We couldn't process this request. Please check the email address and try again.");
+        setError(msg || "We couldn't process this request. Please check your email address and try again.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 2: Verify code and update password
+  // Resend code handler
+  const handleResendCode = async () => {
+    if (countdown > 0 || resending) return;
+    setError('');
+    setResending(true);
+
+    try {
+      const res = await resendPasswordResetOtp(stateId, email.trim());
+      if (res && res.success) {
+        if (res.state_id || res.stateId) {
+          setStateId(res.state_id || res.stateId);
+        }
+        startCountdown();
+      } else {
+        setError(res?.error || 'Failed to resend verification code. Please try again.');
+      }
+    } catch (err) {
+      setError(err?.message || 'Failed to resend verification code.');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  // Step 2: Verify code and reset password
   const handleVerifyAndReset = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (code.trim().length !== 6) {
-      setError('Please enter the 6-digit verification code.');
+    const cleanCode = code.trim();
+    if (cleanCode.length !== 6) {
+      setError('Please enter the complete 6-digit verification code.');
       return;
     }
 
@@ -82,7 +121,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const res = await verifyAndResetPassword(email.trim(), code.trim(), password);
+      const res = await verifyAndResetPassword(email.trim(), cleanCode, password, stateId);
       if (res && res.success) {
         setStep(3);
       } else {
@@ -93,7 +132,7 @@ export default function ForgotPasswordPage() {
       if (msg.includes('Server Components render') || msg.includes('digest')) {
         setError('Invalid or expired verification code. Please try again.');
       } else {
-        setError(msg || 'Invalid or expired verification code. Please try again.');
+        setError(msg || 'Failed to reset password. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -109,23 +148,23 @@ export default function ForgotPasswordPage() {
       {/* Form card */}
       <div className={styles.card}>
         <div className={styles.badge}>
-          {step === 1 ? 'PASSWORD RECOVERY' : step === 2 ? 'STEP 2 OF 2' : 'SUCCESS'}
+          {step === 1 ? 'PASSWORD RECOVERY' : step === 2 ? 'VERIFY & RESET' : 'SUCCESS'}
         </div>
 
         {step === 1 && (
           <>
             <h1 className={styles.heading}>Forgot password?</h1>
             <p className={styles.subtext}>
-              Enter your account email and we&apos;ll issue a 6-digit verification code to reset your password.
+              Enter your account email and we&apos;ll send a 6-digit verification code to reset your password.
             </p>
 
             <form onSubmit={handleRequestCode}>
               {error && (
                 <div className={styles.errorBanner}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                   <span>{error}</span>
                 </div>
@@ -146,16 +185,26 @@ export default function ForgotPasswordPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
+                    autoFocus
                   />
                 </div>
               </div>
 
               <button type="submit" className={styles.submitBtn} disabled={loading}>
-                {loading ? 'Sending Code...' : 'Send Verification Code'}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12 5 19 12 12 19" />
-                </svg>
+                {loading ? (
+                  <span className={styles.btnContent}>
+                    <span className={styles.spinner} />
+                    Sending Code...
+                  </span>
+                ) : (
+                  <span className={styles.btnContent}>
+                    Send Verification Code
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                      <polyline points="12 5 19 12 12 19" />
+                    </svg>
+                  </span>
+                )}
               </button>
             </form>
           </>
@@ -165,27 +214,42 @@ export default function ForgotPasswordPage() {
           <>
             <h1 className={styles.heading}>Reset your password</h1>
             <p className={styles.subtext}>
-              We sent a verification code to <strong style={{ color: '#ffffff' }}>{email}</strong>.
+              Enter the 6-digit verification code sent to your email and create a new password.
             </p>
 
-            {/* Developer / Demo convenience banner */}
-            <div className={styles.infoBanner}>
-              <span>Demo verification code:</span>
-              <span className={styles.codeBadge}>{demoCode || '123456'}</span>
+            {/* Email destination indicator */}
+            <div className={styles.otpTargetCard}>
+              <div className={styles.otpTargetInfo}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                <span className={styles.otpEmailText}>{email}</span>
+              </div>
+              <button
+                type="button"
+                className={styles.otpChangeBtn}
+                onClick={() => {
+                  setStep(1);
+                  setError('');
+                }}
+              >
+                Change
+              </button>
             </div>
 
-            <form onSubmit={handleVerifyAndReset}>
-              {error && (
-                <div className={styles.errorBanner}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                  <span>{error}</span>
-                </div>
-              )}
+            {error && (
+              <div className={styles.errorBanner}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
 
+            <form onSubmit={handleVerifyAndReset}>
               <div className={styles.fieldGroup}>
                 {/* 6-digit Code */}
                 <div className={styles.field}>
@@ -196,6 +260,7 @@ export default function ForgotPasswordPage() {
                     id="verification-code"
                     className={styles.codeInput}
                     type="text"
+                    inputMode="numeric"
                     maxLength={6}
                     required
                     placeholder="••••••"
@@ -204,6 +269,31 @@ export default function ForgotPasswordPage() {
                     disabled={loading}
                     autoFocus
                   />
+                </div>
+
+                {/* Resend actions row */}
+                <div className={styles.otpActionsRow}>
+                  <span className={styles.otpTimerText}>
+                    {countdown > 0 ? (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        Resend code in {countdown}s
+                      </>
+                    ) : (
+                      "Didn't receive code?"
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.otpResendBtn}
+                    onClick={handleResendCode}
+                    disabled={countdown > 0 || resending}
+                  >
+                    {resending ? 'Sending...' : 'Resend Code'}
+                  </button>
                 </div>
 
                 {/* New Password */}
@@ -237,7 +327,7 @@ export default function ForgotPasswordPage() {
                         </svg>
                       ) : (
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z" />
                           <circle cx="12" cy="12" r="3" />
                         </svg>
                       )}
@@ -282,37 +372,28 @@ export default function ForgotPasswordPage() {
               </div>
 
               <button type="submit" className={styles.submitBtn} disabled={loading}>
-                {loading ? 'Updating Password...' : 'Save New Password'}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12 5 19 12 12 19" />
-                </svg>
+                {loading ? (
+                  <span className={styles.btnContent}>
+                    <span className={styles.spinner} />
+                    Updating Password...
+                  </span>
+                ) : (
+                  <span className={styles.btnContent}>
+                    Save New Password
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                      <polyline points="12 5 19 12 12 19" />
+                    </svg>
+                  </span>
+                )}
               </button>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.25rem' }}>
-                <button
-                  type="button"
-                  onClick={() => { setStep(1); setError(''); }}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255, 255, 255, 0.45)', cursor: 'pointer', fontSize: '0.85rem' }}
-                >
-                  &larr; Change email
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRequestCode}
-                  disabled={loading}
-                  style={{ background: 'none', border: 'none', color: 'var(--accent-orange)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}
-                >
-                  Resend code
-                </button>
-              </div>
             </form>
           </>
         )}
 
         {step === 3 && (
-          <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(52, 199, 89, 0.12)', border: '1px solid rgba(52, 199, 89, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#5cdb7a' }}>
+          <div className={styles.successCard}>
+            <div className={styles.successIconWrap}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -322,11 +403,13 @@ export default function ForgotPasswordPage() {
               Your account password has been successfully reset. You can now sign in with your new credentials.
             </p>
             <Link href="/auth/signin" className={styles.submitBtn}>
-              Sign In Now
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
+              <span className={styles.btnContent}>
+                Sign In Now
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </span>
             </Link>
           </div>
         )}

@@ -185,22 +185,43 @@
   height: 18px;
 }
 
-/* ─── Row helpers ─── */
+/* ─── Field Row (multi-column fields e.g. First / Last name) ─── */
 .row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.75rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
-.checkLabel {
+.row .field {
+  flex: 1;
+}
+
+/* ─── Options row (Remember me & Forgot password) ─── */
+.optionsRow {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: -0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.checkboxLabel,
+.checkLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
   user-select: none;
+  transition: color 0.2s ease;
+}
+
+.checkboxLabel:hover,
+.checkLabel:hover {
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .checkbox {
@@ -208,17 +229,22 @@
   height: 16px;
   accent-color: var(--accent-orange);
   cursor: pointer;
+  border-radius: 4px;
+  margin: 0;
+  vertical-align: middle;
 }
 
 .forgotLink {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.45);
-  transition: color 0.25s ease;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.2s ease;
   font-weight: 500;
+  text-decoration: none;
 }
 
 .forgotLink:hover {
   color: var(--accent-orange);
+  text-decoration: underline;
 }
 
 /* ─── Primary submit button (Custom Workbench Style) ─── */
@@ -289,6 +315,32 @@
 
 .submitBtn:hover svg {
   transform: translateX(4px);
+}
+
+.btnContent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ─── Divider ─── */
@@ -832,5 +884,25 @@
   color: rgba(255, 255, 255, 0.25);
   cursor: not-allowed;
 }
+
+/* ─── Success state card ─── */
+.successCard {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.successIconWrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(52, 199, 89, 0.12);
+  border: 1px solid rgba(52, 199, 89, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: #5cdb7a;
+}
+
 
 

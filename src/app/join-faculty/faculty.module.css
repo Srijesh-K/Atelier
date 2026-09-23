@@ -179,6 +179,7 @@
 .whatIsSection {
   padding: 5rem 0 6rem 0;
   position: relative;
+  z-index: 1;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -295,10 +296,16 @@
 .benefitsSectionLight {
   background-color: var(--section-light-bg, #fff3ef);
   color: var(--section-light-text, #1a1a1a);
-  padding: 6.5rem 0;
+  border-top-left-radius: 30px;
+  border-top-right-radius: 30px;
+  border-bottom-left-radius: 30px;
+  border-bottom-right-radius: 30px;
+  margin-top: -30px;
+  margin-bottom: -30px;
   position: relative;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  z-index: 10;
+  overflow: hidden;
+  padding: 7rem 0;
 }
 
 .sectionBadgeLight {
@@ -399,8 +406,9 @@
 
 /* ─── Teaching Tracks Section (Dark) ─── */
 .tracksSection {
-  padding: 6rem 0;
+  padding: 6.5rem 0 5rem 0;
   position: relative;
+  z-index: 1;
 }
 
 .tracksGrid {
@@ -539,9 +547,13 @@
   -webkit-backdrop-filter: blur(14px);
   z-index: 1000;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 2.5rem 1.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -555,20 +567,44 @@
 }
 
 .modalCard {
+  margin: auto 0;
   background: #08080c;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   max-width: 780px;
   width: 100%;
-  max-height: 90vh;
-  max-height: 90dvh;
+  max-height: calc(100vh - 5rem);
+  max-height: calc(100dvh - 5rem);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 2.75rem 2.5rem;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(242, 85, 34, 0.1);
   position: relative;
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
   animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(242, 85, 34, 0.45) rgba(255, 255, 255, 0.04);
+}
+
+.modalCard::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modalCard::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
+.modalCard::-webkit-scrollbar-thumb {
+  background: rgba(242, 85, 34, 0.45);
+  border-radius: 8px;
+}
+
+.modalCard::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-orange, #f25522);
 }
 
 @keyframes modalSlideUp {
@@ -921,12 +957,30 @@
     font-size: 2.25rem;
   }
 
-  .whatIsSection, .benefitsSectionLight, .tracksSection {
+  .whatIsSection, .tracksSection {
     padding: 4.5rem 0;
   }
 
+  .benefitsSectionLight {
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    margin-top: -20px;
+    margin-bottom: -20px;
+    padding: 5rem 0;
+  }
+
+  .modalOverlay {
+    padding: 1rem 0.65rem;
+    align-items: flex-start;
+  }
+
   .modalCard {
-    padding: 2rem 1.25rem;
+    padding: 1.75rem 1.15rem;
+    max-height: calc(100dvh - 2rem);
+    border-radius: 16px;
+    margin: 0;
   }
 
   .formRow {

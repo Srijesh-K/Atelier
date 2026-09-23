@@ -1470,30 +1470,24 @@ export async function requestPasswordReset(email) {
       return { success: false, error: "Please enter a valid email address." };
     }
 
-    const rows = await query("SELECT id, name, auth_provider FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
+    const rows = await query(
+      "SELECT id, name, auth_provider FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1",
+      [cleanEmail, cleanEmail]
+    );
     if (rows.length === 0) {
       return { success: false, error: "No account found with this email address. Please check your spelling or sign up." };
     }
 
-    const student = rows[0];
-    if (student.auth_provider && student.auth_provider !== 'credentials') {
-      const providerName = student.auth_provider === 'google' ? 'Google' : 'GitHub';
-      return { success: false, error: `This account signs in with ${providerName}. Please sign in with ${providerName} directly.` };
+    // Dispatch real email OTP via MojoAuth to student's email
+    const otpRes = await sendEmailOtp(cleanEmail);
+    if (!otpRes.success) {
+      return { success: false, error: otpRes.error || "Failed to send verification code. Please try again." };
     }
-
-    // Generate a secure 6-digit verification code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = String(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-    await execute(
-      "UPDATE atelier_students SET reset_code = ?, reset_code_expires = ? WHERE email = ? OR LOWER(email) = ?",
-      [code, expires, cleanEmail, cleanEmail]
-    );
 
     return {
       success: true,
       email: cleanEmail,
-      code, // returned so UI in dev/testing can provide helpful autofill or demo display
+      stateId: otpRes.state_id,
       message: "Verification code sent to your email address."
     };
   } catch (e) {
@@ -1502,32 +1496,39 @@ export async function requestPasswordReset(email) {
   }
 }
 
-export async function verifyAndResetPassword(email, code, newPassword) {
+export async function verifyAndResetPassword(email, code, newPassword, stateId) {
   try {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanCode = (code || '').trim();
+    const cleanStateId = (stateId || '').trim();
 
     if (!cleanEmail || !cleanCode) {
       return { success: false, error: "Email and verification code are required." };
+    }
+    if (!cleanStateId) {
+      return { success: false, error: "Verification session has expired. Please request a new code." };
     }
     if (!newPassword || newPassword.length < 8) {
       return { success: false, error: "Password must be at least 8 characters long." };
     }
 
-    const rows = await query("SELECT id, reset_code, reset_code_expires FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1", [cleanEmail, cleanEmail]);
+    // Verify OTP code with MojoAuth
+    const verifyRes = await verifyEmailOtp(cleanCode, cleanStateId);
+    if (!verifyRes.success) {
+      return { success: false, error: verifyRes.error || "Invalid or expired verification code." };
+    }
+
+    const rows = await query(
+      "SELECT id FROM atelier_students WHERE email = ? OR LOWER(email) = ? LIMIT 1",
+      [cleanEmail, cleanEmail]
+    );
     if (rows.length === 0) {
       return { success: false, error: "No account found with this email address." };
     }
 
     const student = rows[0];
-    const isMasterCode = cleanCode === '123456';
-    const isCodeValid = student.reset_code && student.reset_code.trim() === cleanCode;
-    const isExpired = student.reset_code_expires && Date.now() > Number(student.reset_code_expires);
 
-    if (!isMasterCode && (!isCodeValid || isExpired)) {
-      return { success: false, error: "Invalid or expired verification code. Please request a new one." };
-    }
-
+    // Update password in database and clear legacy reset code fields
     await execute(
       "UPDATE atelier_students SET password = ?, reset_code = NULL, reset_code_expires = NULL WHERE id = ?",
       [newPassword, student.id]
@@ -1537,6 +1538,24 @@ export async function verifyAndResetPassword(email, code, newPassword) {
   } catch (e) {
     console.error("Password reset verification error:", e.message);
     return { success: false, error: e.message || "Failed to reset password." };
+  }
+}
+
+export async function resendPasswordResetOtp(stateId, email) {
+  try {
+    if (stateId) {
+      const res = await resendEmailOtp(stateId);
+      if (res && res.success) {
+        return res;
+      }
+    }
+    if (email) {
+      return await requestPasswordReset(email);
+    }
+    return { success: false, error: "Unable to resend verification code. Please start again." };
+  } catch (e) {
+    console.error("resendPasswordResetOtp error:", e.message);
+    return { success: false, error: e.message || "Failed to resend code." };
   }
 }
 

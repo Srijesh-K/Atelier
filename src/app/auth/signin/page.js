@@ -18,11 +18,17 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(60);
+  const [rememberMe, setRememberMe] = useState(true);
   const [redirectTo, setRedirectTo] = useState('/dashboard');
   const timerRef = useRef(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('atelier_remember_email');
+      if (savedEmail) {
+        setEmail(savedEmail);
+      }
+
       const params = new URLSearchParams(window.location.search);
       const target = params.get('redirectTo');
       const urlError = params.get('error');
@@ -98,6 +104,11 @@ export default function SignInPage() {
       if (res && res.success !== false && (res.student || res.email)) {
         const student = res.student || res;
         localStorage.setItem('loggedInStudentEmail', student.email);
+        if (rememberMe) {
+          localStorage.setItem('atelier_remember_email', student.email);
+        } else {
+          localStorage.removeItem('atelier_remember_email');
+        }
         localStorage.setItem('studentProfile', JSON.stringify({
           name: student.name,
           email: student.email,
@@ -249,7 +260,12 @@ export default function SignInPage() {
               {/* Remember / Forgot */}
               <div className={styles.optionsRow}>
                 <label className={styles.checkboxLabel}>
-                  <input type="checkbox" className={styles.checkbox} defaultChecked />
+                  <input
+                    type="checkbox"
+                    className={styles.checkbox}
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
                   <span>Remember me</span>
                 </label>
                 <Link href="/auth/forgot-password" className={styles.forgotLink}>

@@ -404,10 +404,14 @@ export default function JoinFacultyPage() {
             onClick={() => setIsFormOpen(false)}
             role="dialog"
             aria-modal="true"
+            data-lenis-prevent="true"
           >
             <div 
               className={styles.modalCard}
               onClick={(e) => e.stopPropagation()}
+              onWheel={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+              data-lenis-prevent="true"
             >
               <div className={styles.modalHeader}>
                 <div className={styles.modalTitleGroup}>
