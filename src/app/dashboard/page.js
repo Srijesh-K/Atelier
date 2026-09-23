@@ -146,6 +146,8 @@ export default function StudentDashboard({ activeCourseId = 1, enrolledCourses =
     { id: 5, label: 'System Design Root', x: 250, y: 295, status: 'locked' }
   ];
 
+  const activeNodeObj = nodes.find((n) => n.id === activeNode) || nodes[1] || nodes[0];
+
   const getCodeSnippet = () => {
     if (currentCourseId === 2) {
       switch (activeNode) {
@@ -285,16 +287,7 @@ function lockedNode() {
   if (enrolledList.length === 0) {
     return (
       <div className={styles.bentoContainer} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '65vh' }}>
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '16px',
-          padding: '3.5rem 2rem',
-          textAlign: 'center',
-          maxWidth: '620px',
-          width: '100%',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
-        }}>
+        <div className={styles.emptyStateCard}>
           <div style={{
             width: '56px',
             height: '56px',
@@ -352,24 +345,7 @@ function lockedNode() {
     <div className={styles.bentoContainer}>
       {/* Dynamic Toast Feedback */}
       {toastMessage && (
-        <div style={{
-          position: 'fixed',
-          top: '5rem',
-          right: '2rem',
-          background: '#08080a',
-          border: '1px solid var(--accent-orange)',
-          padding: '0.85rem 1.25rem',
-          borderRadius: '8px',
-          color: '#ffffff',
-          zIndex: 1000,
-          boxShadow: '0 12px 36px rgba(0,0,0,0.8), 0 0 20px rgba(242, 85, 34, 0.2)',
-          fontFamily: 'var(--font-heading)',
-          fontSize: '0.85rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.65rem',
-          animation: 'fadeIn 0.2s ease'
-        }}>
+        <div className={styles.dashboardToast}>
           <span style={{ color: 'var(--accent-orange)' }}>◆</span>
           <span>{toastMessage}</span>
         </div>
@@ -474,6 +450,36 @@ function lockedNode() {
               })}
             </svg>
           </div>
+
+          {/* Touch-friendly Node Milestone Indicators (especially for mobile without hover) */}
+          <div className={styles.treeActiveInfo}>
+            <div className={styles.treeActiveHeader}>
+              <span className={styles.treeActiveTag}>
+                {activeNodeObj?.status === 'completed' ? 'Completed Node' : activeNodeObj?.status === 'active' ? 'Active Topic' : 'Locked Node'}
+              </span>
+              <span className={styles.treeActiveTitle}>Node {activeNode}: {activeNodeObj?.label}</span>
+            </div>
+            <div className={styles.treeNodePills}>
+              {nodes.map((node) => {
+                const isSelected = node.id === activeNode;
+                const isClickable = node.id <= 2;
+                return (
+                  <button
+                    key={node.id}
+                    type="button"
+                    className={`${styles.treeNodePill} ${isSelected ? styles.treeNodePillActive : ''} ${!isClickable ? styles.treeNodePillDisabled : ''}`}
+                    onClick={() => {
+                      if (isClickable) setActiveNode(node.id);
+                    }}
+                    title={node.label}
+                  >
+                    <span className={styles.treeNodePillNum}>{node.id}</span>
+                    <span className={styles.treeNodePillText}>{node.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* IDE active code workbench */}
@@ -486,11 +492,11 @@ function lockedNode() {
               </svg>
               Interactive Code Preview
             </h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div className={styles.ideHeaderActions}>
               <span className={styles.cardHeaderAction} onClick={handleCopyCode}>
                 {copiedCode ? '✓ Copied' : 'Copy Code'}
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+              <span className={styles.ideFileBadge}>
                 {getFilename().split('/').pop()}
               </span>
             </div>
@@ -615,11 +621,11 @@ function lockedNode() {
       {/* Mentor Support slide-out Drawer overlay */}
       {showDrawer && (
         <div 
-          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.2s ease' }}
+          className={styles.mentorDrawerOverlay}
           onClick={() => setShowDrawer(false)}
         >
           <div 
-            style={{ width: '100%', maxWidth: '420px', height: '100vh', background: '#08080a', borderLeft: '1px solid rgba(255,255,255,0.08)', padding: '2.5rem', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', boxShadow: '-12px 0 40px rgba(0,0,0,0.8)' }}
+            className={styles.mentorDrawerContent}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>

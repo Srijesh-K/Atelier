@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import LegalToc from '@/components/LegalToc';
 import styles from '../legal.module.css';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier.spherehive.com";
@@ -101,7 +102,7 @@ export default function TermsPage() {
           {/* Two-Column Layout */}
           <div className={styles.layoutGrid}>
             {/* Sticky Sidebar Navigation */}
-            <aside className={styles.sidebar}>
+            <aside className={styles.sidebar} data-lenis-prevent="true">
               <div className={styles.tocCard}>
                 <div className={styles.tocTitle}>
                   <span>Table of Contents</span>
@@ -114,15 +115,7 @@ export default function TermsPage() {
                     <line x1="3" y1="18" x2="3.01" y2="18" />
                   </svg>
                 </div>
-                <ul className={styles.tocList}>
-                  {TOC_ITEMS.map((item) => (
-                    <li key={item.id}>
-                      <a href={`#${item.id}`} className={styles.tocLink}>
-                        {item.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+                <LegalToc items={TOC_ITEMS} styles={styles} />
               </div>
 
               <div className={styles.sidebarMetaCard}>

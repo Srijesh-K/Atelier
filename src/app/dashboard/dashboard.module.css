@@ -304,6 +304,28 @@
   display: none;
 }
 
+.mobileCloseBtn {
+  display: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.mobileCloseBtn:hover {
+  background: rgba(242, 85, 34, 0.15);
+  border-color: rgba(242, 85, 34, 0.4);
+  color: var(--accent-orange);
+}
+
 .bgGrid {
   position: fixed;
   top: 0;
@@ -349,12 +371,37 @@
   z-index: 30;
 }
 
+.headerPrimaryRow {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.headerControlsRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.desktopHeaderMetrics {
+  display: flex;
+  align-items: center;
+}
+
+.mobileHeaderMetric {
+  display: none;
+}
+
 .pageTitle {
   font-family: var(--font-heading);
   font-size: 1.35rem;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ─── Workspace Dropdown Selector ─── */
@@ -731,8 +778,123 @@
 .treeNode:hover .treeNodeCircle {
   transform: scale(1.12);
   transform-origin: center;
-  stroke-color: var(--accent-orange);
+  stroke: var(--accent-orange);
   stroke-width: 4;
+}
+
+/* ─── Roadmap Active Node Pill Indicators (Touch & Mobile Friendly) ─── */
+.treeActiveInfo {
+  width: 100%;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.treeActiveHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.treeActiveTag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(242, 85, 34, 0.12);
+  border: 1px solid rgba(242, 85, 34, 0.3);
+  color: var(--accent-orange);
+}
+
+.treeActiveTitle {
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.treeNodePills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.35rem;
+}
+
+.treeNodePills::-webkit-scrollbar {
+  height: 4px;
+}
+
+.treeNodePills::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.treeNodePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.38rem 0.7rem;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.treeNodePill:hover:not(.treeNodePillDisabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.treeNodePillActive {
+  background: rgba(242, 85, 34, 0.15);
+  border-color: var(--accent-orange);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(242, 85, 34, 0.2);
+}
+
+.treeNodePillDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.treeNodePillNum {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.treeNodePillActive .treeNodePillNum {
+  background: var(--accent-orange);
+  color: #000000;
+}
+
+.treeNodePillText {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ─── Target Code IDE Workbench ─── */
@@ -754,6 +916,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.ideHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.ideFileBadge {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
 }
 
 .ideWindowControls {
@@ -1908,6 +2086,73 @@
   width: fit-content;
 }
 
+/* ─── Mentor Drawer Modal ─── */
+.mentorDrawerOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease;
+}
+
+.mentorDrawerContent {
+  width: 100%;
+  max-width: 440px;
+  height: 100vh;
+  height: 100dvh;
+  background: #08080a;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.8);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Dashboard Dynamic Toast ─── */
+.dashboardToast {
+  position: fixed;
+  top: 5rem;
+  right: 2rem;
+  background: #08080a;
+  border: 1px solid var(--accent-orange);
+  padding: 0.85rem 1.25rem;
+  border-radius: 8px;
+  color: #ffffff;
+  z-index: 1000;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.8), 0 0 20px rgba(242, 85, 34, 0.2);
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  animation: fadeIn 0.2s ease;
+}
+
+/* ─── Empty State Card ─── */
+.emptyStateCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 3.5rem 2rem;
+  text-align: center;
+  max-width: 620px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
 /* ─── Responsive Media Queries ─── */
 @media (max-width: 1150px) {
   .shell {
@@ -1931,6 +2176,7 @@
   }
   .bentoContainer {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
   .liveContentSplit {
     grid-template-columns: 1fr;
@@ -1943,6 +2189,14 @@
 @media (max-width: 850px) {
   .mobileMenuToggle {
     display: flex;
+  }
+
+  .mobileCloseBtn {
+    display: flex;
+  }
+
+  .collapseBtn {
+    display: none !important;
   }
 
   .mobileBackdrop {
@@ -1973,7 +2227,8 @@
     top: 0;
     left: 0;
     bottom: 0;
-    width: 260px;
+    width: 280px;
+    max-width: 85vw;
     height: 100vh;
     height: 100dvh;
     z-index: 90;
@@ -1990,20 +2245,20 @@
   .sidebarMobileOpen .logoText,
   .sidebarMobileOpen .userInfo,
   .sidebarMobileOpen .navLabel {
-    display: flex;
-    opacity: 1;
-    max-width: 160px;
+    display: flex !important;
+    opacity: 1 !important;
+    max-width: 180px !important;
   }
 
   .sidebarMobileOpen .navLink {
-    justify-content: flex-start;
-    padding: 0.75rem 0.95rem;
+    justify-content: flex-start !important;
+    padding: 0.85rem 1rem !important;
   }
 
   .sidebarMobileOpen .sidebarHeader,
   .sidebarMobileOpen .sidebarFooter {
-    justify-content: flex-start;
-    padding: 1.25rem 1rem;
+    justify-content: flex-start !important;
+    padding: 1.25rem 1.15rem !important;
   }
 
   .contentArea {
@@ -2017,25 +2272,101 @@
   }
 
   .topHeader {
-    padding: 0.75rem 1rem;
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: 0.75rem;
-    flex-wrap: wrap;
   }
 
-  .courseSelectorWrapper {
-    flex: 1;
-    min-width: 0;
+  .headerPrimaryRow {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .pageTitle {
+    flex: 1;
+    font-size: 1.2rem;
+    margin: 0;
+  }
+
+  .mobileHeaderMetric {
+    display: flex;
+    align-items: center;
+  }
+
+  .desktopHeaderMetrics {
+    display: none;
+  }
+
+  .headerControlsRow {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .customDropdownWrapper {
+    width: 100%;
+  }
+
+  .dropdownToggle {
+    width: 100%;
+    justify-content: space-between;
+    box-sizing: border-box;
+    padding: 0.55rem 0.95rem;
+  }
+
+  .dropdownMenu {
+    width: 100%;
+    min-width: 0;
+    max-width: calc(100vw - 2.5rem);
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+  }
+
+  .bentoContainer {
+    padding: 1.25rem;
+    gap: 1.25rem;
+  }
+
+  .cardPanel {
+    padding: 1.35rem 1.25rem;
+    border-radius: 12px;
+  }
+
+  .cohortBarWrapper {
+    padding: 0.85rem 1rem;
+  }
+
+  .cohortPillsRow {
     gap: 0.5rem;
   }
 
-  .headerMetrics {
-    margin-left: auto;
+  .mentorDrawerContent {
+    max-width: 100%;
+    padding: 2rem 1.5rem;
+    border-left: none;
   }
 
-  .bentoContainer, .simplePageWrapper {
+  .dashboardToast {
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-width: calc(100vw - 2rem);
+    margin: 0 auto;
+    justify-content: center;
+  }
+
+  .profileInput, .profileTextarea {
+    font-size: 16px !important;
+  }
+
+  .simplePageWrapper {
     padding: 1.25rem;
   }
 
@@ -2053,6 +2384,72 @@
 }
 
 @media (max-width: 600px) {
+  .topHeader {
+    padding: 0.75rem 1rem;
+    gap: 0.65rem;
+  }
+
+  .pageTitle {
+    font-size: 1.1rem;
+  }
+
+  .bentoContainer {
+    padding: 1rem 0.75rem;
+    gap: 1rem;
+  }
+
+  .cardPanel {
+    padding: 1.15rem 0.95rem;
+  }
+
+  .cardPanelHeader {
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .cardTitle {
+    font-size: 1.05rem;
+  }
+
+  .cohortBarLabel {
+    font-size: 0.75rem;
+  }
+
+  .cohortBarHint {
+    font-size: 0.72rem;
+  }
+
+  .cohortPill {
+    padding: 0.45rem 0.8rem;
+    font-size: 0.78rem;
+  }
+
+  .ideWrapper {
+    height: 270px;
+  }
+
+  .ideHeaderActions {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .ideCodeArea {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.78rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ideGutter {
+    width: 32px;
+    font-size: 0.72rem;
+  }
+
+  .emptyStateCard {
+    padding: 2.25rem 1.25rem;
+    border-radius: 12px;
+  }
+
   .onboardWrapper {
     padding: 1.5rem 0.85rem;
     align-items: flex-start;
@@ -2080,16 +2477,89 @@
     font-size: 0.9rem;
   }
 
+  .simplePageWrapper {
+    padding: 1rem 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
   .topHeader {
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 0.75rem;
   }
 
   .pageTitle {
-    font-size: 1.1rem;
+    font-size: 1.02rem;
   }
 
-  .bentoContainer, .simplePageWrapper {
-    padding: 1rem 0.75rem;
+  .metricItem {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.78rem;
+  }
+
+  .bentoContainer {
+    padding: 0.75rem 0.5rem;
+    gap: 0.85rem;
+  }
+
+  .cardPanel {
+    padding: 1rem 0.8rem;
+  }
+
+  .cardTitle {
+    font-size: 0.98rem;
+  }
+
+  .cohortBarHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .cohortPillsRow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.35rem;
+    width: 100%;
+  }
+
+  .cohortPillsRow::-webkit-scrollbar {
+    height: 3px;
+  }
+
+  .cohortPill {
+    flex-shrink: 0;
+  }
+
+  .treeNodePills {
+    gap: 0.35rem;
+  }
+
+  .treeNodePill {
+    padding: 0.32rem 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  .mentorDrawerContent {
+    padding: 1.5rem 1.15rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .pageTitle {
+    font-size: 0.95rem;
+  }
+
+  .topHeader {
+    padding: 0.55rem 0.5rem;
+  }
+
+  .bentoContainer {
+    padding: 0.65rem 0.35rem;
+  }
+
+  .cardPanel {
+    padding: 0.85rem 0.65rem;
   }
 }
 

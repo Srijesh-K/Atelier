@@ -317,6 +317,17 @@ export default function DashboardLayout({ children }) {
             <span className={styles.brandName}>Atelier</span>
             <span className={styles.brandSub}>Workspace</span>
           </div>
+          <button 
+            type="button"
+            className={styles.mobileCloseBtn} 
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
 
         <nav className={styles.sidebarNav}>
@@ -374,34 +385,49 @@ export default function DashboardLayout({ children }) {
         <div className={styles.glow} />
 
         <header className={styles.topHeader}>
-          {/* Mobile hamburger button */}
-          <button 
-            className={styles.mobileMenuToggle}
-            onClick={() => setMobileNavOpen(!mobileNavOpen)}
-            aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
-          >
-            {mobileNavOpen ? (
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            )}
-          </button>
+          <div className={styles.headerPrimaryRow}>
+            {/* Mobile hamburger button */}
+            <button 
+              type="button"
+              className={styles.mobileMenuToggle}
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
+            >
+              {mobileNavOpen ? (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              )}
+            </button>
 
-          <div className={styles.courseSelectorWrapper}>
-            <h1 className={styles.pageTitle} style={{ marginRight: '1rem' }}>
+            <h1 className={styles.pageTitle}>
               {getPageTitle()}
             </h1>
+
+            {/* Compact metric on mobile row */}
+            <div className={styles.mobileHeaderMetric}>
+              <div className={`${styles.metricItem} ${styles.metricFlame}`} title="Active daily streak">
+                <svg className={styles.metricIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                </svg>
+                <span>{streak}d</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.headerControlsRow}>
             {pathname !== '/dashboard/my-courses' && (
               <div className={styles.customDropdownWrapper} ref={dropdownRef}>
                 {courses.length > 0 ? (
                   <button 
+                    type="button"
                     className={styles.dropdownToggle}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     aria-haspopup="listbox"
@@ -477,14 +503,14 @@ export default function DashboardLayout({ children }) {
                 )}
               </div>
             )}
-          </div>
-          
-          <div className={styles.headerMetrics}>
-            <div className={`${styles.metricItem} ${styles.metricFlame}`} title="Active daily streak">
-              <svg className={styles.metricIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-              </svg>
-              <span>{streak} Day Streak</span>
+
+            <div className={styles.desktopHeaderMetrics}>
+              <div className={`${styles.metricItem} ${styles.metricFlame}`} title="Active daily streak">
+                <svg className={styles.metricIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                </svg>
+                <span>{streak} Day Streak</span>
+              </div>
             </div>
           </div>
         </header>
